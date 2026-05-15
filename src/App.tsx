@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FallingSakuraPetals } from './components/FallingSakuraPetals';
 import { GardenScene } from './components/GardenScene';
-import { KawaiiMascot } from './components/KawaiiMascot';
+import { StickyKawaiiHeader } from './components/StickyKawaiiHeader';
 import { StarBurst } from './components/StarBurst';
 import { TaskList } from './components/TaskList';
 import { getCompletedCount, useTasks } from './hooks/useTasks';
@@ -173,14 +173,14 @@ export default function App() {
     <div className="app-shell">
       <FallingSakuraPetals reducedMotion={reducedMotion} />
       <div className="app">
-        <div className="app__top">
-          <KawaiiMascot
-            ref={mascotRef}
-            message={mascotMessage}
-            visible={speechVisible}
-            dancing={mascotDancing}
-          />
+        <StickyKawaiiHeader
+          ref={mascotRef}
+          message={mascotMessage}
+          visible={speechVisible}
+          dancing={mascotDancing}
+        />
 
+        <div className="app-body">
           <div className="app-toolbar">
             <button
               type="button"

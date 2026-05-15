@@ -18,7 +18,7 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
       .join(' ');
 
     return (
-      <header className="kawaii-header">
+      <div className="kawaii-header">
         <div className="kawaii-header__inner">
           <div ref={ref} className={mascotClass}>
             <MascotImage className="mascot__render" />
@@ -37,7 +37,7 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
             <p className="app-subtitle">Complete tasks — grow your garden ✿</p>
           </div>
         </div>
-      </header>
+      </div>
     );
   },
 );
