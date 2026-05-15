@@ -24,6 +24,13 @@ interface TaskRowProps {
 type AnimDirection = 'complete' | 'uncomplete' | null;
 
 const WILT_DURATION_MS = 320;
+const PETAL_BLOOM_MS = 350;
+const PETAL_BLOOM_STAGGER_MS = 40;
+
+/** Wait for staggered petal + center bloom before firing onComplete (hearts, etc.). */
+function getFlowerBloomSettleMs(petalCount: number): number {
+  return PETAL_BLOOM_MS + (petalCount - 1) * PETAL_BLOOM_STAGGER_MS;
+}
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
@@ -109,6 +116,8 @@ export function TaskRow({
         return;
       }
 
+      const bloomSettleMs = getFlowerBloomSettleMs(animTier.petalCount);
+
       setIsAnimating(true);
       setWilting(false);
       playGrowSound(completionIdx, duration, muted);
@@ -125,11 +134,11 @@ export function TaskRow({
         } else {
           setBlooming(true);
           playBloomSound(completionIdx, muted);
-          onComplete(task.id, completionIdx);
           setTimeout(() => {
+            onComplete(task.id, completionIdx);
             setIsAnimating(false);
             setAnimDirection(null);
-          }, 350);
+          }, bloomSettleMs);
         }
       };
 
