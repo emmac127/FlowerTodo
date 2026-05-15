@@ -1,0 +1,115 @@
+let audioCtx: AudioContext | null = null;
+
+function getContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+  }
+  if (audioCtx.state === 'suspended') {
+    void audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playTone(
+  frequency: number,
+  startTime: number,
+  duration: number,
+  volume: number,
+  type: OscillatorType = 'sine',
+) {
+  const ctx = getContext();
+  if (!ctx) return;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = type;
+  osc.frequency.setValueAtTime(frequency, startTime);
+
+  gain.gain.setValueAtTime(0, startTime);
+  gain.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(startTime);
+  osc.stop(startTime + duration + 0.05);
+}
+
+export function playGrowSound(completedCount: number, durationMs: number, muted: boolean) {
+  if (muted) return;
+  const ctx = getContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const baseFreq = 320 + completedCount * 18;
+  const steps = 4;
+  const stepDur = durationMs / 1000 / steps;
+
+  for (let i = 0; i < steps; i++) {
+    playTone(baseFreq + i * 40, now + i * stepDur * 0.85, stepDur * 1.2, 0.06, 'sine');
+  }
+}
+
+export function playBloomSound(completedCount: number, muted: boolean) {
+  if (muted) return;
+  const ctx = getContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const base = 480 + completedCount * 12;
+  playTone(base, now, 0.18, 0.08, 'triangle');
+  playTone(base * 1.25, now + 0.1, 0.22, 0.07, 'sine');
+  playTone(base * 1.5, now + 0.18, 0.15, 0.05, 'sine');
+}
+
+export function playWiltSound(completedCount: number, muted: boolean) {
+  if (muted) return;
+  const ctx = getContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const base = 420 + completedCount * 10;
+  playTone(base, now, 0.2, 0.06, 'triangle');
+  playTone(base * 0.85, now + 0.12, 0.25, 0.05, 'sine');
+}
+
+export function playRetractSound(completedCount: number, durationMs: number, muted: boolean) {
+  if (muted) return;
+  const ctx = getContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const baseFreq = 380 + completedCount * 12;
+  const steps = 3;
+  const stepDur = durationMs / 1000 / steps;
+
+  for (let i = 0; i < steps; i++) {
+    playTone(baseFreq - i * 35, now + i * stepDur * 0.85, stepDur * 1.1, 0.05, 'sine');
+  }
+}
+
+/** Cheerful short tune for completing the picked task. Returns duration in ms. */
+export function playCelebrationTune(muted: boolean): number {
+  if (muted) return 0;
+  const ctx = getContext();
+  if (!ctx) return 0;
+
+  const now = ctx.currentTime;
+  const notes = [523, 659, 784, 988, 784, 988, 1175];
+  const noteDur = 0.14;
+  const gap = 0.02;
+
+  notes.forEach((freq, i) => {
+    const start = now + i * (noteDur + gap);
+    playTone(freq, start, noteDur * 1.1, 0.07, i % 2 === 0 ? 'triangle' : 'sine');
+  });
+
+  return Math.round((notes.length * (noteDur + gap) + 0.1) * 1000);
+}
+
+export function unlockAudio() {
+  void getContext()?.resume();
+}

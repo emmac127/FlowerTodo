@@ -1,0 +1,935 @@
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&family=Nunito:wght@400;700&display=swap');
+
+:root {
+  --bg-top: #fff5f8;
+  --bg-bottom: #ffeef5;
+  --card: #ffffff;
+  --card-border: #ffd6e8;
+  --text: #5c4a5a;
+  --text-muted: #9a8a96;
+  --accent: #ff8fab;
+  --accent-hover: #ff6b95;
+  --checkbox-border: #ffb7d5;
+  --shadow: 0 4px 20px rgba(255, 143, 171, 0.15);
+  --radius: 16px;
+  --font: 'M PLUS Rounded 1c', 'Nunito', system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font);
+  color: var(--text);
+  background: linear-gradient(165deg, var(--bg-top) 0%, var(--bg-bottom) 50%, #fff9fc 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ambient sakura petals (behind UI) */
+.falling-sakura {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.falling-sakura__petal {
+  position: absolute;
+  top: -8vh;
+  margin-left: -50%;
+  border-radius: 50% 50% 50% 50% / 55% 55% 45% 45%;
+  transform-origin: center center;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+  opacity: 0;
+  animation:
+    sakuraFall var(--duration, 28s) var(--delay, 0s) linear infinite,
+    sakuraSway calc(var(--duration, 28s) * 0.45) var(--delay, 0s) ease-in-out infinite alternate;
+}
+
+@keyframes sakuraFall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -12vh, 0) rotate(0deg) scale(0.85);
+  }
+  8% {
+    opacity: var(--peak-opacity, 0.6);
+  }
+  88% {
+    opacity: var(--peak-opacity, 0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift, 0), 112vh, 0) rotate(var(--spin, 360deg)) scale(1);
+  }
+}
+
+@keyframes sakuraSway {
+  0% {
+    margin-left: calc(-50% - var(--sway, 3vw));
+  }
+  100% {
+    margin-left: calc(-50% + var(--sway, 3vw));
+  }
+}
+
+.app {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 11rem;
+}
+
+.app__top {
+  position: relative;
+}
+
+.app-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.5rem 0 0.75rem;
+}
+
+.app--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  color: var(--text-muted);
+}
+
+/* Kawaii mascot header */
+.kawaii-header {
+  margin-bottom: 0.5rem;
+}
+
+.kawaii-header__inner {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.kawaii-header__text {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.mascot {
+  flex-shrink: 0;
+  line-height: 0;
+  background: transparent;
+}
+
+.mascot__render {
+  display: block;
+  width: auto;
+  height: clamp(100px, 18vh, 160px);
+  overflow: visible;
+  background: transparent;
+  animation: mascotBob 3s ease-in-out infinite;
+  user-select: none;
+  pointer-events: none;
+}
+
+@keyframes mascotBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.mascot--cheering .mascot__render {
+  animation: mascotCheer 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mascot--dancing .mascot__render {
+  animation: mascotHop 0.35s ease-in-out 4;
+}
+
+@keyframes mascotHop {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-18px) scale(1.05); }
+}
+
+@keyframes mascotCheer {
+  0%, 100% { transform: translateY(0) scale(1); }
+  40% { transform: translateY(-8px) scale(1.06); }
+}
+
+.mascot-speech {
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: 0;
+  max-width: min(14rem, 100%);
+  padding: 0.55rem 0.85rem;
+  background: #fff;
+  border: 2px solid var(--card-border);
+  border-radius: 14px 14px 14px 4px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(8px) scale(0.95);
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.mascot-speech--visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.mascot-speech__text {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.app-subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.mute-toggle {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--card-border);
+  border-radius: 50%;
+  background: var(--card);
+  font-size: 1.25rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mute-toggle:hover {
+  transform: scale(1.08);
+}
+
+.mute-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.add-task-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.add-task-input {
+  flex: 1;
+  padding: 0.85rem 1rem;
+  border: 2px solid var(--card-border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 1rem;
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s;
+}
+
+.add-task-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.add-task-input::placeholder {
+  color: var(--text-muted);
+}
+
+.add-task-btn {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--accent), #ffb7d5);
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.add-task-btn:hover {
+  transform: scale(1.05);
+}
+
+.add-task-btn:active {
+  transform: scale(0.98);
+}
+
+.app-main {
+  min-height: 200px;
+}
+
+.pick-task-btn {
+  width: 100%;
+  margin-bottom: 0.85rem;
+  padding: 0.7rem 1rem;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #fff5f9, #ffeef5);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.pick-task-btn:hover:not(:disabled) {
+  transform: scale(1.02);
+  background: #fff;
+  border-color: var(--accent-hover);
+}
+
+.pick-task-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.task-row--picked {
+  border-color: #ffe566;
+  background: #fffef5;
+  box-shadow:
+    0 0 0 3px rgba(255, 229, 102, 0.45),
+    var(--shadow);
+  animation: pickedPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pickedPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255, 229, 102, 0.35), var(--shadow); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 143, 171, 0.35), var(--shadow); }
+}
+
+.star-burst {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.star-burst__comet {
+  position: fixed;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.star-burst__spiral-arm {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  animation: spiralFly 7.8s cubic-bezier(0.15, 0.55, 0.25, 1) forwards;
+}
+
+.star-burst__star {
+  position: absolute;
+  left: 0;
+  top: 0;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 2px 10px rgba(255, 143, 171, 0.6));
+  animation: starSparkle 7.8s cubic-bezier(0.15, 0.55, 0.25, 1) forwards;
+  opacity: 0;
+}
+
+.star-burst__star--head {
+  z-index: 2;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 1))
+    drop-shadow(0 0 18px rgba(255, 229, 102, 0.85))
+    drop-shadow(0 3px 12px rgba(255, 143, 171, 0.65));
+}
+
+.star-burst__star--trail {
+  z-index: 1;
+  animation-name: starSparkleTrail;
+  filter: blur(1.5px)
+    drop-shadow(0 0 5px rgba(255, 255, 255, 0.75))
+    drop-shadow(0 1px 6px rgba(255, 143, 171, 0.45));
+}
+
+.star-burst__streak {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: right center;
+  transform: translate(-100%, -50%);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--streak-color, #ffe566) 15%, transparent) 25%,
+    color-mix(in srgb, var(--streak-color, #ffe566) 70%, white) 55%,
+    var(--streak-color, #ffe566) 100%
+  );
+  filter: blur(4px);
+  opacity: 0;
+  z-index: 0;
+  animation: streakGlow 7.8s cubic-bezier(0.15, 0.55, 0.25, 1) forwards;
+}
+
+@keyframes spiralFly {
+  0% {
+    transform: rotate(var(--start-angle)) translateX(0);
+  }
+  100% {
+    transform: rotate(calc(var(--start-angle) + var(--spiral-turns))) translateX(var(--spiral-radius));
+  }
+}
+
+@keyframes starSparkle {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.55) rotate(0deg);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.15) rotate(220deg);
+  }
+}
+
+@keyframes starSparkleTrail {
+  0% {
+    opacity: var(--trail-peak, 0.5);
+    transform: translate(-50%, -50%) scale(0.5) rotate(0deg);
+  }
+  70% {
+    opacity: calc(var(--trail-peak, 0.5) * 0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95) rotate(200deg);
+  }
+}
+
+@keyframes streakGlow {
+  0% {
+    opacity: 0.75;
+    transform: translate(-100%, -50%) scaleX(0.35);
+  }
+  75% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-100%, -50%) scaleX(1.1);
+  }
+}
+
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--card);
+  border: 2px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s;
+}
+
+.task-row--completed {
+  border-color: #c8f0c8;
+  background: #fffefe;
+}
+
+.task-checkbox-label {
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.task-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.checkbox-face {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 2.5px solid var(--checkbox-border);
+  border-radius: 8px;
+  background: #fff;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.2s, border-color 0.2s;
+}
+
+.task-checkbox-label:hover .checkbox-face {
+  transform: scale(1.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 143, 171, 0.2);
+}
+
+.task-checkbox:checked + .checkbox-face,
+.task-checkbox:disabled:checked + .checkbox-face {
+  background: linear-gradient(135deg, #b8f0b8, #8ed98e);
+  border-color: #6bc96b;
+}
+
+.task-checkbox:checked + .checkbox-face::after,
+.task-checkbox:disabled:checked + .checkbox-face::after {
+  content: '✓';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 14px;
+  color: #2d6b2d;
+  font-weight: 700;
+}
+
+.task-text-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 0.15rem 0;
+}
+
+.task-text {
+  display: inline-block;
+  font-size: 1rem;
+  line-height: 1.4;
+  word-break: break-word;
+  transition: opacity 0.3s;
+}
+
+.task-text--struck {
+  text-decoration: line-through;
+  text-decoration-color: #6bc96b;
+  text-decoration-thickness: 2px;
+}
+
+.stem-overlay {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  overflow: visible;
+}
+
+.stem-strike-svg {
+  display: block;
+  overflow: visible;
+}
+
+.flower-anchor {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.flower-petal {
+  transform-origin: center;
+  transform-box: fill-box;
+  transform: scale(0);
+  opacity: 0;
+}
+
+.flower-petal--open {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.flower-petal--bloom {
+  animation: petalBloom 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.flower-petal--wilt {
+  animation: petalWilt 0.32s ease-in forwards;
+}
+
+.flower-anchor--wilt {
+  animation: flowerDroop 0.32s ease-in forwards;
+}
+
+.flower-svg--wilting {
+  filter: saturate(0.7);
+}
+
+.flower-svg--blooming .flower-center {
+  animation: centerPop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s forwards;
+}
+
+@keyframes petalBloom {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes centerPop {
+  from {
+    transform: scale(0.5);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes petalWilt {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.2) rotate(18deg);
+    opacity: 0;
+  }
+}
+
+@keyframes flowerDroop {
+  from {
+    transform: translateY(0) scale(1);
+  }
+  to {
+    transform: translateY(6px) scale(0.75);
+    opacity: 0.6;
+  }
+}
+
+.task-delete {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s, color 0.2s, background 0.2s;
+}
+
+.task-row:hover .task-delete {
+  opacity: 1;
+}
+
+.task-delete:hover:not(:disabled) {
+  color: var(--accent);
+  background: #fff0f5;
+}
+
+.task-delete:disabled {
+  cursor: not-allowed;
+}
+
+.task-list-footer {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.clear-completed {
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--card);
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.clear-completed:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+}
+
+.empty-state__flower {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1.25rem;
+}
+
+.empty-petal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 22px;
+  margin: -11px 0 0 -9px;
+  background: #ffb7d5;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  transform-origin: center 28px;
+}
+
+.empty-petal--1 { transform: rotate(0deg); background: #ffb7d5; }
+.empty-petal--2 { transform: rotate(72deg); background: #fff4a3; }
+.empty-petal--3 { transform: rotate(144deg); background: #d4b5ff; }
+.empty-petal--4 { transform: rotate(216deg); background: #a8f0d4; }
+.empty-petal--5 { transform: rotate(288deg); background: #ffc9a8; }
+
+.empty-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  background: #ffe566;
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+
+.empty-state__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.empty-state__hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Garden scene (fixed bottom) */
+.garden-scene {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  height: clamp(100px, 22vh, 160px);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.garden-scene__sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(184, 232, 168, 0.15) 40%,
+    rgba(142, 217, 142, 0.35) 100%
+  );
+}
+
+.garden-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  animation: gardenReveal 0.7s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+@keyframes gardenReveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.garden-layer--grass {
+  height: 55%;
+}
+
+.garden-layer--tufts {
+  height: 45%;
+  bottom: 38%;
+}
+
+.garden-layer--pond {
+  left: 8%;
+  right: 52%;
+  height: 28%;
+  bottom: 32%;
+  border-radius: 50% 50% 45% 45%;
+  overflow: hidden;
+  opacity: 0.9;
+}
+
+.garden-layer--petals {
+  inset: 0;
+  height: 100%;
+  opacity: 0.75;
+}
+
+.garden-doodle {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.garden-svg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 85%;
+}
+
+.garden-svg--tree {
+  left: auto;
+  right: 0;
+  width: min(34%, 140px);
+  height: 92%;
+  z-index: 2;
+}
+
+.garden-sakura-tree,
+.garden-bridge-piers,
+.garden-bridge,
+.garden-lanterns,
+.garden-lanterns-extra,
+.garden-bush,
+.garden-ground-flower {
+  animation: gardenPop 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+@keyframes gardenPop {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.grass-tuft {
+  position: absolute;
+  bottom: 0;
+  width: 12px;
+  height: 22px;
+  background: linear-gradient(#8ed98e, #5cb85c);
+  border-radius: 50% 50% 20% 20%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.grass-tuft--1 { left: 12%; height: 18px; }
+.grass-tuft--2 { left: 28%; height: 26px; }
+.grass-tuft--3 { left: 72%; height: 20px; }
+.grass-tuft--4 { left: 88%; height: 24px; }
+
+.garden-scene__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flower-petal--bloom,
+  .flower-petal--wilt,
+  .flower-anchor--wilt,
+  .flower-svg--blooming .flower-center {
+    animation: none;
+  }
+
+  .flower-petal,
+  .flower-petal--open {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  .mute-toggle:hover,
+  .add-task-btn:hover,
+  .task-checkbox-label:hover .checkbox-face {
+    transform: none;
+  }
+
+  .mascot__render,
+  .mascot--dancing .mascot__render,
+  .task-row--picked,
+  .falling-sakura__petal,
+  .star-burst__spiral-arm,
+  .star-burst__star,
+  .star-burst__streak,
+  .garden-layer,
+  .garden-sakura-tree,
+  .garden-bridge-piers,
+  .garden-bridge,
+  .garden-lanterns,
+  .garden-lanterns-extra,
+  .garden-bush,
+  .garden-ground-flower {
+    animation: none;
+  }
+}
