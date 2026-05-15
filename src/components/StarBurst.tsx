@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 interface StarBurstProps {
   active: boolean;
+  burstId: number;
   originX: number;
   originY: number;
   onComplete?: () => void;
@@ -44,14 +45,14 @@ function SpiralArm({
   );
 }
 
-export function StarBurst({ active, originX, originY, onComplete }: StarBurstProps) {
+export function StarBurst({
+  active,
+  burstId,
+  originX,
+  originY,
+  onComplete,
+}: StarBurstProps) {
   const [visible, setVisible] = useState(false);
-
-  const [burstKey, setBurstKey] = useState(0);
-
-  useEffect(() => {
-    if (active) setBurstKey((k) => k + 1);
-  }, [active]);
 
   const stars = useMemo<Star[]>(() => {
     return Array.from({ length: 14 }, (_, i) => {
@@ -70,7 +71,7 @@ export function StarBurst({ active, originX, originY, onComplete }: StarBurstPro
         spiralRadius: `${distance * 1.15}vmin`,
       };
     });
-  }, [burstKey]);
+  }, [burstId]);
 
   useEffect(() => {
     if (!active) {
@@ -83,7 +84,7 @@ export function StarBurst({ active, originX, originY, onComplete }: StarBurstPro
       onComplete?.();
     }, BURST_DURATION_MS);
     return () => clearTimeout(timer);
-  }, [active, onComplete]);
+  }, [active, burstId, onComplete]);
 
   if (!visible) return null;
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FallingSakuraPetals } from './components/FallingSakuraPetals';
 import { GardenScene } from './components/GardenScene';
 import { StickyKawaiiHeader } from './components/StickyKawaiiHeader';
+import { SpiralCelebration } from './components/SpiralCelebration';
 import { StarBurst } from './components/StarBurst';
 import { TaskList } from './components/TaskList';
 import { getCompletedCount, useTasks } from './hooks/useTasks';
@@ -34,7 +35,10 @@ export default function App() {
   const [pickedTaskId, setPickedTaskId] = useState<string | null>(null);
   const [mascotDancing, setMascotDancing] = useState(false);
   const [starsActive, setStarsActive] = useState(false);
-  const [starOrigin, setStarOrigin] = useState({ x: 72, y: 100 });
+  const [starsBurstId, setStarsBurstId] = useState(0);
+  const [spiralActive, setSpiralActive] = useState(false);
+  const [spiralBurstId, setSpiralBurstId] = useState(0);
+  const [celebrationOrigin, setCelebrationOrigin] = useState({ x: 72, y: 100 });
 
   const inputRef = useRef<HTMLInputElement>(null);
   const mascotRef = useRef<HTMLDivElement>(null);
@@ -72,11 +76,21 @@ export default function App() {
     const el = mascotRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    setStarOrigin({
+    setCelebrationOrigin({
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height * 0.35,
     });
   }, []);
+
+  const runNormalCelebration = useCallback(() => {
+    showMascotCheer();
+    if (reducedMotion) return;
+    setSpiralBurstId((n) => n + 1);
+    requestAnimationFrame(() => {
+      measureMascotOrigin();
+      setSpiralActive(true);
+    });
+  }, [measureMascotOrigin, reducedMotion, showMascotCheer]);
 
   const runPickedCelebration = useCallback(() => {
     showMascotCheer(PICKED_CELEBRATION_PHRASE);
@@ -94,8 +108,11 @@ export default function App() {
     if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
     celebrationTimerRef.current = setTimeout(() => {
       setMascotDancing(false);
-      measureMascotOrigin();
-      setStarsActive(true);
+      setStarsBurstId((n) => n + 1);
+      requestAnimationFrame(() => {
+        measureMascotOrigin();
+        setStarsActive(true);
+      });
     }, waitMs);
   }, [muted, measureMascotOrigin, reducedMotion, showMascotCheer]);
 
@@ -121,10 +138,10 @@ export default function App() {
         setPickedTaskId(null);
         runPickedCelebration();
       } else {
-        showMascotCheer();
+        runNormalCelebration();
       }
     },
-    [completeTask, pickedTaskId, runPickedCelebration, showMascotCheer],
+    [completeTask, pickedTaskId, runNormalCelebration, runPickedCelebration],
   );
 
   const handleUncomplete = useCallback(
@@ -228,10 +245,21 @@ export default function App() {
         </div>
       </div>
 
+      <SpiralCelebration
+        key={spiralBurstId}
+        active={spiralActive}
+        burstId={spiralBurstId}
+        originX={celebrationOrigin.x}
+        originY={celebrationOrigin.y}
+        onComplete={() => setSpiralActive(false)}
+      />
+
       <StarBurst
+        key={starsBurstId}
         active={starsActive}
-        originX={starOrigin.x}
-        originY={starOrigin.y}
+        burstId={starsBurstId}
+        originX={celebrationOrigin.x}
+        originY={celebrationOrigin.y}
         onComplete={() => setStarsActive(false)}
       />
 
