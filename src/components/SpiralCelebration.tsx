@@ -10,7 +10,6 @@ interface SpiralCelebrationProps {
 
 interface Particle {
   id: number;
-  kind: 'heart' | 'flower';
   angle: number;
   distance: number;
   size: number;
@@ -20,8 +19,7 @@ interface Particle {
   spiralRadius: string;
 }
 
-const HEART_COLORS = ['#ff6b95', '#ff8fab', '#ffb7d5', '#ffc9dd'];
-const FLOWER_COLORS = ['#ffb7d5', '#fff4a3', '#d4b5ff', '#ffe566', '#ffc9a8'];
+const HEART_COLORS = ['#ff6b95', '#ff8fab', '#ffb7d5', '#ffc9dd', '#fff0f6'];
 const PARTICLE_COUNT = 12;
 const TRAIL_SEGMENTS = 3;
 const TRAIL_LAG_S = 0.16;
@@ -43,55 +41,20 @@ function SpiralArm({
   );
 }
 
-function ParticleShape({
-  kind,
-  size,
-  color,
-}: {
-  kind: 'heart' | 'flower';
-  size: number;
-  color: string;
-}) {
-  if (kind === 'heart') {
-    return (
-      <svg
-        className="spiral-celebration__heart"
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        aria-hidden
-      >
-        <path
-          fill={color}
-          d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-        />
-      </svg>
-    );
-  }
-
+function HeartShape({ size, color }: { size: number; color: string }) {
   return (
-    <span className="spiral-celebration__flower" style={{ width: size, height: size }}>
-      {[0, 72, 144, 216, 288].map((rotation) => (
-        <span
-          key={rotation}
-          className="spiral-celebration__flower-petal"
-          style={{
-            backgroundColor: color,
-            transform: `translate(-50%, -50%) rotate(${rotation}deg) translateY(-${size * 0.28}px)`,
-            width: size * 0.42,
-            height: size * 0.52,
-          }}
-        />
-      ))}
-      <span
-        className="spiral-celebration__flower-center"
-        style={{
-          width: size * 0.28,
-          height: size * 0.28,
-          backgroundColor: '#ffe566',
-        }}
+    <svg
+      className="spiral-celebration__heart"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <path
+        fill={color}
+        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
       />
-    </span>
+    </svg>
   );
 }
 
@@ -106,20 +69,17 @@ export function SpiralCelebration({
 
   const particles = useMemo<Particle[]>(() => {
     return Array.from({ length: PARTICLE_COUNT }, (_, i) => {
-      const kind: 'heart' | 'flower' = i % 2 === 0 ? 'heart' : 'flower';
       const distance = 40 + Math.random() * 35;
       const turnSign = Math.random() > 0.5 ? 1 : -1;
       const turnsDeg = turnSign * (420 + Math.random() * 280);
-      const palette = kind === 'heart' ? HEART_COLORS : FLOWER_COLORS;
 
       return {
         id: i,
-        kind,
         angle: (360 / PARTICLE_COUNT) * i + Math.random() * 22,
         distance,
         size: 14 + Math.random() * 12,
         delay: Math.random() * 0.15,
-        color: palette[i % palette.length],
+        color: HEART_COLORS[i % HEART_COLORS.length],
         spiralTurns: `${turnsDeg}deg`,
         spiralRadius: `${distance * 1.05}vmin`,
       };
@@ -175,11 +135,7 @@ export function SpiralCelebration({
                     className="spiral-celebration__particle spiral-celebration__particle--trail"
                     style={{ ['--trail-peak' as string]: `${0.5 - trailIndex * 0.12}` }}
                   >
-                    <ParticleShape
-                      kind={particle.kind}
-                      size={trailSize}
-                      color={particle.color}
-                    />
+                    <HeartShape size={trailSize} color={particle.color} />
                   </span>
                 </SpiralArm>
               );
@@ -193,7 +149,7 @@ export function SpiralCelebration({
               }}
             >
               <span className="spiral-celebration__particle spiral-celebration__particle--head">
-                <ParticleShape kind={particle.kind} size={particle.size} color={particle.color} />
+                <HeartShape size={particle.size} color={particle.color} />
               </span>
             </SpiralArm>
           </div>
