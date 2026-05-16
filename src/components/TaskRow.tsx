@@ -120,7 +120,6 @@ export function TaskRow({
 
       setIsAnimating(true);
       setWilting(false);
-      playGrowSound(completionIdx, duration, muted);
 
       const start = performance.now();
 
@@ -168,7 +167,6 @@ export function TaskRow({
     setBlooming(false);
     setWilting(true);
     setProgress(1);
-    playWiltSound(completionIdx, muted);
 
     const startWilt = performance.now();
 
@@ -224,12 +222,21 @@ export function TaskRow({
   const handleCheck = () => {
     if (isAnimating) return;
     unlockAudio();
-    measure();
 
     if (task.completed) {
+      const completionIdx = task.completionIndex ?? 1;
+      if (!muted && !reducedMotion) {
+        playWiltSound(completionIdx, muted);
+      }
+      measure();
       runUncompleteAnimation();
     } else {
       const idx = getNextCompletionIndex();
+      if (!muted && !reducedMotion) {
+        const tier = getGrowthTier(idx);
+        playGrowSound(idx, tier.growDurationMs, muted);
+      }
+      measure();
       runCompletionAnimation(idx);
     }
   };

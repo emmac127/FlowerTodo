@@ -1,12 +1,34 @@
 let audioCtx: AudioContext | null = null;
 
-function getContext(): AudioContext | null {
+/**
+ * Must run synchronously inside a user gesture (click/tap).
+ * Resumes a suspended context and plays a silent buffer so iOS/Safari
+ * allow scheduled tones immediately afterward.
+ */
+export function unlockAudio(): AudioContext | null {
   if (typeof window === 'undefined') return null;
+
   if (!audioCtx) {
     audioCtx = new AudioContext();
   }
+
   if (audioCtx.state === 'suspended') {
     void audioCtx.resume();
+  }
+
+  const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(audioCtx.destination);
+  source.start(0);
+
+  return audioCtx;
+}
+
+function getContext(): AudioContext | null {
+  if (!audioCtx) return unlockAudio();
+  if (audioCtx.state === 'suspended') {
+    return unlockAudio();
   }
   return audioCtx;
 }
@@ -28,7 +50,7 @@ function playTone(
   osc.frequency.setValueAtTime(frequency, startTime);
 
   gain.gain.setValueAtTime(0, startTime);
-  gain.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+  gain.gain.linearRampToValueAtTime(volume, startTime + 0.008);
   gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
   osc.connect(gain);
@@ -108,8 +130,4 @@ export function playCelebrationTune(muted: boolean): number {
   });
 
   return Math.round((notes.length * (noteDur + gap) + 0.1) * 1000);
-}
-
-export function unlockAudio() {
-  void getContext()?.resume();
 }
