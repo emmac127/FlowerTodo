@@ -91,7 +91,7 @@ export function TaskRow({
   }, [measure, task.text]);
 
   useEffect(() => {
-    if (isAnimating) return;
+    if (isAnimating || animDirection === 'complete') return;
     if (task.completed && task.completionIndex != null) {
       setActiveTier(getGrowthTier(task.completionIndex));
       setProgress(1);
@@ -101,9 +101,9 @@ export function TaskRow({
       setProgress(0);
       setBlooming(false);
       setWilting(false);
-      if (!isAnimating) setActiveTier(null);
+      setActiveTier(null);
     }
-  }, [task.completed, task.completionIndex, isAnimating]);
+  }, [animDirection, isAnimating, task.completed, task.completionIndex]);
 
   const runCompletionAnimation = useCallback(
     (completionIdx: number) => {

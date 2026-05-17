@@ -46,7 +46,7 @@ export default function App() {
   const speechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPhraseRef = useRef<string | undefined>(undefined);
-  const lastCelebrationKeyRef = useRef<string | null>(null);
+  const lastCelebrationRef = useRef<{ key: string; at: number } | null>(null);
   const reducedMotion = usePrefersReducedMotion();
 
   const {
@@ -136,8 +136,12 @@ export default function App() {
   const handleTaskCompleted = useCallback(
     (id: string, completionIndex: number) => {
       const celebrationKey = `${id}:${completionIndex}`;
-      if (lastCelebrationKeyRef.current === celebrationKey) return;
-      lastCelebrationKeyRef.current = celebrationKey;
+      const now = Date.now();
+      const last = lastCelebrationRef.current;
+      if (last && last.key === celebrationKey && now - last.at < 200) {
+        return;
+      }
+      lastCelebrationRef.current = { key: celebrationKey, at: now };
 
       const wasPicked = id === pickedTaskId;
       completeTask(id, completionIndex);
@@ -146,10 +150,7 @@ export default function App() {
         runPickedCelebration();
         return;
       }
-      else{
-        runNormalCelebration();
-      }
-      
+      runNormalCelebration();
     },
     [completeTask, pickedTaskId, runNormalCelebration, runPickedCelebration],
   );
@@ -157,6 +158,7 @@ export default function App() {
   const handleUncomplete = useCallback(
     (id: string) => {
       if (id === pickedTaskId) setPickedTaskId(null);
+      lastCelebrationRef.current = null;
       uncompleteTask(id);
     },
     [pickedTaskId, uncompleteTask],
