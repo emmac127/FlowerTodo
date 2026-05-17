@@ -85,6 +85,16 @@ export default function App() {
     });
   }, []);
 
+  const dismissCelebrations = useCallback(() => {
+    setSpiralActive(false);
+    setStarsActive(false);
+    setMascotDancing(false);
+    if (celebrationTimerRef.current) {
+      clearTimeout(celebrationTimerRef.current);
+      celebrationTimerRef.current = null;
+    }
+  }, []);
+
   const runNormalCelebration = useCallback(() => {
     showMascotCheer();
     if (reducedMotion) return;
@@ -159,9 +169,10 @@ export default function App() {
     (id: string) => {
       if (id === pickedTaskId) setPickedTaskId(null);
       lastCelebrationRef.current = null;
+      dismissCelebrations();
       uncompleteTask(id);
     },
-    [pickedTaskId, uncompleteTask],
+    [dismissCelebrations, pickedTaskId, uncompleteTask],
   );
 
   const handleDelete = useCallback(

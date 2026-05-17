@@ -67,6 +67,19 @@ export function TaskRow({
   const [activeTier, setActiveTier] = useState<GrowthTier | null>(
     task.completionIndex != null ? getGrowthTier(task.completionIndex) : null,
   );
+  const completionRafRef = useRef<number | null>(null);
+  const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelCompletionAnimation = useCallback(() => {
+    if (completionRafRef.current != null) {
+      cancelAnimationFrame(completionRafRef.current);
+      completionRafRef.current = null;
+    }
+    if (completionTimeoutRef.current != null) {
+      clearTimeout(completionTimeoutRef.current);
+      completionTimeoutRef.current = null;
+    }
+  }, []);
 
   const tier =
     activeTier ??
@@ -91,7 +104,7 @@ export function TaskRow({
   }, [measure, task.text]);
 
   useEffect(() => {
-    if (isAnimating || animDirection === 'complete') return;
+    if (isAnimating) return;
     if (task.completed && task.completionIndex != null) {
       setActiveTier(getGrowthTier(task.completionIndex));
       setProgress(1);
@@ -103,7 +116,7 @@ export function TaskRow({
       setWilting(false);
       setActiveTier(null);
     }
-  }, [animDirection, isAnimating, task.completed, task.completionIndex]);
+  }, [isAnimating, task.completed, task.completionIndex]);
 
   const runCompletionAnimation = useCallback(
     (completionIdx: number) => {
@@ -135,11 +148,12 @@ export function TaskRow({
         setProgress(easeOutCubic(t));
 
         if (t < 1) {
-          requestAnimationFrame(tick);
+          completionRafRef.current = requestAnimationFrame(tick);
         } else {
           setBlooming(true);
           playBloomSound(completionIdx, muted);
-          setTimeout(() => {
+          completionTimeoutRef.current = setTimeout(() => {
+            completionTimeoutRef.current = null;
             onComplete(task.id, completionIdx);
             setIsAnimating(false);
             setAnimDirection(null);
@@ -147,12 +161,13 @@ export function TaskRow({
         }
       };
 
-      requestAnimationFrame(tick);
+      completionRafRef.current = requestAnimationFrame(tick);
     },
     [muted, onComplete, reducedMotion, task.id],
   );
 
-  const runUncompleteAnimation = useCallback(() => {
+  const runUncompleteAnimation = useCallback((options?: { skipStateUpdate?: boolean }) => {
+    const skipStateUpdate = options?.skipStateUpdate ?? false;
     const completionIdx = task.completionIndex ?? 1;
     const animTier = getGrowthTier(completionIdx);
     setActiveTier(animTier);
@@ -164,7 +179,8 @@ export function TaskRow({
       setProgress(0);
       setBlooming(false);
       setWilting(false);
-      onUncomplete(task.id);
+      if (!skipStateUpdate) onUncomplete(task.id);
+      setIsAnimating(false);
       setAnimDirection(null);
       return;
     }
@@ -182,7 +198,7 @@ export function TaskRow({
 
       if (retractDuration === 0) {
         setProgress(0);
-        onUncomplete(task.id);
+        if (!skipStateUpdate) onUncomplete(task.id);
         setIsAnimating(false);
         setAnimDirection(null);
         return;
@@ -199,7 +215,7 @@ export function TaskRow({
           requestAnimationFrame(tickRetract);
         } else {
           setProgress(0);
-          onUncomplete(task.id);
+          if (!skipStateUpdate) onUncomplete(task.id);
           setIsAnimating(false);
           setAnimDirection(null);
         }
@@ -225,34 +241,40 @@ export function TaskRow({
     requestAnimationFrame(tickWilt);
   }, [muted, onUncomplete, reducedMotion, task.completionIndex, task.id]);
 
-  const handleCheck = () => {
-    if (isAnimating) return;
-    unlockAudio();
-
-    if (task.completed) {
-      const completionIdx = task.completionIndex ?? 1;
-      if (!muted && !reducedMotion) {
-        playWiltSound(completionIdx, muted);
-      }
-      measure();
-      runUncompleteAnimation();
-    } else {
-      const idx = getNextCompletionIndex();
-      if (!muted && !reducedMotion) {
-        const tier = getGrowthTier(idx);
-        playGrowSound(idx, tier.growDurationMs, muted);
-      }
-      measure();
-      runCompletionAnimation(idx);
-    }
-  };
-
   const checkboxChecked =
     animDirection === 'complete'
       ? true
       : animDirection === 'uncomplete'
         ? false
         : task.completed;
+
+  const handleCheck = () => {
+    unlockAudio();
+    const markingComplete = !checkboxChecked;
+
+    if (!markingComplete) {
+      cancelCompletionAnimation();
+      setIsAnimating(false);
+      const completionIdx = task.completionIndex ?? 1;
+      if (!muted && !reducedMotion) {
+        playWiltSound(completionIdx, muted);
+      }
+      measure();
+      onUncomplete(task.id);
+      runUncompleteAnimation({ skipStateUpdate: true });
+      return;
+    }
+
+    if (isAnimating) return;
+
+    const idx = getNextCompletionIndex();
+    if (!muted && !reducedMotion) {
+      const tier = getGrowthTier(idx);
+      playGrowSound(idx, tier.growDurationMs, muted);
+    }
+    measure();
+    runCompletionAnimation(idx);
+  };
 
   const showStem = task.completed || isAnimating || progress > 0;
   const isStruck = progress >= 0.95;
@@ -319,10 +341,10 @@ export function TaskRow({
           type="checkbox"
           className="task-checkbox"
           checked={checkboxChecked}
-          disabled={isAnimating}
+          disabled={isAnimating && !checkboxChecked}
           onChange={handleCheck}
           aria-label={
-            task.completed
+            checkboxChecked
               ? `Mark "${task.text}" as not done`
               : `Mark "${task.text}" as complete`
           }
