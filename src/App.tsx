@@ -7,6 +7,11 @@ import { StarBurst } from './components/StarBurst';
 import { TaskList } from './components/TaskList';
 import { getCompletedCount, useTasks } from './hooks/useTasks';
 import { getGardenLevel } from './lib/gardenProgress';
+import {
+  DEFAULT_CELEBRATION_ORIGIN,
+  measureScreenCelebrationOrigin,
+  type CelebrationOrigin,
+} from './lib/mascotCelebration';
 import { pickMotivationalPhrase } from './lib/motivationalPhrases';
 import { playAddTaskSound, playCelebrationTune, unlockAudio } from './lib/sounds';
 
@@ -39,7 +44,8 @@ export default function App() {
   const [starsBurstId, setStarsBurstId] = useState(0);
   const [spiralActive, setSpiralActive] = useState(false);
   const [spiralBurstId, setSpiralBurstId] = useState(0);
-  const [celebrationOrigin, setCelebrationOrigin] = useState({ x: 72, y: 100 });
+  const [celebrationOrigin, setCelebrationOrigin] =
+    useState<CelebrationOrigin>(DEFAULT_CELEBRATION_ORIGIN);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const mascotRef = useRef<HTMLDivElement>(null);
@@ -58,6 +64,7 @@ export default function App() {
     deleteTask,
     clearCompleted,
     getNextCompletionIndex,
+    reorderTask,
   } = useTasks();
 
   const completedCount = getCompletedCount(tasks);
@@ -78,11 +85,7 @@ export default function App() {
   const measureMascotOrigin = useCallback(() => {
     const el = mascotRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    setCelebrationOrigin({
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height * 0.35,
-    });
+    setCelebrationOrigin(measureScreenCelebrationOrigin(el));
   }, []);
 
   const dismissCelebrations = useCallback(() => {
@@ -259,6 +262,7 @@ export default function App() {
               onDelete={handleDelete}
               getNextCompletionIndex={getNextCompletionIndex}
               onClearCompleted={clearCompleted}
+              onReorder={reorderTask}
             />
           </main>
         </div>
@@ -270,6 +274,8 @@ export default function App() {
         burstId={spiralBurstId}
         originX={celebrationOrigin.x}
         originY={celebrationOrigin.y}
+        startRadius={celebrationOrigin.startRadius}
+        maxRadius={celebrationOrigin.maxRadius}
         onComplete={() => setSpiralActive(false)}
       />
 
@@ -279,6 +285,8 @@ export default function App() {
         burstId={starsBurstId}
         originX={celebrationOrigin.x}
         originY={celebrationOrigin.y}
+        startRadius={celebrationOrigin.startRadius}
+        maxRadius={celebrationOrigin.maxRadius}
         onComplete={() => setStarsActive(false)}
       />
 

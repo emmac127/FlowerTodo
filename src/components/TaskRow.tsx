@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
+import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import type { Task } from '../hooks/useTasks';
 import { getGrowthTier, type GrowthTier } from '../lib/growthTier';
 import {
@@ -8,6 +9,7 @@ import {
   playWiltSound,
   unlockAudio,
 } from '../lib/sounds';
+import { ReorderGripIcon } from './ReorderGripIcon';
 import { StemStrikeSVG } from './StemStrikeSVG';
 
 interface TaskRowProps {
@@ -19,6 +21,13 @@ interface TaskRowProps {
   onUncomplete: (id: string) => void;
   onDelete: (id: string) => void;
   getNextCompletionIndex: () => number;
+  isDragging?: boolean;
+  isDroppingToBottom?: boolean;
+  showReorderHandle?: boolean;
+  dropHint?: 'above' | 'below' | null;
+  onRowPointerDown?: (e: React.PointerEvent) => void;
+  onRowPointerUp?: () => void;
+  onRowPointerCancel?: () => void;
 }
 
 type AnimDirection = 'complete' | 'uncomplete' | null;
@@ -53,6 +62,13 @@ export function TaskRow({
   onUncomplete,
   onDelete,
   getNextCompletionIndex,
+  isDragging = false,
+  isDroppingToBottom = false,
+  showReorderHandle = false,
+  dropHint = null,
+  onRowPointerDown,
+  onRowPointerUp,
+  onRowPointerCancel,
 }: TaskRowProps) {
   const textRef = useRef<HTMLSpanElement>(null);
   const rowRef = useRef<HTMLLIElement>(null);
@@ -69,6 +85,7 @@ export function TaskRow({
   );
   const completionRafRef = useRef<number | null>(null);
   const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const cancelCompletionAnimation = useCallback(() => {
     if (completionRafRef.current != null) {
@@ -312,11 +329,39 @@ export function TaskRow({
     ringH / 2,
   );
 
+  const rowClass = [
+    'task-row',
+    checkboxChecked && animDirection !== 'uncomplete' ? 'task-row--completed' : '',
+    showPickedRing ? 'task-row--picked' : '',
+    isDragging ? 'task-row--dragging' : '',
+    isDroppingToBottom ? 'task-row--dropping' : '',
+    dropHint === 'above' ? 'task-row--drop-above' : '',
+    dropHint === 'below' ? 'task-row--drop-below' : '',
+    showReorderHandle ? 'task-row--reorderable' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const handleDeleteClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    setDeleteConfirmOpen(false);
+    onDelete(task.id);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmOpen(false);
+  };
+
   return (
     <li
       ref={rowRef}
       id={`task-${task.id}`}
-      className={`task-row ${checkboxChecked && animDirection !== 'uncomplete' ? 'task-row--completed' : ''} ${showPickedRing ? 'task-row--picked' : ''}`}
+      data-task-id={task.id}
+      className={rowClass}
     >
       {showPickedRing && ringDims.w > 0 && (
         <svg
@@ -335,6 +380,18 @@ export function TaskRow({
             ry={ringRx}
           />
         </svg>
+      )}
+      {showReorderHandle && (
+        <span
+          className="task-row__grip"
+          role="img"
+          aria-label="Press and hold to reorder"
+          onPointerDown={onRowPointerDown}
+          onPointerUp={onRowPointerUp}
+          onPointerCancel={onRowPointerCancel}
+        >
+          <ReorderGripIcon />
+        </span>
       )}
       <label className="task-checkbox-label">
         <input
@@ -381,12 +438,18 @@ export function TaskRow({
       <button
         type="button"
         className="task-delete"
-        onClick={() => onDelete(task.id)}
+        onClick={handleDeleteClick}
         disabled={isAnimating}
         aria-label={`Delete "${task.text}"`}
       >
         ×
       </button>
+
+      <DeleteConfirmDialog
+        open={deleteConfirmOpen}
+        onCancel={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+      />
     </li>
   );
 }

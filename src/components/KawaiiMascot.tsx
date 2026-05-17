@@ -58,8 +58,6 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
               src={headerTitleSrc}
               alt="Flower To Do"
               className="app-header-logo"
-              width={480}
-              height={180}
               decoding="async"
             />
 

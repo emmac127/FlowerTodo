@@ -5,6 +5,8 @@ interface StarBurstProps {
   burstId: number;
   originX: number;
   originY: number;
+  startRadius: number;
+  maxRadius: number;
   onComplete?: () => void;
 }
 
@@ -17,6 +19,7 @@ interface Star {
   color: string;
   spiralTurns: string;
   spiralRadius: string;
+  startRadius: string;
 }
 
 const COLORS = ['#ffe566', '#ffb7d5', '#fff4a3', '#ff8fab', '#d4b5ff'];
@@ -50,28 +53,32 @@ export function StarBurst({
   burstId,
   originX,
   originY,
+  startRadius,
+  maxRadius,
   onComplete,
 }: StarBurstProps) {
   const [visible, setVisible] = useState(false);
 
   const stars = useMemo<Star[]>(() => {
-    return Array.from({ length: 14 }, (_, i) => {
-      const distance = 55 + Math.random() * 45;
+    return Array.from({ length: 16 }, (_, i) => {
       const turnSign = Math.random() > 0.5 ? 1 : -1;
-      const turnsDeg = turnSign * (520 + Math.random() * 380);
+      const turnsDeg = turnSign * (520 + Math.random() * 400);
+      const reach = maxRadius * (0.88 + Math.random() * 0.16);
+      const start = startRadius * (0.88 + Math.random() * 0.18);
 
       return {
         id: i,
-        angle: (360 / 14) * i + Math.random() * 18,
-        distance,
-        size: 34 + Math.random() * 30,
-        delay: Math.random() * 0.2,
+        angle: (360 / 16) * i + Math.random() * 16,
+        distance: reach,
+        size: 20 + Math.random() * 18,
+        delay: Math.random() * 0.25,
         color: COLORS[i % COLORS.length],
         spiralTurns: `${turnsDeg}deg`,
-        spiralRadius: `${distance * 1.15}vmin`,
+        spiralRadius: `${reach}px`,
+        startRadius: `${start}px`,
       };
     });
-  }, [burstId]);
+  }, [burstId, maxRadius, startRadius]);
 
   useEffect(() => {
     if (!active) {
@@ -95,6 +102,8 @@ export function StarBurst({
           '--start-angle': `${star.angle}deg`,
           '--spiral-turns': star.spiralTurns,
           '--spiral-radius': star.spiralRadius,
+          '--spiral-start-radius': star.startRadius,
+          '--spiral-duration': '8.2s',
         } as React.CSSProperties;
 
         return (

@@ -60,6 +60,33 @@ function playTone(
   osc.stop(startTime + duration + 0.05);
 }
 
+/** Bell-like strike with a longer, brighter decay (for completion dings). */
+function playBellStrike(
+  frequency: number,
+  startTime: number,
+  volume: number,
+  decay = 0.55,
+) {
+  const ctx = getContext();
+  if (!ctx) return;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(frequency, startTime);
+
+  gain.gain.setValueAtTime(0, startTime);
+  gain.gain.linearRampToValueAtTime(volume, startTime + 0.006);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + decay);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(startTime);
+  osc.stop(startTime + decay + 0.05);
+}
+
 export function playGrowSound(completedCount: number, durationMs: number, muted: boolean) {
   if (muted) return;
   const ctx = getContext();
@@ -75,16 +102,17 @@ export function playGrowSound(completedCount: number, durationMs: number, muted:
   }
 }
 
+/** Bright completion ding when the flower blooms (distinct from wilt/retract). */
 export function playBloomSound(completedCount: number, muted: boolean) {
   if (muted) return;
   const ctx = getContext();
   if (!ctx) return;
 
   const now = ctx.currentTime;
-  const base = 480 + completedCount * 12;
-  playTone(base, now, 0.18, 0.08, 'triangle');
-  playTone(base * 1.25, now + 0.1, 0.22, 0.07, 'sine');
-  playTone(base * 1.5, now + 0.18, 0.15, 0.05, 'sine');
+  const ding = 988 + Math.min(completedCount, 10) * 5;
+  playBellStrike(ding, now, 0.09, 0.5);
+  playBellStrike(ding * 2.02, now + 0.01, 0.028, 0.22);
+  playBellStrike(ding * 1.498, now + 0.11, 0.055, 0.38);
 }
 
 /** Gentle arpeggio when a new task is added. */
@@ -131,6 +159,17 @@ export function playRetractSound(completedCount: number, durationMs: number, mut
 }
 
 /** Cheerful short tune for completing the picked task. Returns duration in ms. */
+/** Short upward chime when a task settles to the bottom of the list. */
+export function playTaskDropSound(muted: boolean) {
+  if (muted) return;
+  const ctx = getContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  playBellStrike(587, now, 0.065, 0.28);
+  playBellStrike(740, now + 0.07, 0.042, 0.22);
+}
+
 export function playCelebrationTune(muted: boolean): number {
   if (muted) return 0;
   const ctx = getContext();

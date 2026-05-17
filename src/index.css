@@ -53,19 +53,27 @@ body {
   position: absolute;
   top: -8vh;
   margin-left: -50%;
-  border-radius: 50% 50% 50% 50% / 55% 55% 45% 45%;
   transform-origin: center center;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
   opacity: 0;
   animation:
     sakuraFall var(--duration, 28s) var(--delay, 0s) linear infinite,
     sakuraSway calc(var(--duration, 28s) * 0.45) var(--delay, 0s) ease-in-out infinite alternate;
 }
 
+.falling-sakura__blossom-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.falling-sakura__petal--blossom {
+  aspect-ratio: 1;
+}
+
 @keyframes sakuraFall {
   0% {
     opacity: 0;
-    transform: translate3d(0, -12vh, 0) rotate(0deg) scale(0.85);
+    transform: translate3d(0, -12vh, 0) rotate(var(--tilt, 0deg)) scale(0.8);
   }
   8% {
     opacity: var(--peak-opacity, 0.6);
@@ -75,7 +83,8 @@ body {
   }
   100% {
     opacity: 0;
-    transform: translate3d(var(--drift, 0), 112vh, 0) rotate(var(--spin, 360deg)) scale(1);
+    transform: translate3d(var(--drift, 0), 112vh, 0)
+      rotate(calc(var(--tilt, 0deg) + var(--spin, 360deg))) scale(1);
   }
 }
 
@@ -146,8 +155,8 @@ body {
   flex: 1;
   min-width: 0;
   width: auto;
-  max-width: min(330px, 100%);
-  max-height: clamp(72px, 14vh, 132px);
+  max-width: min(264px, 62.4vw);
+  max-height: clamp(96px, 18vh, 168px);
   height: auto;
   margin-inline: auto;
   object-fit: contain;
@@ -155,8 +164,8 @@ body {
 }
 
 .sticky-kawaii-header .app-header-logo {
-  max-width: min(285px, 100%);
-  max-height: clamp(68px, 13vh, 120px);
+  max-width: min(240px, 57.6vw);
+  max-height: clamp(91px, 16.8vh, 154px);
 }
 
 .garden-level {
@@ -307,7 +316,17 @@ body {
   overflow: visible;
 }
 
+.mascot-celebration-layer {
+  position: absolute;
+  inset: -100px -80px -48px -80px;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+
 .mascot__render {
+  position: relative;
+  z-index: 2;
   display: block;
   width: auto;
   height: clamp(100px, 18vh, 160px);
@@ -521,6 +540,41 @@ body {
   text-align: center;
 }
 
+.task-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.task-row__grip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: -0.25rem 0;
+  padding: 0.25rem 0.15rem 0.25rem 0;
+  color: var(--text-muted);
+  opacity: 0.7;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.task-row__grip:hover {
+  opacity: 1;
+  color: #6eb8d4;
+}
+
+.task-row--dragging .task-row__grip {
+  cursor: grabbing;
+  opacity: 1;
+  color: #6eb8d4;
+}
+
+.reorder-grip-icon {
+  display: block;
+}
+
 .task-list {
   list-style: none;
   margin: 0;
@@ -575,8 +629,15 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 100;
-  overflow: hidden;
+  z-index: 12;
+  overflow: visible;
+}
+
+.star-burst--anchored {
+  position: absolute;
+  inset: 0;
+  z-index: auto;
+  overflow: visible;
 }
 
 .star-burst__comet {
@@ -584,6 +645,10 @@ body {
   width: 0;
   height: 0;
   pointer-events: none;
+}
+
+.star-burst--anchored .star-burst__comet {
+  position: absolute;
 }
 
 .star-burst__spiral-arm {
@@ -643,7 +708,7 @@ body {
 
 @keyframes spiralFly {
   0% {
-    transform: rotate(var(--start-angle)) translateX(0);
+    transform: rotate(var(--start-angle)) translateX(var(--spiral-start-radius, 0));
   }
   100% {
     transform: rotate(calc(var(--start-angle) + var(--spiral-turns))) translateX(var(--spiral-radius));
@@ -697,8 +762,19 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 100;
-  overflow: hidden;
+  z-index: 12;
+  overflow: visible;
+}
+
+.spiral-celebration--anchored {
+  position: absolute;
+  inset: 0;
+  z-index: auto;
+  overflow: visible;
+}
+
+.spiral-celebration--anchored .star-burst__comet {
+  position: absolute;
 }
 
 .spiral-celebration__particle {
@@ -723,7 +799,8 @@ body {
   filter: blur(0.8px);
 }
 
-.spiral-celebration__heart {
+.spiral-celebration__heart,
+.spiral-celebration__flower {
   display: block;
   overflow: visible;
 }
@@ -772,6 +849,59 @@ body {
 .task-row--completed {
   border-color: #c8f0c8;
   background: #fffefe;
+}
+
+.task-row--reorderable .task-row__grip {
+  touch-action: none;
+}
+
+.task-row--dragging {
+  opacity: 0.96;
+  transform: scale(1.02);
+  border-color: #7ec8e8;
+  background: #f2f9fc;
+  box-shadow: 0 8px 28px rgba(92, 168, 210, 0.38);
+  z-index: 3;
+  cursor: grabbing;
+}
+
+.task-row--dropping {
+  animation: taskDropSettle 0.48s cubic-bezier(0.34, 1.25, 0.64, 1);
+}
+
+@keyframes taskDropSettle {
+  0% {
+    transform: translateY(-14px);
+    opacity: 0.88;
+  }
+  70% {
+    transform: translateY(2px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.task-row--drop-above::before,
+.task-row--drop-below::after {
+  content: '';
+  position: absolute;
+  left: 0.85rem;
+  right: 0.85rem;
+  height: 3px;
+  border-radius: 999px;
+  background: #6eb8d4;
+  pointer-events: none;
+}
+
+.task-row--drop-above::before {
+  top: -0.4rem;
+}
+
+.task-row--drop-below::after {
+  bottom: -0.4rem;
 }
 
 .task-checkbox-label {
@@ -963,6 +1093,73 @@ body {
 
 .task-delete:disabled {
   cursor: not-allowed;
+}
+
+.delete-confirm {
+  margin: auto;
+  max-width: min(18rem, calc(100vw - 2.5rem));
+  padding: 1.1rem 1.15rem;
+  border: 2px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+.delete-confirm::backdrop {
+  background: rgba(92, 74, 90, 0.35);
+}
+
+.delete-confirm__message {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--text);
+}
+
+.delete-confirm__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.delete-confirm__btn {
+  min-width: 5.5rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  border: 2px solid var(--card-border);
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.delete-confirm__btn:active {
+  transform: scale(0.97);
+}
+
+.delete-confirm__btn--cancel {
+  background: #fff;
+  color: var(--text-muted);
+}
+
+.delete-confirm__btn--cancel:hover {
+  border-color: #b8d4e8;
+  background: #f2f9fc;
+}
+
+.delete-confirm__btn--delete {
+  border-color: var(--accent);
+  background: #fff5f9;
+  color: var(--accent);
+}
+
+.delete-confirm__btn--delete:hover {
+  background: var(--accent);
+  color: #fff;
 }
 
 .task-list-footer {
@@ -1193,6 +1390,10 @@ body {
   .flower-petal--open {
     transform: scale(1);
     opacity: 1;
+  }
+
+  .task-row--dropping {
+    animation: none;
   }
 
   .mute-toggle:hover,

@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
+import { COMPLETED_MOVE_DELAY_MS, getNextSortOrder } from '../lib/sortTasks';
 
 export interface Task {
   id: string;
   text: string;
   completed: boolean;
   completionIndex?: number;
+  sortOrder: number;
   createdAt: number;
+  /** While in the future, completed task stays in place before moving to the bottom. */
+  releaseToBottomAt?: number;
 }
 
 interface StoredState {
@@ -33,7 +37,13 @@ function loadState(): StoredState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { tasks: [] };
     const parsed = JSON.parse(raw) as StoredState & { totalCompletedEver?: number };
-    const tasks = renumberCompleted(parsed.tasks ?? []);
+    const storedTasks = parsed.tasks ?? [];
+    const tasks = renumberCompleted(
+      storedTasks.map((t, i) => ({
+        ...t,
+        sortOrder: typeof t.sortOrder === 'number' ? t.sortOrder : i,
+      })),
+    );
     return { tasks };
   } catch {
     return { tasks: [] };
@@ -72,29 +82,70 @@ export function useTasks() {
         id: crypto.randomUUID(),
         text: trimmed,
         completed: false,
+        sortOrder: getNextSortOrder(prev),
         createdAt: Date.now(),
       },
     ]);
   }, []);
 
   const completeTask = useCallback((id: string, completionIndex: number) => {
+    const releaseToBottomAt = Date.now() + COMPLETED_MOVE_DELAY_MS;
     setTasks((prev) =>
       prev.map((t) =>
-        t.id === id ? { ...t, completed: true, completionIndex } : t,
+        t.id === id
+          ? { ...t, completed: true, completionIndex, releaseToBottomAt }
+          : t,
       ),
     );
   }, []);
 
   const uncompleteTask = useCallback((id: string) => {
     setTasks((prev) => {
+      const nextOrder = getNextSortOrder(prev);
       const cleared = prev.map((t) =>
         t.id === id
-          ? { ...t, completed: false, completionIndex: undefined }
+          ? {
+              ...t,
+              completed: false,
+              completionIndex: undefined,
+              sortOrder: nextOrder,
+              releaseToBottomAt: undefined,
+            }
           : t,
       );
       return renumberCompleted(cleared);
     });
   }, []);
+
+  const reorderTask = useCallback(
+    (activeId: string, overId: string, place: 'before' | 'after' = 'before') => {
+      if (activeId === overId) return;
+      setTasks((prev) => {
+        const incomplete = prev
+          .filter((t) => !t.completed)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        const fromIdx = incomplete.findIndex((t) => t.id === activeId);
+        let toIdx = incomplete.findIndex((t) => t.id === overId);
+        if (fromIdx === -1 || toIdx === -1) return prev;
+
+        if (place === 'after') toIdx += 1;
+        if (fromIdx < toIdx) toIdx -= 1;
+        toIdx = Math.max(0, Math.min(toIdx, incomplete.length - 1));
+
+        const reordered = [...incomplete];
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(toIdx, 0, moved);
+        const orderById = new Map(
+          reordered.map((t, index) => [t.id, index] as const),
+        );
+
+        return prev.map((t) =>
+          orderById.has(t.id) ? { ...t, sortOrder: orderById.get(t.id)! } : t,
+        );
+      });
+    },
+    [],
+  );
 
   const deleteTask = useCallback((id: string) => {
     setTasks((prev) => renumberCompleted(prev.filter((t) => t.id !== id)));
@@ -117,5 +168,6 @@ export function useTasks() {
     deleteTask,
     clearCompleted,
     getNextCompletionIndex,
+    reorderTask,
   };
 }

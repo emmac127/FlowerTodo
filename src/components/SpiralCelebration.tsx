@@ -5,25 +5,30 @@ interface SpiralCelebrationProps {
   burstId: number;
   originX: number;
   originY: number;
+  startRadius: number;
+  maxRadius: number;
   onComplete?: () => void;
 }
 
 interface Particle {
   id: number;
   angle: number;
-  distance: number;
   size: number;
   delay: number;
   color: string;
   spiralTurns: string;
   spiralRadius: string;
+  startRadius: string;
+  kind: 'heart' | 'flower';
 }
 
 const HEART_COLORS = ['#ff6b95', '#ff8fab', '#ffb7d5', '#ffc9dd', '#fff0f6'];
-const PARTICLE_COUNT = 12;
+const FLOWER_COLORS = ['#ffd6e8', '#ffb7d5', '#ffe8f2', '#ff9fbe'];
+const PETAL_ANGLES = [0, 72, 144, 216, 288] as const;
+const PARTICLE_COUNT = 18;
 const TRAIL_SEGMENTS = 3;
 const TRAIL_LAG_S = 0.16;
-const BURST_DURATION_MS = 5600;
+const BURST_DURATION_MS = 6400;
 
 function SpiralArm({
   className,
@@ -58,33 +63,71 @@ function HeartShape({ size, color }: { size: number; color: string }) {
   );
 }
 
+function MiniFlower({ size, color }: { size: number; color: string }) {
+  const petalHi = '#fff5f9';
+  return (
+    <svg
+      className="spiral-celebration__flower"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <g transform="translate(12 12)">
+        {PETAL_ANGLES.map((angle) => (
+          <ellipse
+            key={angle}
+            cx={0}
+            cy={-4.2}
+            rx={3.2}
+            ry={4.6}
+            fill={color}
+            stroke={petalHi}
+            strokeWidth={0.35}
+            transform={`rotate(${angle})`}
+          />
+        ))}
+        <circle r={1.8} fill="#e87898" />
+      </g>
+    </svg>
+  );
+}
+
 export function SpiralCelebration({
   active,
   burstId,
   originX,
   originY,
+  startRadius,
+  maxRadius,
   onComplete,
 }: SpiralCelebrationProps) {
   const [visible, setVisible] = useState(false);
 
   const particles = useMemo<Particle[]>(() => {
     return Array.from({ length: PARTICLE_COUNT }, (_, i) => {
-      const distance = 40 + Math.random() * 35;
       const turnSign = Math.random() > 0.5 ? 1 : -1;
-      const turnsDeg = turnSign * (420 + Math.random() * 280);
+      const turnsDeg = turnSign * (480 + Math.random() * 320);
+      const reach = maxRadius * (0.9 + Math.random() * 0.14);
+      const start = startRadius * (0.85 + Math.random() * 0.2);
 
       return {
         id: i,
-        angle: (360 / PARTICLE_COUNT) * i + Math.random() * 22,
-        distance,
-        size: 14 + Math.random() * 12,
-        delay: Math.random() * 0.15,
-        color: HEART_COLORS[i % HEART_COLORS.length],
+        angle: (360 / PARTICLE_COUNT) * i + Math.random() * 18,
+        size: 12 + Math.random() * 14,
+        delay: Math.random() * 0.22,
+        color:
+          i % 2 === 0
+            ? HEART_COLORS[i % HEART_COLORS.length]
+            : FLOWER_COLORS[i % FLOWER_COLORS.length],
         spiralTurns: `${turnsDeg}deg`,
-        spiralRadius: `${distance * 1.05}vmin`,
+        spiralRadius: `${reach}px`,
+        startRadius: `${start}px`,
+        kind: i % 3 === 0 ? 'flower' : 'heart',
       };
     });
-  }, [burstId]);
+  }, [burstId, maxRadius, startRadius]);
 
   useEffect(() => {
     if (!active) {
@@ -108,8 +151,16 @@ export function SpiralCelebration({
           '--start-angle': `${particle.angle}deg`,
           '--spiral-turns': particle.spiralTurns,
           '--spiral-radius': particle.spiralRadius,
-          '--spiral-duration': '5.6s',
+          '--spiral-start-radius': particle.startRadius,
+          '--spiral-duration': '6.4s',
         } as React.CSSProperties;
+
+        const Shape =
+          particle.kind === 'flower' ? (
+            <MiniFlower size={particle.size} color={particle.color} />
+          ) : (
+            <HeartShape size={particle.size} color={particle.color} />
+          );
 
         return (
           <div
@@ -135,7 +186,11 @@ export function SpiralCelebration({
                     className="spiral-celebration__particle spiral-celebration__particle--trail"
                     style={{ ['--trail-peak' as string]: `${0.5 - trailIndex * 0.12}` }}
                   >
-                    <HeartShape size={trailSize} color={particle.color} />
+                    {particle.kind === 'flower' ? (
+                      <MiniFlower size={trailSize} color={particle.color} />
+                    ) : (
+                      <HeartShape size={trailSize} color={particle.color} />
+                    )}
                   </span>
                 </SpiralArm>
               );
@@ -149,7 +204,7 @@ export function SpiralCelebration({
               }}
             >
               <span className="spiral-celebration__particle spiral-celebration__particle--head">
-                <HeartShape size={particle.size} color={particle.color} />
+                {Shape}
               </span>
             </SpiralArm>
           </div>
