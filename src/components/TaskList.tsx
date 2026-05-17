@@ -6,7 +6,6 @@ interface TaskListProps {
   muted: boolean;
   reducedMotion: boolean;
   pickedTaskId: string | null;
-  onPickRandom: () => void;
   onComplete: (id: string, completionIndex: number) => void;
   onUncomplete: (id: string) => void;
   onDelete: (id: string) => void;
@@ -19,7 +18,6 @@ export function TaskList({
   muted,
   reducedMotion,
   pickedTaskId,
-  onPickRandom,
   onComplete,
   onUncomplete,
   onDelete,
@@ -27,7 +25,6 @@ export function TaskList({
   onClearCompleted,
 }: TaskListProps) {
   const hasCompleted = tasks.some((t) => t.completed);
-  const incompleteCount = tasks.filter((t) => !t.completed).length;
 
   if (tasks.length === 0) {
     return (
@@ -48,15 +45,6 @@ export function TaskList({
 
   return (
     <div className="task-list-wrap">
-      <button
-        type="button"
-        className="pick-task-btn"
-        onClick={onPickRandom}
-        disabled={incompleteCount === 0}
-      >
-        Choose a task for me to do!
-      </button>
-
       <ul className="task-list">
         {tasks.map((task) => (
           <TaskRow

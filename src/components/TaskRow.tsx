@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Task } from '../hooks/useTasks';
 import { getGrowthTier, type GrowthTier } from '../lib/growthTier';
 import {
@@ -26,6 +26,10 @@ type AnimDirection = 'complete' | 'uncomplete' | null;
 const WILT_DURATION_MS = 320;
 const PETAL_BLOOM_MS = 350;
 const PETAL_BLOOM_STAGGER_MS = 40;
+const PICKED_RING_STROKE = 2.5;
+const PICKED_RING_GAP = 1;
+const PICKED_RING_RADIUS = 16;
+const PICKED_RING_OUTSET = PICKED_RING_GAP + PICKED_RING_STROKE;
 
 /** Wait for staggered petal + center bloom before firing onComplete (hearts, etc.). */
 function getFlowerBloomSettleMs(petalCount: number): number {
@@ -51,7 +55,9 @@ export function TaskRow({
   getNextCompletionIndex,
 }: TaskRowProps) {
   const textRef = useRef<HTMLSpanElement>(null);
+  const rowRef = useRef<HTMLLIElement>(null);
   const [textWidth, setTextWidth] = useState(0);
+  const [ringDims, setRingDims] = useState({ w: 0, h: 0 });
   const [rowHeight, setRowHeight] = useState(40);
   const [progress, setProgress] = useState(task.completed ? 1 : 0);
   const [blooming, setBlooming] = useState(task.completed);
@@ -252,11 +258,62 @@ export function TaskRow({
   const isStruck = progress >= 0.95;
   const textOpacity = progress > 0.2 ? 0.55 + (1 - Math.min(progress, 1)) * 0.45 : 1;
 
+  const showPickedRing = isPicked && !task.completed;
+
+  useLayoutEffect(() => {
+    if (!showPickedRing) return;
+    const el = rowRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const { width, height } = el.getBoundingClientRect();
+      setRingDims({ w: width, h: height });
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [showPickedRing, task.text, textWidth, rowHeight]);
+
+  const ringInset = PICKED_RING_STROKE / 2;
+  const ringPad = PICKED_RING_OUTSET;
+  const ringViewW = ringDims.w + ringPad * 2;
+  const ringViewH = ringDims.h + ringPad * 2;
+  const ringX = ringPad - PICKED_RING_GAP - ringInset;
+  const ringY = ringX;
+  const ringW = ringDims.w + PICKED_RING_GAP * 2 + PICKED_RING_STROKE;
+  const ringH = ringDims.h + PICKED_RING_GAP * 2 + PICKED_RING_STROKE;
+  const ringRx = Math.min(
+    PICKED_RING_RADIUS + PICKED_RING_GAP + ringInset,
+    ringW / 2,
+    ringH / 2,
+  );
+
   return (
     <li
+      ref={rowRef}
       id={`task-${task.id}`}
-      className={`task-row ${checkboxChecked && animDirection !== 'uncomplete' ? 'task-row--completed' : ''} ${isPicked && !task.completed ? 'task-row--picked' : ''}`}
+      className={`task-row ${checkboxChecked && animDirection !== 'uncomplete' ? 'task-row--completed' : ''} ${showPickedRing ? 'task-row--picked' : ''}`}
     >
+      {showPickedRing && ringDims.w > 0 && (
+        <svg
+          className="task-row__picked-ring"
+          viewBox={`0 0 ${ringViewW} ${ringViewH}`}
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <rect
+            className={`task-row__picked-ring-rect${reducedMotion ? ' task-row__picked-ring-rect--static' : ''}`}
+            x={ringX}
+            y={ringY}
+            width={ringW}
+            height={ringH}
+            rx={ringRx}
+            ry={ringRx}
+          />
+        </svg>
+      )}
       <label className="task-checkbox-label">
         <input
           type="checkbox"

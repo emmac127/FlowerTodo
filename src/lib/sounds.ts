@@ -87,6 +87,23 @@ export function playBloomSound(completedCount: number, muted: boolean) {
   playTone(base * 1.5, now + 0.18, 0.15, 0.05, 'sine');
 }
 
+/** Gentle arpeggio when a new task is added. */
+export function playAddTaskSound(muted: boolean) {
+  if (muted) return;
+  const ctx = getContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const notes = [392, 494, 587];
+  const noteDur = 0.09;
+  const gap = 0.025;
+
+  notes.forEach((freq, i) => {
+    const start = now + i * (noteDur + gap);
+    playTone(freq, start, noteDur * 1.15, 0.055, i === 0 ? 'triangle' : 'sine');
+  });
+}
+
 export function playWiltSound(completedCount: number, muted: boolean) {
   if (muted) return;
   const ctx = getContext();

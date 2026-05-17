@@ -1,6 +1,14 @@
 /** Core scene (grass, pond, tree, bridge) finishes by this many completed tasks. */
 export const GARDEN_CORE_COMPLETE_AT = 6;
 
+/** Max level shown in the header; matches full garden scene development. */
+export const GARDEN_MAX_LEVEL = 12;
+
+/** Garden level for the header — same scale as {@link GardenScene} stage progression. */
+export function getGardenLevel(completedCount: number): number {
+  return Math.min(Math.max(0, completedCount), GARDEN_MAX_LEVEL);
+}
+
 export interface GardenLayers {
   grass: boolean;
   grassDetail: boolean;

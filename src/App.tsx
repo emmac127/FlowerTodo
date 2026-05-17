@@ -6,12 +6,13 @@ import { SpiralCelebration } from './components/SpiralCelebration';
 import { StarBurst } from './components/StarBurst';
 import { TaskList } from './components/TaskList';
 import { getCompletedCount, useTasks } from './hooks/useTasks';
+import { getGardenLevel } from './lib/gardenProgress';
 import { pickMotivationalPhrase } from './lib/motivationalPhrases';
-import { playCelebrationTune, unlockAudio } from './lib/sounds';
+import { playAddTaskSound, playCelebrationTune, unlockAudio } from './lib/sounds';
 
 const SPEECH_DURATION_MS = 3200;
 const HOP_DURATION_MS = 1400;
-const PICKED_CELEBRATION_PHRASE = 'You did the one I picked! So proud of you! ⭐';
+const PICKED_CELEBRATION_PHRASE = 'You did the one I picked!\nSo proud of you! ⭐';
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -45,6 +46,7 @@ export default function App() {
   const speechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPhraseRef = useRef<string | undefined>(undefined);
+  const lastCelebrationKeyRef = useRef<string | null>(null);
   const reducedMotion = usePrefersReducedMotion();
 
   const {
@@ -59,6 +61,7 @@ export default function App() {
   } = useTasks();
 
   const completedCount = getCompletedCount(tasks);
+  const gardenLevel = getGardenLevel(completedCount);
 
   const showMascotCheer = useCallback((phrase?: string) => {
     const text = phrase ?? pickMotivationalPhrase(lastPhraseRef.current);
@@ -132,14 +135,21 @@ export default function App() {
 
   const handleTaskCompleted = useCallback(
     (id: string, completionIndex: number) => {
+      const celebrationKey = `${id}:${completionIndex}`;
+      if (lastCelebrationKeyRef.current === celebrationKey) return;
+      lastCelebrationKeyRef.current = celebrationKey;
+
       const wasPicked = id === pickedTaskId;
       completeTask(id, completionIndex);
       if (wasPicked) {
         setPickedTaskId(null);
         runPickedCelebration();
-      } else {
+        return;
+      }
+      else{
         runNormalCelebration();
       }
+      
     },
     [completeTask, pickedTaskId, runNormalCelebration, runPickedCelebration],
   );
@@ -170,6 +180,10 @@ export default function App() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
+    unlockAudio();
+    if (!reducedMotion) {
+      playAddTaskSound(muted);
+    }
     addTask(input);
     setInput('');
     inputRef.current?.focus();
@@ -195,24 +209,17 @@ export default function App() {
           message={mascotMessage}
           visible={speechVisible}
           dancing={mascotDancing}
+          gardenLevel={gardenLevel}
+          muted={muted}
+          onToggleMute={() => {
+            unlockAudio();
+            setMuted((m) => !m);
+          }}
+          onPickRandom={tasks.length > 0 ? handlePickRandom : undefined}
+          pickDisabled={tasks.filter((t) => !t.completed).length === 0}
         />
 
         <div className="app-body">
-          <div className="app-toolbar">
-            <button
-              type="button"
-              className="mute-toggle"
-              onClick={() => {
-                unlockAudio();
-                setMuted((m) => !m);
-              }}
-              aria-pressed={muted}
-              aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
-            >
-              {muted ? '🔇' : '🔔'}
-            </button>
-          </div>
-
           <form className="add-task-form" onSubmit={handleSubmit}>
             <input
               ref={inputRef}
@@ -234,7 +241,6 @@ export default function App() {
               muted={muted}
               reducedMotion={reducedMotion}
               pickedTaskId={pickedTaskId}
-              onPickRandom={handlePickRandom}
               onComplete={handleTaskCompleted}
               onUncomplete={handleUncomplete}
               onDelete={handleDelete}
