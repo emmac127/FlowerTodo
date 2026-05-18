@@ -15,6 +15,7 @@ export interface GardenFlowerItem {
   seed: GardenSeed;
   growthStage: SeedGrowthStage;
   className?: string;
+  fullPetalBloom?: boolean;
 }
 
 interface GardenFlowerStripProps {
@@ -108,6 +109,7 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
                   growthStage={flower.growthStage}
                   x={getFlowerStripX(index, flowers.length)}
                   className={flower.className}
+                  fullPetalBloom={flower.fullPetalBloom}
                   muted={muted}
                 />
               ))}

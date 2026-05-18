@@ -559,10 +559,6 @@ export default function App() {
             />
           </main>
 
-          {showSeedPicker && <StartingSeedPicker onSelect={handleStartingSeedSelect} />}
-          {showLevel2SeedPicker && <Level2SeedPicker onSelect={handleLevel2SeedSelect} />}
-          {showLevel3SeedPicker && <Level3SeedPicker onSelect={handleLevel3SeedSelect} />}
-          {showLevel4SeedPicker && <Level4SeedPicker onSelect={handleLevel4SeedSelect} />}
         </div>
 
         {gardenRevealPhase === 'active' && !showLevelSeedPicker && (
@@ -602,6 +598,11 @@ export default function App() {
         level4Seed={level4Seed}
         muted={muted}
       />
+
+      {showSeedPicker && <StartingSeedPicker onSelect={handleStartingSeedSelect} />}
+      {showLevel2SeedPicker && <Level2SeedPicker onSelect={handleLevel2SeedSelect} />}
+      {showLevel3SeedPicker && <Level3SeedPicker onSelect={handleLevel3SeedSelect} />}
+      {showLevel4SeedPicker && <Level4SeedPicker onSelect={handleLevel4SeedSelect} />}
     </div>
   );
 }

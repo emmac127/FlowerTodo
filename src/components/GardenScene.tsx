@@ -5,6 +5,7 @@ import { getGardenLayers, getSceneMilestoneCount } from '../lib/gardenProgress';
 import {
   getCompletedGardenLevels,
   getMaxGrowthStageForLevel,
+  moonSunHasFullPetalBloom,
   shouldShowActiveLevelGrower,
 } from '../lib/gardenLevels';
 import type { Level2Seed } from '../lib/level2Seed';
@@ -58,7 +59,8 @@ export function GardenScene({
   const activeLevel = getGardenLevel(completedCount);
   const activeSeed = getSeedForGardenLevel(activeLevel, seedChoices);
   const showActiveGrower =
-    activeSeed != null && shouldShowActiveLevelGrower(completedCount);
+    activeSeed != null &&
+    shouldShowActiveLevelGrower(completedCount, true);
   const activeGrowthStage = getSeedGrowthStage(completedCount);
   const cycleProgress = getGardenCycleProgress(completedCount);
   const showGrass = layers.grass || startingSeed != null;
@@ -73,6 +75,10 @@ export function GardenScene({
         seed,
         growthStage: getMaxGrowthStageForLevel(level),
         className: 'growing-seed--planted',
+        fullPetalBloom: moonSunHasFullPetalBloom(seed, getMaxGrowthStageForLevel(level), {
+          planted: true,
+          gardenLevel: level,
+        }),
       });
     }
     if (showActiveGrower && activeSeed) {
@@ -81,6 +87,10 @@ export function GardenScene({
         seed: activeSeed,
         growthStage: activeGrowthStage,
         className: 'growing-seed--active',
+        fullPetalBloom: moonSunHasFullPetalBloom(activeSeed, activeGrowthStage, {
+          planted: false,
+          gardenLevel: activeLevel,
+        }),
       });
     }
     return items;

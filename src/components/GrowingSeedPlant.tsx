@@ -35,6 +35,8 @@ interface GrowingSeedPlantProps {
 
   className?: string;
 
+  fullPetalBloom?: boolean;
+
   muted?: boolean;
 
 }
@@ -50,6 +52,8 @@ export function GrowingSeedPlant({
   x = 200,
 
   className = '',
+
+  fullPetalBloom = false,
 
   muted = false,
 
@@ -81,6 +85,7 @@ export function GrowingSeedPlant({
   const palette = SEED_PALETTES[seed];
 
   const metrics = getSeedGrowthMetrics(growthStage);
+  const visiblePetalCount = fullPetalBloom ? MAX_PETALS : metrics.petalCount;
 
   const groundY = getGardenGroundY();
 
@@ -312,7 +317,7 @@ export function GrowingSeedPlant({
 
               strokeWidth={0.8}
 
-              style={{ opacity: i < metrics.petalCount ? 1 : 0 }}
+              style={{ opacity: i < visiblePetalCount ? 1 : 0 }}
 
               transform={`rotate(${angle})`}
 
