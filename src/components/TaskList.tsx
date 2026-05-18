@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Task } from '../hooks/useTasks';
-import { playTaskDropSound } from '../lib/sounds';
 import { getNextBottomReleaseAt, isPinnedBeforeBottom, sortTasksForDisplay } from '../lib/sortTasks';
 import { TaskRow } from './TaskRow';
 
@@ -17,7 +16,8 @@ interface TaskListProps {
   onReorder: (activeId: string, overId: string, place: 'before' | 'after') => void;
 }
 
-const LONG_PRESS_MS = 450;
+const LONG_PRESS_MS = 180;
+const DRAG_MOVE_THRESHOLD_PX = 8;
 
 type DropEdge = 'above' | 'below' | null;
 
@@ -51,6 +51,7 @@ export function TaskList({
   const [dropEdge, setDropEdge] = useState<DropEdge>(null);
 
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressCleanupRef = useRef<(() => void) | null>(null);
   const dragActiveRef = useRef(false);
   const pointerIdRef = useRef<number | null>(null);
   const dragIdRef = useRef<string | null>(null);
@@ -74,6 +75,8 @@ export function TaskList({
       clearTimeout(pressTimerRef.current);
       pressTimerRef.current = null;
     }
+    pressCleanupRef.current?.();
+    pressCleanupRef.current = null;
   }, []);
 
   const pointerHandlersRef = useRef<{
@@ -172,9 +175,35 @@ export function TaskList({
       if ((e.target as HTMLElement).closest('button, input, .task-checkbox-label')) return;
 
       clearPressTimer();
+
+      const pointerId = e.pointerId;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const thresholdSq = DRAG_MOVE_THRESHOLD_PX * DRAG_MOVE_THRESHOLD_PX;
+
+      const beginDrag = () => {
+        if (dragActiveRef.current) return;
+        clearPressTimer();
+        startDrag(taskId, pointerId);
+      };
+
+      const handlePreDragMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (dx * dx + dy * dy >= thresholdSq) {
+          beginDrag();
+        }
+      };
+
+      window.addEventListener('pointermove', handlePreDragMove);
+      pressCleanupRef.current = () => {
+        window.removeEventListener('pointermove', handlePreDragMove);
+      };
+
       pressTimerRef.current = setTimeout(() => {
         pressTimerRef.current = null;
-        startDrag(taskId, e.pointerId);
+        beginDrag();
       }, LONG_PRESS_MS);
     },
     [clearPressTimer, startDrag],
@@ -203,14 +232,13 @@ export function TaskList({
 
     for (const id of prev) {
       if (!currentlyPinned.has(id)) {
-        if (!reducedMotion) playTaskDropSound(muted);
         setDroppingId(id);
         window.setTimeout(() => setDroppingId((current) => (current === id ? null : current)), 480);
       }
     }
 
     pinnedIdsRef.current = currentlyPinned;
-  }, [tasks, listTick, muted, reducedMotion]);
+  }, [tasks, listTick, reducedMotion]);
 
   if (tasks.length === 0) {
     return (

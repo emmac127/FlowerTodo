@@ -6,6 +6,8 @@ interface StickyKawaiiHeaderProps {
   visible: boolean;
   dancing?: boolean;
   gardenLevel: number;
+  gardenCyclePlanted: number;
+  gardenCycleMax: number;
   muted: boolean;
   onToggleMute: () => void;
   onPickRandom?: () => void;
@@ -19,6 +21,8 @@ export const StickyKawaiiHeader = forwardRef<HTMLDivElement, StickyKawaiiHeaderP
       visible,
       dancing,
       gardenLevel,
+      gardenCyclePlanted,
+      gardenCycleMax,
       muted,
       onToggleMute,
       onPickRandom,
@@ -34,6 +38,8 @@ export const StickyKawaiiHeader = forwardRef<HTMLDivElement, StickyKawaiiHeaderP
           visible={visible}
           dancing={dancing}
           gardenLevel={gardenLevel}
+          gardenCyclePlanted={gardenCyclePlanted}
+          gardenCycleMax={gardenCycleMax}
           muted={muted}
           onToggleMute={onToggleMute}
           onPickRandom={onPickRandom}

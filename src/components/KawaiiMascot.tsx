@@ -1,5 +1,6 @@
 ﻿import { forwardRef } from 'react';
 import headerTitleSrc from '../assets/header-title.png';
+import { GardenProgressMeter } from './GardenProgressMeter';
 import { MascotImage } from './MascotImage';
 import { MuteToggleButton } from './MuteToggleButton';
 
@@ -8,6 +9,8 @@ interface KawaiiMascotProps {
   visible: boolean;
   dancing?: boolean;
   gardenLevel: number;
+  gardenCyclePlanted: number;
+  gardenCycleMax: number;
   muted: boolean;
   onToggleMute: () => void;
   onPickRandom?: () => void;
@@ -21,6 +24,8 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
       visible,
       dancing = false,
       gardenLevel,
+      gardenCyclePlanted,
+      gardenCycleMax,
       muted,
       onToggleMute,
       onPickRandom,
@@ -61,14 +66,20 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
               decoding="async"
             />
 
-            <div
-              className="garden-level"
-              aria-label={`Garden level ${gardenLevel}`}
-            >
-              <span className="garden-level__label">Garden Level</span>
-              <span className="garden-level__value" aria-hidden>
-                {gardenLevel}
-              </span>
+            <div className="garden-level-block">
+              <div
+                className="garden-level"
+                aria-label={`Garden level ${gardenLevel}`}
+              >
+                <span className="garden-level__label">Garden Level</span>
+                <span className="garden-level__value" aria-hidden>
+                  {gardenLevel}
+                </span>
+              </div>
+              <GardenProgressMeter
+                planted={gardenCyclePlanted}
+                max={gardenCycleMax}
+              />
             </div>
           </div>
 

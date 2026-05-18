@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-const BLOSSOM_COUNT = 24;
+const BLOSSOM_COUNT = 32;
 const PETAL_ANGLES = [0, 72, 144, 216, 288] as const;
 const STAMEN_ANGLES = [0, 45, 90, 135, 22, 67, 112, 157] as const;
 
@@ -86,14 +86,17 @@ function FallingSakuraBlossom({
 
 function createBlossoms(count: number): BlossomConfig[] {
   return Array.from({ length: count }, (_, id) => {
-    const driftVw = (Math.random() - 0.5) * 28;
+    const driftVw = (Math.random() - 0.5) * 36;
     const spinDeg = 360 + Math.random() * 540;
     const variant = Math.random() > 0.45 ? 'light' : 'deep';
     const palette = variant === 'light' ? PETAL_LIGHT : PETAL_DEEP;
+    const slot = (id + 0.5) / count;
+    const jitter = (Math.random() - 0.5) * (100 / count) * 0.85;
+    const left = Math.min(98, Math.max(2, slot * 100 + jitter));
 
     return {
       id,
-      left: Math.random() * 100,
+      left,
       size: 22 + Math.random() * 20,
       duration: 22 + Math.random() * 18,
       delay: -(Math.random() * 40),
@@ -101,7 +104,7 @@ function createBlossoms(count: number): BlossomConfig[] {
       spin: `${spinDeg}deg`,
       opacity: 0.5 + Math.random() * 0.4,
       petalFill: palette[id % palette.length],
-      sway: `${3 + Math.random() * 5}vw`,
+      sway: `${4 + Math.random() * 8}vw`,
       tilt: `${-50 + Math.random() * 100}deg`,
       variant,
     };
@@ -122,27 +125,37 @@ export function FallingSakuraPetals({ reducedMotion = false }: FallingSakuraPeta
       {blossoms.map((blossom) => (
         <span
           key={blossom.id}
-          className="falling-sakura__petal falling-sakura__petal--blossom"
+          className="falling-sakura__track"
           style={
             {
               left: `${blossom.left}%`,
-              width: blossom.size,
-              height: blossom.size,
               ['--duration' as string]: `${blossom.duration}s`,
               ['--delay' as string]: `${blossom.delay}s`,
-              ['--drift' as string]: blossom.drift,
-              ['--spin' as string]: blossom.spin,
               ['--sway' as string]: blossom.sway,
-              ['--tilt' as string]: blossom.tilt,
-              ['--peak-opacity' as string]: String(blossom.opacity),
             } as React.CSSProperties
           }
         >
-          <FallingSakuraBlossom
-            petalFill={blossom.petalFill}
-            centerColor={CENTERS[blossom.id % CENTERS.length]}
-            variant={blossom.variant}
-          />
+          <span
+            className="falling-sakura__petal falling-sakura__petal--blossom"
+            style={
+              {
+                width: blossom.size,
+                height: blossom.size,
+                ['--duration' as string]: `${blossom.duration}s`,
+                ['--delay' as string]: `${blossom.delay}s`,
+                ['--drift' as string]: blossom.drift,
+                ['--spin' as string]: blossom.spin,
+                ['--tilt' as string]: blossom.tilt,
+                ['--peak-opacity' as string]: String(blossom.opacity),
+              } as React.CSSProperties
+            }
+          >
+            <FallingSakuraBlossom
+              petalFill={blossom.petalFill}
+              centerColor={CENTERS[blossom.id % CENTERS.length]}
+              variant={blossom.variant}
+            />
+          </span>
         </span>
       ))}
     </div>

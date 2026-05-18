@@ -13,26 +13,24 @@ interface StarBurstProps {
 interface Star {
   id: number;
   angle: number;
-  distance: number;
   size: number;
   delay: number;
   color: string;
-  spiralTurns: string;
-  spiralRadius: string;
+  burstRadius: string;
   startRadius: string;
 }
 
 const COLORS = ['#ffe566', '#ffb7d5', '#fff4a3', '#ff8fab', '#d4b5ff'];
-const TRAIL_SEGMENTS = 5;
-const TRAIL_LAG_S = 0.28;
-const BURST_DURATION_MS = 8200;
+const TRAIL_SEGMENTS = 4;
+const TRAIL_LAG_S = 0.12;
+const BURST_DURATION_MS = 8000;
 
 const starClip = {
   clipPath:
     'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
 } as const;
 
-function SpiralArm({
+function BurstArm({
   className,
   style,
   children,
@@ -42,7 +40,7 @@ function SpiralArm({
   children: ReactNode;
 }) {
   return (
-    <div className={`star-burst__spiral-arm ${className}`} style={style}>
+    <div className={`celebration-burst-arm ${className}`} style={style}>
       {children}
     </div>
   );
@@ -61,20 +59,16 @@ export function StarBurst({
 
   const stars = useMemo<Star[]>(() => {
     return Array.from({ length: 16 }, (_, i) => {
-      const turnSign = Math.random() > 0.5 ? 1 : -1;
-      const turnsDeg = turnSign * (520 + Math.random() * 400);
-      const reach = maxRadius * (0.88 + Math.random() * 0.16);
-      const start = startRadius * (0.88 + Math.random() * 0.18);
+      const reach = maxRadius * (0.9 + Math.random() * 0.12);
+      const start = startRadius * (0.9 + Math.random() * 0.14);
 
       return {
         id: i,
-        angle: (360 / 16) * i + Math.random() * 16,
-        distance: reach,
+        angle: (360 / 16) * i + Math.random() * 14,
         size: 20 + Math.random() * 18,
-        delay: Math.random() * 0.25,
+        delay: Math.random() * 0.18,
         color: COLORS[i % COLORS.length],
-        spiralTurns: `${turnsDeg}deg`,
-        spiralRadius: `${reach}px`,
+        burstRadius: `${reach}px`,
         startRadius: `${start}px`,
       };
     });
@@ -98,12 +92,11 @@ export function StarBurst({
   return (
     <div className="star-burst" aria-hidden>
       {stars.map((star) => {
-        const spiralVars = {
-          '--start-angle': `${star.angle}deg`,
-          '--spiral-turns': star.spiralTurns,
-          '--spiral-radius': star.spiralRadius,
-          '--spiral-start-radius': star.startRadius,
-          '--spiral-duration': '8.2s',
+        const burstVars = {
+          '--burst-angle': `${star.angle}deg`,
+          '--burst-radius': star.burstRadius,
+          '--burst-start-radius': star.startRadius,
+          '--burst-duration': '6.5s',
         } as React.CSSProperties;
 
         return (
@@ -118,11 +111,11 @@ export function StarBurst({
               const trailLag = (TRAIL_SEGMENTS - trailIndex) * TRAIL_LAG_S;
 
               return (
-                <SpiralArm
+                <BurstArm
                   key={`trail-${trailIndex}`}
-                  className="star-burst__spiral-arm--trail"
+                  className="star-burst__burst-arm--trail"
                   style={{
-                    ...spiralVars,
+                    ...burstVars,
                     animationDelay: `${star.delay + trailLag}s`,
                   }}
                 >
@@ -136,15 +129,15 @@ export function StarBurst({
                       ['--trail-peak' as string]: `${0.55 - trailIndex * 0.1}`,
                     }}
                   />
-                </SpiralArm>
+                </BurstArm>
               );
             })}
 
-            <SpiralArm
-              className="star-burst__spiral-arm--streak"
+            <BurstArm
+              className="star-burst__burst-arm--streak"
               style={{
-                ...spiralVars,
-                animationDelay: `${star.delay + TRAIL_LAG_S * 0.6}s`,
+                ...burstVars,
+                animationDelay: `${star.delay + TRAIL_LAG_S * 0.5}s`,
               }}
             >
               <span
@@ -155,12 +148,12 @@ export function StarBurst({
                   height: Math.max(8, star.size * 0.22),
                 }}
               />
-            </SpiralArm>
+            </BurstArm>
 
-            <SpiralArm
-              className="star-burst__spiral-arm--head"
+            <BurstArm
+              className="star-burst__burst-arm--head"
               style={{
-                ...spiralVars,
+                ...burstVars,
                 animationDelay: `${star.delay}s`,
               }}
             >
@@ -173,7 +166,7 @@ export function StarBurst({
                   backgroundColor: star.color,
                 }}
               />
-            </SpiralArm>
+            </BurstArm>
           </div>
         );
       })}

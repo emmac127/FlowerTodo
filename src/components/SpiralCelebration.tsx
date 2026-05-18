@@ -16,8 +16,7 @@ interface Particle {
   size: number;
   delay: number;
   color: string;
-  spiralTurns: string;
-  spiralRadius: string;
+  burstRadius: string;
   startRadius: string;
   kind: 'heart' | 'flower';
 }
@@ -25,12 +24,12 @@ interface Particle {
 const HEART_COLORS = ['#ff6b95', '#ff8fab', '#ffb7d5', '#ffc9dd', '#fff0f6'];
 const FLOWER_COLORS = ['#ffd6e8', '#ffb7d5', '#ffe8f2', '#ff9fbe'];
 const PETAL_ANGLES = [0, 72, 144, 216, 288] as const;
-const PARTICLE_COUNT = 18;
+const PARTICLE_COUNT = 20;
 const TRAIL_SEGMENTS = 3;
-const TRAIL_LAG_S = 0.16;
-const BURST_DURATION_MS = 6400;
+const TRAIL_LAG_S = 0.1;
+const BURST_DURATION_MS = 7000;
 
-function SpiralArm({
+function BurstArm({
   className,
   style,
   children,
@@ -40,7 +39,7 @@ function SpiralArm({
   children: ReactNode;
 }) {
   return (
-    <div className={`star-burst__spiral-arm ${className}`} style={style}>
+    <div className={`celebration-burst-arm ${className}`} style={style}>
       {children}
     </div>
   );
@@ -107,24 +106,27 @@ export function SpiralCelebration({
 
   const particles = useMemo<Particle[]>(() => {
     return Array.from({ length: PARTICLE_COUNT }, (_, i) => {
-      const turnSign = Math.random() > 0.5 ? 1 : -1;
-      const turnsDeg = turnSign * (480 + Math.random() * 320);
-      const reach = maxRadius * (0.9 + Math.random() * 0.14);
-      const start = startRadius * (0.85 + Math.random() * 0.2);
+      const reach = maxRadius * (0.92 + Math.random() * 0.1);
+      const start = startRadius * (0.9 + Math.random() * 0.15);
+
+      const kind: 'heart' | 'flower' = i % 2 === 0 ? 'heart' : 'flower';
+      const size =
+        kind === 'heart'
+          ? 22 + Math.random() * 18
+          : 16 + Math.random() * 12;
 
       return {
         id: i,
-        angle: (360 / PARTICLE_COUNT) * i + Math.random() * 18,
-        size: 12 + Math.random() * 14,
-        delay: Math.random() * 0.22,
+        angle: (360 / PARTICLE_COUNT) * i + Math.random() * 12,
+        size,
+        delay: Math.random() * 0.15,
         color:
-          i % 2 === 0
+          kind === 'heart'
             ? HEART_COLORS[i % HEART_COLORS.length]
             : FLOWER_COLORS[i % FLOWER_COLORS.length],
-        spiralTurns: `${turnsDeg}deg`,
-        spiralRadius: `${reach}px`,
+        burstRadius: `${reach}px`,
         startRadius: `${start}px`,
-        kind: i % 3 === 0 ? 'flower' : 'heart',
+        kind,
       };
     });
   }, [burstId, maxRadius, startRadius]);
@@ -147,20 +149,15 @@ export function SpiralCelebration({
   return (
     <div className="spiral-celebration" aria-hidden>
       {particles.map((particle) => {
-        const spiralVars = {
-          '--start-angle': `${particle.angle}deg`,
-          '--spiral-turns': particle.spiralTurns,
-          '--spiral-radius': particle.spiralRadius,
-          '--spiral-start-radius': particle.startRadius,
-          '--spiral-duration': '6.4s',
+        const burstVars = {
+          '--burst-angle': `${particle.angle}deg`,
+          '--burst-radius': particle.burstRadius,
+          '--burst-start-radius': particle.startRadius,
+          '--burst-duration': '6s',
         } as React.CSSProperties;
 
-        const Shape =
-          particle.kind === 'flower' ? (
-            <MiniFlower size={particle.size} color={particle.color} />
-          ) : (
-            <HeartShape size={particle.size} color={particle.color} />
-          );
+        const heartSize = particle.size;
+        const flowerSize = particle.size * 0.72;
 
         return (
           <div
@@ -174,39 +171,49 @@ export function SpiralCelebration({
               const trailLag = (TRAIL_SEGMENTS - trailIndex) * TRAIL_LAG_S;
 
               return (
-                <SpiralArm
+                <BurstArm
                   key={`trail-${trailIndex}`}
                   className="spiral-celebration__arm spiral-celebration__arm--trail"
                   style={{
-                    ...spiralVars,
+                    ...burstVars,
                     animationDelay: `${particle.delay + trailLag}s`,
                   }}
                 >
                   <span
-                    className="spiral-celebration__particle spiral-celebration__particle--trail"
+                    className="spiral-celebration__particle spiral-celebration__particle--trail spiral-celebration__particle--combo"
                     style={{ ['--trail-peak' as string]: `${0.5 - trailIndex * 0.12}` }}
                   >
-                    {particle.kind === 'flower' ? (
-                      <MiniFlower size={trailSize} color={particle.color} />
-                    ) : (
-                      <HeartShape size={trailSize} color={particle.color} />
-                    )}
+                    <HeartShape
+                      size={trailSize}
+                      color={HEART_COLORS[particle.id % HEART_COLORS.length]}
+                    />
+                    <MiniFlower
+                      size={trailSize * 0.72}
+                      color={FLOWER_COLORS[particle.id % FLOWER_COLORS.length]}
+                    />
                   </span>
-                </SpiralArm>
+                </BurstArm>
               );
             })}
 
-            <SpiralArm
+            <BurstArm
               className="spiral-celebration__arm spiral-celebration__arm--head"
               style={{
-                ...spiralVars,
+                ...burstVars,
                 animationDelay: `${particle.delay}s`,
               }}
             >
-              <span className="spiral-celebration__particle spiral-celebration__particle--head">
-                {Shape}
+              <span className="spiral-celebration__particle spiral-celebration__particle--head spiral-celebration__particle--combo">
+                <HeartShape
+                  size={heartSize}
+                  color={HEART_COLORS[particle.id % HEART_COLORS.length]}
+                />
+                <MiniFlower
+                  size={flowerSize}
+                  color={FLOWER_COLORS[particle.id % FLOWER_COLORS.length]}
+                />
               </span>
-            </SpiralArm>
+            </BurstArm>
           </div>
         );
       })}

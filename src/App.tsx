@@ -1,17 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FallingSakuraPetals } from './components/FallingSakuraPetals';
+import {
+  GardenPlantingShow,
+  type PlantingRequest,
+} from './components/GardenPlantingShow';
 import { GardenScene } from './components/GardenScene';
 import { StickyKawaiiHeader } from './components/StickyKawaiiHeader';
 import { SpiralCelebration } from './components/SpiralCelebration';
 import { StarBurst } from './components/StarBurst';
 import { TaskList } from './components/TaskList';
 import { getCompletedCount, useTasks } from './hooks/useTasks';
-import { getGardenLevel } from './lib/gardenProgress';
+import { getGardenCycleProgress, getGardenLevel } from './lib/gardenProgress';
 import {
   DEFAULT_CELEBRATION_ORIGIN,
   measureScreenCelebrationOrigin,
   type CelebrationOrigin,
 } from './lib/mascotCelebration';
+import { getGrowthTier } from './lib/growthTier';
+import {
+  getFixedSlotX,
+  getPlantSlotForCompletion,
+} from './lib/plantedGarden';
 import { pickMotivationalPhrase } from './lib/motivationalPhrases';
 import { playAddTaskSound, playCelebrationTune, unlockAudio } from './lib/sounds';
 
@@ -46,6 +55,8 @@ export default function App() {
   const [spiralBurstId, setSpiralBurstId] = useState(0);
   const [celebrationOrigin, setCelebrationOrigin] =
     useState<CelebrationOrigin>(DEFAULT_CELEBRATION_ORIGIN);
+  const [plantRequest, setPlantRequest] = useState<PlantingRequest | null>(null);
+  const [newlyPlantedIndex, setNewlyPlantedIndex] = useState<number | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const mascotRef = useRef<HTMLDivElement>(null);
@@ -60,6 +71,7 @@ export default function App() {
     hydrated,
     addTask,
     completeTask,
+    revealGardenFlower,
     uncompleteTask,
     deleteTask,
     clearCompleted,
@@ -69,6 +81,7 @@ export default function App() {
 
   const completedCount = getCompletedCount(tasks);
   const gardenLevel = getGardenLevel(completedCount);
+  const gardenCycleProgress = getGardenCycleProgress(completedCount);
 
   const showMascotCheer = useCallback((phrase?: string) => {
     const text = phrase ?? pickMotivationalPhrase(lastPhraseRef.current);
@@ -110,32 +123,35 @@ export default function App() {
 
   const runPickedCelebration = useCallback(() => {
     showMascotCheer(PICKED_CELEBRATION_PHRASE);
-    unlockAudio();
 
-    if (reducedMotion) {
-      playCelebrationTune(muted);
-      return;
-    }
+    void (async () => {
+      await unlockAudio();
 
-    setMascotDancing(true);
-    const tuneMs = playCelebrationTune(muted);
+      if (reducedMotion) {
+        await playCelebrationTune(muted);
+        return;
+      }
+
+      setMascotDancing(true);
+      const tuneMs = await playCelebrationTune(muted);
     const waitMs = Math.max(tuneMs, HOP_DURATION_MS);
 
-    if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
-    celebrationTimerRef.current = setTimeout(() => {
-      setMascotDancing(false);
-      setStarsBurstId((n) => n + 1);
-      requestAnimationFrame(() => {
-        measureMascotOrigin();
-        setStarsActive(true);
-      });
-    }, waitMs);
+      if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
+      celebrationTimerRef.current = setTimeout(() => {
+        setMascotDancing(false);
+        setStarsBurstId((n) => n + 1);
+        requestAnimationFrame(() => {
+          measureMascotOrigin();
+          setStarsActive(true);
+        });
+      }, waitMs);
+    })();
   }, [muted, measureMascotOrigin, reducedMotion, showMascotCheer]);
 
   const handlePickRandom = useCallback(() => {
     const incomplete = tasks.filter((t) => !t.completed);
     if (incomplete.length === 0) return;
-    unlockAudio();
+    void unlockAudio();
     const pick = incomplete[Math.floor(Math.random() * incomplete.length)];
     setPickedTaskId(pick.id);
     requestAnimationFrame(() => {
@@ -157,7 +173,19 @@ export default function App() {
       lastCelebrationRef.current = { key: celebrationKey, at: now };
 
       const wasPicked = id === pickedTaskId;
-      completeTask(id, completionIndex);
+      const plantSlot = getPlantSlotForCompletion(completionIndex);
+      const plantX = getFixedSlotX(plantSlot);
+      completeTask(id, completionIndex, { plantSlot, plantX });
+
+      const tier = getGrowthTier(completionIndex);
+      const slotX = plantX;
+      setPlantRequest({
+        id: Date.now(),
+        completionIndex,
+        paletteIndex: tier.paletteIndex,
+        slotX,
+      });
+
       if (wasPicked) {
         setPickedTaskId(null);
         runPickedCelebration();
@@ -165,7 +193,27 @@ export default function App() {
       }
       runNormalCelebration();
     },
-    [completeTask, pickedTaskId, runNormalCelebration, runPickedCelebration],
+    [completeTask, completedCount, pickedTaskId, runNormalCelebration, runPickedCelebration],
+  );
+
+  const handlePlantingDropComplete = useCallback(
+    (completionIndex: number) => {
+      revealGardenFlower(completionIndex);
+      setNewlyPlantedIndex(completionIndex);
+      window.setTimeout(() => setNewlyPlantedIndex(null), 900);
+    },
+    [revealGardenFlower],
+  );
+
+  const handlePlantingComplete = useCallback(
+    (completionIndex: number) => {
+      setPlantRequest(null);
+
+      if (completionIndex > 0 && completionIndex % 5 === 0) {
+        showMascotCheer('Garden level up! 🌸✨\nFive flowers planted!');
+      }
+    },
+    [showMascotCheer],
   );
 
   const handleUncomplete = useCallback(
@@ -196,10 +244,12 @@ export default function App() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    unlockAudio();
-    if (!reducedMotion) {
-      playAddTaskSound(muted);
-    }
+    void (async () => {
+      await unlockAudio();
+      if (!reducedMotion) {
+        await playAddTaskSound(muted);
+      }
+    })();
     addTask(input);
     setInput('');
     inputRef.current?.focus();
@@ -226,9 +276,11 @@ export default function App() {
           visible={speechVisible}
           dancing={mascotDancing}
           gardenLevel={gardenLevel}
+          gardenCyclePlanted={gardenCycleProgress.planted}
+          gardenCycleMax={gardenCycleProgress.max}
           muted={muted}
           onToggleMute={() => {
-            unlockAudio();
+            void unlockAudio();
             setMuted((m) => !m);
           }}
           onPickRandom={tasks.length > 0 ? handlePickRandom : undefined}
@@ -266,31 +318,44 @@ export default function App() {
             />
           </main>
         </div>
+
+        <div className="app-celebrations-layer" aria-hidden>
+          <SpiralCelebration
+            key={spiralBurstId}
+            active={spiralActive}
+            burstId={spiralBurstId}
+            originX={celebrationOrigin.x}
+            originY={celebrationOrigin.y}
+            startRadius={celebrationOrigin.startRadius}
+            maxRadius={celebrationOrigin.maxRadius}
+            onComplete={() => setSpiralActive(false)}
+          />
+
+          <StarBurst
+            key={starsBurstId}
+            active={starsActive}
+            burstId={starsBurstId}
+            originX={celebrationOrigin.x}
+            originY={celebrationOrigin.y}
+            startRadius={celebrationOrigin.startRadius}
+            maxRadius={celebrationOrigin.maxRadius}
+            onComplete={() => setStarsActive(false)}
+          />
+        </div>
       </div>
 
-      <SpiralCelebration
-        key={spiralBurstId}
-        active={spiralActive}
-        burstId={spiralBurstId}
-        originX={celebrationOrigin.x}
-        originY={celebrationOrigin.y}
-        startRadius={celebrationOrigin.startRadius}
-        maxRadius={celebrationOrigin.maxRadius}
-        onComplete={() => setSpiralActive(false)}
+      <GardenScene
+        tasks={tasks}
+        completedCount={completedCount}
+        newlyPlantedIndex={newlyPlantedIndex}
       />
 
-      <StarBurst
-        key={starsBurstId}
-        active={starsActive}
-        burstId={starsBurstId}
-        originX={celebrationOrigin.x}
-        originY={celebrationOrigin.y}
-        startRadius={celebrationOrigin.startRadius}
-        maxRadius={celebrationOrigin.maxRadius}
-        onComplete={() => setStarsActive(false)}
+      <GardenPlantingShow
+        request={plantRequest}
+        reducedMotion={reducedMotion}
+        onDropComplete={handlePlantingDropComplete}
+        onComplete={handlePlantingComplete}
       />
-
-      <GardenScene completedCount={completedCount} />
     </div>
   );
 }

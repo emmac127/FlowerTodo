@@ -4,9 +4,8 @@ import type { Task } from '../hooks/useTasks';
 import { getGrowthTier, type GrowthTier } from '../lib/growthTier';
 import {
   playBloomSound,
-  playGrowSound,
-  playRetractSound,
-  playWiltSound,
+  scheduleCompletionSounds,
+  scheduleUncompleteSounds,
   unlockAudio,
 } from '../lib/sounds';
 import { ReorderGripIcon } from './ReorderGripIcon';
@@ -145,7 +144,7 @@ export function TaskRow({
       if (duration === 0) {
         setProgress(1);
         setBlooming(true);
-        if (!muted) playBloomSound(completionIdx, muted);
+        if (!muted) void playBloomSound(completionIdx, muted);
         onComplete(task.id, completionIdx);
         setIsAnimating(false);
         setAnimDirection(null);
@@ -168,7 +167,6 @@ export function TaskRow({
           completionRafRef.current = requestAnimationFrame(tick);
         } else {
           setBlooming(true);
-          playBloomSound(completionIdx, muted);
           completionTimeoutRef.current = setTimeout(() => {
             completionTimeoutRef.current = null;
             onComplete(task.id, completionIdx);
@@ -211,7 +209,6 @@ export function TaskRow({
 
     const afterWilt = () => {
       setWilting(false);
-      playRetractSound(completionIdx, retractDuration, muted);
 
       if (retractDuration === 0) {
         setProgress(0);
@@ -266,31 +263,40 @@ export function TaskRow({
         : task.completed;
 
   const handleCheck = () => {
-    unlockAudio();
     const markingComplete = !checkboxChecked;
 
-    if (!markingComplete) {
-      cancelCompletionAnimation();
-      setIsAnimating(false);
-      const completionIdx = task.completionIndex ?? 1;
-      if (!muted && !reducedMotion) {
-        playWiltSound(completionIdx, muted);
+    void (async () => {
+      const ctx = !muted ? await unlockAudio() : null;
+
+      if (!markingComplete) {
+        cancelCompletionAnimation();
+        setIsAnimating(false);
+        const completionIdx = task.completionIndex ?? 1;
+        const animTier = getGrowthTier(completionIdx);
+        if (ctx) {
+          scheduleUncompleteSounds(
+            ctx,
+            completionIdx,
+            reducedMotion ? 0 : animTier.growDurationMs,
+            reducedMotion ? 0 : WILT_DURATION_MS,
+          );
+        }
+        measure();
+        onUncomplete(task.id);
+        runUncompleteAnimation({ skipStateUpdate: true });
+        return;
+      }
+
+      if (isAnimating) return;
+
+      const idx = getNextCompletionIndex();
+      const tier = getGrowthTier(idx);
+      if (ctx && !reducedMotion) {
+        scheduleCompletionSounds(ctx, idx, tier.growDurationMs, tier.petalCount);
       }
       measure();
-      onUncomplete(task.id);
-      runUncompleteAnimation({ skipStateUpdate: true });
-      return;
-    }
-
-    if (isAnimating) return;
-
-    const idx = getNextCompletionIndex();
-    if (!muted && !reducedMotion) {
-      const tier = getGrowthTier(idx);
-      playGrowSound(idx, tier.growDurationMs, muted);
-    }
-    measure();
-    runCompletionAnimation(idx);
+      runCompletionAnimation(idx);
+    })();
   };
 
   const showStem = task.completed || isAnimating || progress > 0;
@@ -385,7 +391,7 @@ export function TaskRow({
         <span
           className="task-row__grip"
           role="img"
-          aria-label="Press and hold to reorder"
+          aria-label="Drag to reorder"
           onPointerDown={onRowPointerDown}
           onPointerUp={onRowPointerUp}
           onPointerCancel={onRowPointerCancel}

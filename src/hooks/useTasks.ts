@@ -6,6 +6,12 @@ export interface Task {
   text: string;
   completed: boolean;
   completionIndex?: number;
+  /** Fixed garden slot (0–4) assigned when planted — never recalculated. */
+  plantSlot?: number;
+  /** Fixed horizontal position in the garden SVG — never recalculated. */
+  plantX?: number;
+  /** False until the mascot planting animation finishes for this completion. */
+  gardenRevealed?: boolean;
   sortOrder: number;
   createdAt: number;
   /** While in the future, completed task stays in place before moving to the bottom. */
@@ -42,6 +48,9 @@ function loadState(): StoredState {
       storedTasks.map((t, i) => ({
         ...t,
         sortOrder: typeof t.sortOrder === 'number' ? t.sortOrder : i,
+        // If the page closed mid-planting, show any completed garden flowers.
+        gardenRevealed:
+          t.completed && t.gardenRevealed === false ? true : t.gardenRevealed,
       })),
     );
     return { tasks };
@@ -88,16 +97,31 @@ export function useTasks() {
     ]);
   }, []);
 
-  const completeTask = useCallback((id: string, completionIndex: number) => {
-    const releaseToBottomAt = Date.now() + COMPLETED_MOVE_DELAY_MS;
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, completed: true, completionIndex, releaseToBottomAt }
-          : t,
-      ),
-    );
-  }, []);
+  const completeTask = useCallback(
+    (
+      id: string,
+      completionIndex: number,
+      plant?: { plantSlot: number; plantX: number },
+    ) => {
+      const releaseToBottomAt = Date.now() + COMPLETED_MOVE_DELAY_MS;
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                completed: true,
+                completionIndex,
+                plantSlot: plant?.plantSlot,
+                plantX: plant?.plantX,
+                gardenRevealed: false,
+                releaseToBottomAt,
+              }
+            : t,
+        ),
+      );
+    },
+    [],
+  );
 
   const uncompleteTask = useCallback((id: string) => {
     setTasks((prev) => {
@@ -108,6 +132,9 @@ export function useTasks() {
               ...t,
               completed: false,
               completionIndex: undefined,
+              plantSlot: undefined,
+              plantX: undefined,
+              gardenRevealed: undefined,
               sortOrder: nextOrder,
               releaseToBottomAt: undefined,
             }
@@ -159,11 +186,20 @@ export function useTasks() {
     return getCompletedCount(tasks) + 1;
   }, [tasks]);
 
+  const revealGardenFlower = useCallback((completionIndex: number) => {
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.completionIndex === completionIndex ? { ...t, gardenRevealed: true } : t,
+      ),
+    );
+  }, []);
+
   return {
     tasks,
     hydrated,
     addTask,
     completeTask,
+    revealGardenFlower,
     uncompleteTask,
     deleteTask,
     clearCompleted,
