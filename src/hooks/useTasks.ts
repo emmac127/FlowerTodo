@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { COMPLETED_MOVE_DELAY_MS, getNextSortOrder } from '../lib/sortTasks';
+import {
+  COMPLETED_MOVE_DELAY_MS,
+  getNewTaskSortOrder,
+  getNextSortOrder,
+} from '../lib/sortTasks';
 
 export interface Task {
   id: string;
@@ -91,7 +95,7 @@ export function useTasks() {
         id: crypto.randomUUID(),
         text: trimmed,
         completed: false,
-        sortOrder: getNextSortOrder(prev),
+        sortOrder: getNewTaskSortOrder(prev),
         createdAt: Date.now(),
       },
     ]);
@@ -144,20 +148,17 @@ export function useTasks() {
     });
   }, []);
 
-  const reorderTask = useCallback(
-    (activeId: string, overId: string, place: 'before' | 'after' = 'before') => {
-      if (activeId === overId) return;
+  const applyIncompleteReorder = useCallback(
+    (activeId: string, toIndex: number) => {
       setTasks((prev) => {
         const incomplete = prev
           .filter((t) => !t.completed)
           .sort((a, b) => a.sortOrder - b.sortOrder);
         const fromIdx = incomplete.findIndex((t) => t.id === activeId);
-        let toIdx = incomplete.findIndex((t) => t.id === overId);
-        if (fromIdx === -1 || toIdx === -1) return prev;
+        if (fromIdx === -1) return prev;
 
-        if (place === 'after') toIdx += 1;
-        if (fromIdx < toIdx) toIdx -= 1;
-        toIdx = Math.max(0, Math.min(toIdx, incomplete.length - 1));
+        const toIdx = Math.max(0, Math.min(toIndex, incomplete.length - 1));
+        if (fromIdx === toIdx) return prev;
 
         const reordered = [...incomplete];
         const [moved] = reordered.splice(fromIdx, 1);
@@ -173,6 +174,52 @@ export function useTasks() {
     },
     [],
   );
+
+  const reorderTask = useCallback(
+    (activeId: string, overId: string, place: 'before' | 'after' = 'before') => {
+      if (activeId === overId) return;
+      setTasks((prev) => {
+        const incomplete = prev
+          .filter((t) => !t.completed)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        const fromIdx = incomplete.findIndex((t) => t.id === activeId);
+        let toIdx = incomplete.findIndex((t) => t.id === overId);
+        if (fromIdx === -1 || toIdx === -1) return prev;
+
+        if (place === 'after') toIdx += 1;
+        if (fromIdx < toIdx) toIdx -= 1;
+        const targetIndex = Math.max(0, Math.min(toIdx, incomplete.length - 1));
+        if (fromIdx === targetIndex) return prev;
+
+        const reordered = [...incomplete];
+        const [moved] = reordered.splice(fromIdx, 1);
+        reordered.splice(targetIndex, 0, moved);
+        const orderById = new Map(
+          reordered.map((t, index) => [t.id, index] as const),
+        );
+
+        return prev.map((t) =>
+          orderById.has(t.id) ? { ...t, sortOrder: orderById.get(t.id)! } : t,
+        );
+      });
+    },
+    [],
+  );
+
+  const reorderTaskToIndex = useCallback(
+    (activeId: string, toIndex: number) => {
+      applyIncompleteReorder(activeId, toIndex);
+    },
+    [applyIncompleteReorder],
+  );
+
+  const updateTaskText = useCallback((id: string, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, text: trimmed } : t)),
+    );
+  }, []);
 
   const deleteTask = useCallback((id: string) => {
     setTasks((prev) => renumberCompleted(prev.filter((t) => t.id !== id)));
@@ -201,9 +248,11 @@ export function useTasks() {
     completeTask,
     revealGardenFlower,
     uncompleteTask,
+    updateTaskText,
     deleteTask,
     clearCompleted,
     getNextCompletionIndex,
     reorderTask,
+    reorderTaskToIndex,
   };
 }

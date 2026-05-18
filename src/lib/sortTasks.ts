@@ -34,3 +34,10 @@ export function getNextSortOrder(tasks: Task[]): number {
   if (incomplete.length === 0) return 0;
   return Math.max(...incomplete.map((t) => t.sortOrder)) + 1;
 }
+
+/** Sort order for a newly added task (appears at the top of incomplete tasks). */
+export function getNewTaskSortOrder(tasks: Task[]): number {
+  const incomplete = tasks.filter((t) => !t.completed);
+  if (incomplete.length === 0) return 0;
+  return Math.min(...incomplete.map((t) => t.sortOrder)) - 1;
+}

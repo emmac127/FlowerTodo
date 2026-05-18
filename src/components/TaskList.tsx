@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Task } from '../hooks/useTasks';
-import { getNextBottomReleaseAt, isPinnedBeforeBottom, sortTasksForDisplay } from '../lib/sortTasks';
+import { getCombinedDragScrollDelta, getScrollSafeZone } from '../lib/dragAutoScroll';
+import {
+  getDragShiftY,
+  getPreviewInsertIndex,
+  measureDragSlideStepPx,
+} from '../lib/dragPreviewShift';
+import {
+  getNextBottomReleaseAt,
+  isPinnedBeforeBottom,
+  sortTasksForDisplay,
+} from '../lib/sortTasks';
 import { TaskRow } from './TaskRow';
 
 interface TaskListProps {
@@ -11,19 +21,47 @@ interface TaskListProps {
   onComplete: (id: string, completionIndex: number) => void;
   onUncomplete: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdateText: (id: string, text: string) => void;
   getNextCompletionIndex: () => number;
   onClearCompleted: () => void;
   onReorder: (activeId: string, overId: string, place: 'before' | 'after') => void;
+  onReorderToIndex: (activeId: string, toIndex: number) => void;
 }
 
-const LONG_PRESS_MS = 180;
-const DRAG_MOVE_THRESHOLD_PX = 8;
+const DRAG_START_THRESHOLD_PX = 6;
 
-type DropEdge = 'above' | 'below' | null;
+function isReleasedCompleted(task: Task, now = Date.now()): boolean {
+  return task.completed && !isPinnedBeforeBottom(task, now);
+}
 
-function getDropEdge(clientY: number, rect: DOMRect): DropEdge {
-  const mid = rect.top + rect.height / 2;
-  return clientY < mid ? 'above' : 'below';
+function updateDragFloatPosition(
+  taskId: string,
+  clientY: number,
+  grabOffsetY: number,
+): void {
+  const floating = document.querySelector<HTMLElement>(
+    `[data-task-id="${taskId}"][data-drag-floating]`,
+  );
+  if (!floating) return;
+
+  const list = document.querySelector<HTMLElement>('.task-list');
+  const sample = document.querySelector<HTMLElement>(
+    '.task-row:not(.task-row--drag-placeholder):not(.task-row--drag-floating)',
+  );
+  const listRect = list?.getBoundingClientRect();
+  const sampleRect = sample?.getBoundingClientRect();
+
+  floating.style.top = `${clientY - grabOffsetY}px`;
+  if (listRect && sampleRect) {
+    floating.style.left = `${sampleRect.left}px`;
+    floating.style.width = `${sampleRect.width}px`;
+  }
+}
+
+function getFloatingRowRect(taskId: string): DOMRect | null {
+  return document
+    .querySelector<HTMLElement>(`[data-task-id="${taskId}"][data-drag-floating]`)
+    ?.getBoundingClientRect() ?? null;
 }
 
 export function TaskList({
@@ -34,184 +72,219 @@ export function TaskList({
   onComplete,
   onUncomplete,
   onDelete,
+  onUpdateText,
   getNextCompletionIndex,
   onClearCompleted,
-  onReorder,
+  onReorder: _onReorder,
+  onReorderToIndex,
 }: TaskListProps) {
   const [listTick, setListTick] = useState(0);
   const [droppingId, setDroppingId] = useState<string | null>(null);
   const pinnedIdsRef = useRef<Set<string>>(new Set());
 
   const sortedTasks = useMemo(() => sortTasksForDisplay(tasks), [tasks, listTick]);
+  const hiddenCompletedCount = useMemo(
+    () => sortedTasks.filter((t) => isReleasedCompleted(t)).length,
+    [sortedTasks],
+  );
   const hasCompleted = tasks.some((t) => t.completed);
   const canReorder = tasks.filter((t) => !t.completed).length >= 2;
 
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
-  const [dropEdge, setDropEdge] = useState<DropEdge>(null);
+  const [actionMenuTaskId, setActionMenuTaskId] = useState<string | null>(null);
+  const [moveModeTaskId, setMoveModeTaskId] = useState<string | null>(null);
+  const visibleTasks = useMemo(
+    () =>
+      moveModeTaskId
+        ? sortedTasks.filter((t) => !isReleasedCompleted(t))
+        : sortedTasks,
+    [moveModeTaskId, sortedTasks],
+  );
 
-  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pressCleanupRef = useRef<(() => void) | null>(null);
+  const incompleteIds = useMemo(
+    () => visibleTasks.filter((t) => !t.completed).map((t) => t.id),
+    [visibleTasks],
+  );
+
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragFloatStyle, setDragFloatStyle] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const [dragPlaceholderHeight, setDragPlaceholderHeight] = useState(0);
+  const [dragFromIndex, setDragFromIndex] = useState(0);
+  const [dragSlideStepPx, setDragSlideStepPx] = useState(0);
+  const [previewInsertIndex, setPreviewInsertIndex] = useState<number | null>(null);
+
   const dragActiveRef = useRef(false);
-  const pointerIdRef = useRef<number | null>(null);
   const dragIdRef = useRef<string | null>(null);
-  const dropTargetRef = useRef<string | null>(null);
-  const dropEdgeRef = useRef<DropEdge>(null);
+  const dragGrabOffsetYRef = useRef(0);
+  const previewInsertIndexRef = useRef(0);
   const sortedTasksRef = useRef(sortedTasks);
-  const onReorderRef = useRef(onReorder);
+  const incompleteIdsRef = useRef(incompleteIds);
+  const onReorderToIndexRef = useRef(onReorderToIndex);
+  const pointerLastRef = useRef({ x: 0, y: 0 });
+  const dragLoopRef = useRef<number | null>(null);
 
   useEffect(() => {
     sortedTasksRef.current = sortedTasks;
-    onReorderRef.current = onReorder;
+    incompleteIdsRef.current = incompleteIds;
+    onReorderToIndexRef.current = onReorderToIndex;
   });
 
-  useEffect(() => {
-    dropTargetRef.current = dropTargetId;
-    dropEdgeRef.current = dropEdge;
-  }, [dropTargetId, dropEdge]);
+  const updatePreviewInsert = useCallback((clientY: number) => {
+    const activeId = dragIdRef.current;
+    if (!activeId) return;
 
-  const clearPressTimer = useCallback(() => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current);
-      pressTimerRef.current = null;
+    const ids = incompleteIdsRef.current;
+    const nextIndex = getPreviewInsertIndex(clientY, ids, activeId);
+    if (nextIndex === previewInsertIndexRef.current) return;
+
+    previewInsertIndexRef.current = nextIndex;
+    setPreviewInsertIndex(nextIndex);
+  }, []);
+
+  const stopDragLoop = useCallback(() => {
+    if (dragLoopRef.current != null) {
+      cancelAnimationFrame(dragLoopRef.current);
+      dragLoopRef.current = null;
     }
-    pressCleanupRef.current?.();
-    pressCleanupRef.current = null;
   }, []);
 
-  const pointerHandlersRef = useRef<{
-    move: (e: PointerEvent) => void;
-    up: (e: PointerEvent) => void;
-  } | null>(null);
+  const runDragLoop = useCallback(() => {
+    if (!dragActiveRef.current) {
+      stopDragLoop();
+      return;
+    }
 
-  const removePointerListeners = useCallback(() => {
-    const handlers = pointerHandlersRef.current;
-    if (!handlers) return;
-    window.removeEventListener('pointermove', handlers.move);
-    window.removeEventListener('pointerup', handlers.up);
-    window.removeEventListener('pointercancel', handlers.up);
-    pointerHandlersRef.current = null;
-  }, []);
+    const { y } = pointerLastRef.current;
+    const activeId = dragIdRef.current;
+    const safeZone = getScrollSafeZone();
+    const rowRect = activeId ? getFloatingRowRect(activeId) : null;
+    const scrollDelta = getCombinedDragScrollDelta(y, rowRect, safeZone);
+    if (scrollDelta !== 0) {
+      window.scrollBy(0, scrollDelta);
+    }
+
+    updatePreviewInsert(y);
+    if (activeId) {
+      updateDragFloatPosition(activeId, y, dragGrabOffsetYRef.current);
+    }
+
+    dragLoopRef.current = requestAnimationFrame(runDragLoop);
+  }, [stopDragLoop, updatePreviewInsert]);
 
   const endDrag = useCallback(() => {
-    clearPressTimer();
-    removePointerListeners();
     dragActiveRef.current = false;
-    pointerIdRef.current = null;
     dragIdRef.current = null;
+    stopDragLoop();
     setDraggingId(null);
-    setDropTargetId(null);
-    setDropEdge(null);
-  }, [clearPressTimer, removePointerListeners]);
+    setDragFloatStyle(null);
+    setDragPlaceholderHeight(0);
+    setPreviewInsertIndex(null);
+    setDragSlideStepPx(0);
+  }, [stopDragLoop]);
 
-  const commitReorder = useCallback(() => {
+  const commitDropReorder = useCallback(() => {
     const activeId = dragIdRef.current;
-    const targetId = dropTargetRef.current;
-    const edge = dropEdgeRef.current;
-    if (!activeId || !targetId || activeId === targetId) return;
+    if (!activeId) return;
 
-    const activeTask = sortedTasksRef.current.find((t) => t.id === activeId);
-    const targetTask = sortedTasksRef.current.find((t) => t.id === targetId);
-    if (!activeTask || !targetTask || activeTask.completed || targetTask.completed) return;
+    const ids = incompleteIdsRef.current;
+    const fromIdx = ids.indexOf(activeId);
+    if (fromIdx === -1) return;
 
-    onReorderRef.current(activeId, targetId, edge === 'below' ? 'after' : 'before');
+    const targetIdx = previewInsertIndexRef.current;
+    if (targetIdx === fromIdx) return;
+
+    onReorderToIndexRef.current(activeId, targetIdx);
   }, []);
 
   const startDrag = useCallback(
-    (taskId: string, pointerId: number) => {
+    (taskId: string, rowEl: HTMLElement, rowRect: DOMRect) => {
+      const fromIdx = incompleteIdsRef.current.indexOf(taskId);
+      if (fromIdx === -1) return;
+
+      const slideStep = measureDragSlideStepPx(rowEl);
+
       dragActiveRef.current = true;
-      pointerIdRef.current = pointerId;
       dragIdRef.current = taskId;
+      dragGrabOffsetYRef.current = pointerLastRef.current.y - rowRect.top;
+      previewInsertIndexRef.current = fromIdx;
+
+      setDragFromIndex(fromIdx);
+      setDragSlideStepPx(slideStep);
+      setPreviewInsertIndex(fromIdx);
       setDraggingId(taskId);
-      setDropTargetId(null);
-      setDropEdge(null);
+      setDragPlaceholderHeight(rowRect.height);
+      setDragFloatStyle({
+        top: rowRect.top,
+        left: rowRect.left,
+        width: rowRect.width,
+      });
+      runDragLoop();
+    },
+    [runDragLoop],
+  );
 
-      const handlePointerMove = (e: PointerEvent) => {
-        if (!dragActiveRef.current || pointerIdRef.current !== e.pointerId) return;
+  const scrollTaskIntoReorderView = useCallback((taskId: string) => {
+    requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(`[data-task-id="${taskId}"]:not([data-drag-placeholder])`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+  }, []);
 
-        const el = document.elementFromPoint(e.clientX, e.clientY);
-        const row = el?.closest<HTMLElement>('[data-task-id]');
-        const overId = row?.dataset.taskId ?? null;
-        const activeId = dragIdRef.current;
+  const handleRowPointerDown = useCallback(
+    (taskId: string, e: React.PointerEvent<HTMLElement>) => {
+      const task = sortedTasksRef.current.find((t) => t.id === taskId);
+      if (!task || task.completed) return;
 
-        if (!overId || overId === activeId) {
-          setDropTargetId(null);
-          setDropEdge(null);
-          return;
+      e.preventDefault();
+
+      const row = e.currentTarget;
+      const pointerId = e.pointerId;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const thresholdSq = DRAG_START_THRESHOLD_PX * DRAG_START_THRESHOLD_PX;
+      let dragging = false;
+
+      const handlePointerMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
+
+        pointerLastRef.current = { x: ev.clientX, y: ev.clientY };
+
+        if (!dragging) {
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+          if (dx * dx + dy * dy < thresholdSq) return;
+          dragging = true;
+          startDrag(taskId, row, row.getBoundingClientRect());
         }
 
-        const overTask = sortedTasksRef.current.find((t) => t.id === overId);
-        if (!overTask || overTask.completed) {
-          setDropTargetId(null);
-          setDropEdge(null);
-          return;
-        }
-
-        const rect = row!.getBoundingClientRect();
-        setDropTargetId(overId);
-        setDropEdge(getDropEdge(e.clientY, rect));
+        updatePreviewInsert(ev.clientY);
+        updateDragFloatPosition(taskId, ev.clientY, dragGrabOffsetYRef.current);
       };
 
-      const handlePointerUp = (e: PointerEvent) => {
-        if (pointerIdRef.current !== e.pointerId) return;
-        if (dragActiveRef.current) {
-          commitReorder();
+      const handlePointerUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
+        document.removeEventListener('pointermove', handlePointerMove);
+        document.removeEventListener('pointerup', handlePointerUp);
+        document.removeEventListener('pointercancel', handlePointerUp);
+        if (dragging) {
+          pointerLastRef.current = { x: ev.clientX, y: ev.clientY };
+          updatePreviewInsert(ev.clientY);
+          commitDropReorder();
+          setMoveModeTaskId(null);
         }
         endDrag();
       };
 
-      pointerHandlersRef.current = { move: handlePointerMove, up: handlePointerUp };
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-      window.addEventListener('pointercancel', handlePointerUp);
+      document.addEventListener('pointermove', handlePointerMove);
+      document.addEventListener('pointerup', handlePointerUp);
+      document.addEventListener('pointercancel', handlePointerUp);
     },
-    [commitReorder, endDrag],
+    [commitDropReorder, endDrag, startDrag, updatePreviewInsert],
   );
-
-  const handleRowPointerDown = useCallback(
-    (taskId: string, e: React.PointerEvent) => {
-      const task = sortedTasksRef.current.find((t) => t.id === taskId);
-      if (!task || task.completed) return;
-      if ((e.target as HTMLElement).closest('button, input, .task-checkbox-label')) return;
-
-      clearPressTimer();
-
-      const pointerId = e.pointerId;
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const thresholdSq = DRAG_MOVE_THRESHOLD_PX * DRAG_MOVE_THRESHOLD_PX;
-
-      const beginDrag = () => {
-        if (dragActiveRef.current) return;
-        clearPressTimer();
-        startDrag(taskId, pointerId);
-      };
-
-      const handlePreDragMove = (ev: PointerEvent) => {
-        if (ev.pointerId !== pointerId) return;
-        const dx = ev.clientX - startX;
-        const dy = ev.clientY - startY;
-        if (dx * dx + dy * dy >= thresholdSq) {
-          beginDrag();
-        }
-      };
-
-      window.addEventListener('pointermove', handlePreDragMove);
-      pressCleanupRef.current = () => {
-        window.removeEventListener('pointermove', handlePreDragMove);
-      };
-
-      pressTimerRef.current = setTimeout(() => {
-        pressTimerRef.current = null;
-        beginDrag();
-      }, LONG_PRESS_MS);
-    },
-    [clearPressTimer, startDrag],
-  );
-
-  const handleRowPointerUp = useCallback(() => {
-    clearPressTimer();
-  }, [clearPressTimer]);
 
   useEffect(() => () => endDrag(), [endDrag]);
 
@@ -259,37 +332,93 @@ export function TaskList({
 
   return (
     <div className="task-list-wrap">
-      <ul className="task-list">
-        {sortedTasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            muted={muted}
-            reducedMotion={reducedMotion}
-            isPicked={pickedTaskId === task.id}
-            onComplete={onComplete}
-            onUncomplete={onUncomplete}
-            onDelete={onDelete}
-            getNextCompletionIndex={getNextCompletionIndex}
-            isDragging={draggingId === task.id}
-            isDroppingToBottom={droppingId === task.id}
-            showReorderHandle={canReorder && !task.completed}
-            dropHint={
-              dropTargetId === task.id
-                ? dropEdge === 'above'
-                  ? 'above'
-                  : dropEdge === 'below'
-                    ? 'below'
-                    : null
-                : null
-            }
-            onRowPointerDown={(e) => handleRowPointerDown(task.id, e)}
-            onRowPointerUp={handleRowPointerUp}
-            onRowPointerCancel={handleRowPointerUp}
-          />
-        ))}
+      {moveModeTaskId && (
+        <p className="task-list__reorder-hint" id="task-reorder-hint" role="status">
+          Drag the purple task, then release to place it.{' '}
+          <button
+            type="button"
+            className="task-list__reorder-done"
+            onClick={() => setMoveModeTaskId(null)}
+          >
+            Done
+          </button>
+        </p>
+      )}
+      {moveModeTaskId && hiddenCompletedCount > 0 && (
+        <p className="task-list__completed-hidden" role="status">
+          {hiddenCompletedCount} completed {hiddenCompletedCount === 1 ? 'task' : 'tasks'} hidden
+          while moving
+        </p>
+      )}
+      <ul
+        className={`task-list${moveModeTaskId ? ' task-list--reordering' : ''}${draggingId ? ' task-list--dragging' : ''}`}
+        aria-describedby={moveModeTaskId ? 'task-reorder-hint' : undefined}
+      >
+        {visibleTasks.map((task) => {
+          const incompleteIndex = incompleteIds.indexOf(task.id);
+          const isActiveDrag = draggingId === task.id;
+          const previewIndex = previewInsertIndex ?? dragFromIndex;
+          const shiftY =
+            draggingId &&
+            incompleteIndex >= 0 &&
+            !isActiveDrag &&
+            dragSlideStepPx > 0
+              ? getDragShiftY(
+                  incompleteIndex,
+                  dragFromIndex,
+                  previewIndex,
+                  dragSlideStepPx,
+                )
+              : 0;
+
+          return (
+            <TaskRow
+              key={task.id}
+              task={task}
+              muted={muted}
+              reducedMotion={reducedMotion}
+              isPicked={pickedTaskId === task.id}
+              onComplete={onComplete}
+              onUncomplete={onUncomplete}
+              onDelete={onDelete}
+              onUpdateText={onUpdateText}
+              getNextCompletionIndex={getNextCompletionIndex}
+              isDragging={isActiveDrag}
+              dragFloatStyle={isActiveDrag ? dragFloatStyle : null}
+              dragPlaceholderHeight={isActiveDrag ? dragPlaceholderHeight : undefined}
+              dragPlaceholderCollapsed={
+                isActiveDrag && previewIndex !== dragFromIndex
+              }
+              dragShiftY={shiftY}
+              showInsertPreview={
+                !!draggingId &&
+                incompleteIndex >= 0 &&
+                incompleteIndex === previewIndex
+              }
+              isDroppingToBottom={droppingId === task.id}
+              canMove={canReorder && !task.completed}
+              isMoveMode={moveModeTaskId === task.id}
+              onEnterMoveMode={() => {
+                setMoveModeTaskId(task.id);
+                setActionMenuTaskId(null);
+                scrollTaskIntoReorderView(task.id);
+              }}
+              onExitMoveMode={() => setMoveModeTaskId(null)}
+              actionMenuOpen={actionMenuTaskId === task.id}
+              onActionMenuOpenChange={(open) => {
+                setActionMenuTaskId(open ? task.id : null);
+                if (open) setMoveModeTaskId(null);
+              }}
+              onDragPointerDown={
+                moveModeTaskId === task.id && canReorder && !task.completed
+                  ? (e) => handleRowPointerDown(task.id, e)
+                  : undefined
+              }
+            />
+          );
+        })}
       </ul>
-      {hasCompleted && (
+      {hasCompleted && !moveModeTaskId && (
         <footer className="task-list-footer">
           <button type="button" className="clear-completed" onClick={onClearCompleted}>
             Clear completed

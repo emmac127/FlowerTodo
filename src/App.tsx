@@ -73,10 +73,12 @@ export default function App() {
     completeTask,
     revealGardenFlower,
     uncompleteTask,
+    updateTaskText,
     deleteTask,
     clearCompleted,
     getNextCompletionIndex,
     reorderTask,
+    reorderTaskToIndex,
   } = useTasks();
 
   const completedCount = getCompletedCount(tasks);
@@ -312,9 +314,11 @@ export default function App() {
               onComplete={handleTaskCompleted}
               onUncomplete={handleUncomplete}
               onDelete={handleDelete}
+              onUpdateText={updateTaskText}
               getNextCompletionIndex={getNextCompletionIndex}
               onClearCompleted={clearCompleted}
               onReorder={reorderTask}
+              onReorderToIndex={reorderTaskToIndex}
             />
           </main>
         </div>

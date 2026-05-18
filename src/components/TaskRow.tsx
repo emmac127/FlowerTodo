@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import type { Task } from '../hooks/useTasks';
 import { getGrowthTier, type GrowthTier } from '../lib/growthTier';
@@ -8,8 +8,8 @@ import {
   scheduleUncompleteSounds,
   unlockAudio,
 } from '../lib/sounds';
-import { ReorderGripIcon } from './ReorderGripIcon';
 import { StemStrikeSVG } from './StemStrikeSVG';
+import { TaskActionMenu } from './TaskActionMenu';
 
 interface TaskRowProps {
   task: Task;
@@ -19,14 +19,23 @@ interface TaskRowProps {
   onComplete: (id: string, completionIndex: number) => void;
   onUncomplete: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdateText: (id: string, text: string) => void;
   getNextCompletionIndex: () => number;
   isDragging?: boolean;
+  dragFloatStyle?: { top: number; left: number; width: number } | null;
+  dragPlaceholderHeight?: number;
+  dragPlaceholderCollapsed?: boolean;
+  dragShiftY?: number;
+  showInsertPreview?: boolean;
   isDroppingToBottom?: boolean;
-  showReorderHandle?: boolean;
+  canMove?: boolean;
+  isMoveMode?: boolean;
+  onEnterMoveMode: () => void;
+  onExitMoveMode: () => void;
+  actionMenuOpen: boolean;
+  onActionMenuOpenChange: (open: boolean) => void;
   dropHint?: 'above' | 'below' | null;
-  onRowPointerDown?: (e: React.PointerEvent) => void;
-  onRowPointerUp?: () => void;
-  onRowPointerCancel?: () => void;
+  onDragPointerDown?: (e: React.PointerEvent<HTMLElement>) => void;
 }
 
 type AnimDirection = 'complete' | 'uncomplete' | null;
@@ -60,16 +69,25 @@ export function TaskRow({
   onComplete,
   onUncomplete,
   onDelete,
+  onUpdateText,
   getNextCompletionIndex,
   isDragging = false,
+  dragFloatStyle = null,
+  dragPlaceholderHeight = 0,
+  dragPlaceholderCollapsed = false,
+  dragShiftY = 0,
+  showInsertPreview = false,
   isDroppingToBottom = false,
-  showReorderHandle = false,
-  dropHint = null,
-  onRowPointerDown,
-  onRowPointerUp,
-  onRowPointerCancel,
+  canMove = false,
+  isMoveMode = false,
+  onEnterMoveMode,
+  onExitMoveMode,
+  actionMenuOpen,
+  onActionMenuOpenChange,
+  onDragPointerDown,
 }: TaskRowProps) {
   const textRef = useRef<HTMLSpanElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
   const rowRef = useRef<HTMLLIElement>(null);
   const [textWidth, setTextWidth] = useState(0);
   const [ringDims, setRingDims] = useState({ w: 0, h: 0 });
@@ -85,6 +103,8 @@ export function TaskRow({
   const completionRafRef = useRef<number | null>(null);
   const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(task.text);
 
   const cancelCompletionAnimation = useCallback(() => {
     if (completionRafRef.current != null) {
@@ -118,6 +138,19 @@ export function TaskRow({
     ro.observe(el);
     return () => ro.disconnect();
   }, [measure, task.text]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setEditText(task.text);
+    }
+  }, [isEditing, task.text]);
+
+  useEffect(() => {
+    if (isEditing && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [isEditing]);
 
   useEffect(() => {
     if (isAnimating) return;
@@ -341,17 +374,29 @@ export function TaskRow({
     showPickedRing ? 'task-row--picked' : '',
     isDragging ? 'task-row--dragging' : '',
     isDroppingToBottom ? 'task-row--dropping' : '',
-    dropHint === 'above' ? 'task-row--drop-above' : '',
-    dropHint === 'below' ? 'task-row--drop-below' : '',
-    showReorderHandle ? 'task-row--reorderable' : '',
+    showInsertPreview ? 'task-row--insert-preview' : '',
+    dragShiftY !== 0 ? 'task-row--preview-shift' : '',
+    isMoveMode && !isDragging ? 'task-row--move-mode' : '',
+    actionMenuOpen ? 'task-row--menu-open' : '',
+    isEditing ? 'task-row--editing' : '',
+    isDragging ? 'task-row--drag-floating' : '',
   ]
     .filter(Boolean)
     .join(' ');
 
-  const handleDeleteClick = (e: MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    setDeleteConfirmOpen(true);
-  };
+  const floatStyle =
+    isDragging && dragFloatStyle
+      ? {
+          top: dragFloatStyle.top,
+          left: dragFloatStyle.left,
+          width: dragFloatStyle.width,
+        }
+      : undefined;
+
+  const shiftStyle =
+    !isDragging && dragShiftY !== 0
+      ? { transform: `translateY(${dragShiftY}px)` }
+      : undefined;
 
   const handleDeleteConfirm = () => {
     setDeleteConfirmOpen(false);
@@ -362,13 +407,53 @@ export function TaskRow({
     setDeleteConfirmOpen(false);
   };
 
-  return (
-    <li
-      ref={rowRef}
-      id={`task-${task.id}`}
-      data-task-id={task.id}
-      className={rowClass}
-    >
+  const saveEdit = useCallback(() => {
+    const trimmed = editText.trim();
+    if (!trimmed) {
+      setEditText(task.text);
+      setIsEditing(false);
+      return;
+    }
+    if (trimmed !== task.text) {
+      onUpdateText(task.id, trimmed);
+    }
+    setIsEditing(false);
+    onActionMenuOpenChange(false);
+  }, [editText, onActionMenuOpenChange, onUpdateText, task.id, task.text]);
+
+  const cancelEdit = useCallback(() => {
+    setEditText(task.text);
+    setIsEditing(false);
+    onActionMenuOpenChange(false);
+  }, [onActionMenuOpenChange, task.text]);
+
+  const toggleActionMenu = () => {
+    if (isAnimating || isEditing) return;
+    onActionMenuOpenChange(!actionMenuOpen);
+  };
+
+  const handleRowPointerDown = (e: React.PointerEvent<HTMLLIElement>) => {
+    if (!isMoveMode || !onDragPointerDown) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, label, [role="menu"]')) return;
+    onDragPointerDown(e);
+  };
+
+  const startEditing = useCallback(() => {
+    if (isAnimating || isMoveMode || isDragging) return;
+    onActionMenuOpenChange(false);
+    setEditText(task.text);
+    setIsEditing(true);
+  }, [
+    isAnimating,
+    isDragging,
+    isMoveMode,
+    onActionMenuOpenChange,
+    task.text,
+  ]);
+
+  const rowInner = (
+    <>
       {showPickedRing && ringDims.w > 0 && (
         <svg
           className="task-row__picked-ring"
@@ -387,24 +472,12 @@ export function TaskRow({
           />
         </svg>
       )}
-      {showReorderHandle && (
-        <span
-          className="task-row__grip"
-          role="img"
-          aria-label="Drag to reorder"
-          onPointerDown={onRowPointerDown}
-          onPointerUp={onRowPointerUp}
-          onPointerCancel={onRowPointerCancel}
-        >
-          <ReorderGripIcon />
-        </span>
-      )}
       <label className="task-checkbox-label">
         <input
           type="checkbox"
           className="task-checkbox"
           checked={checkboxChecked}
-          disabled={isAnimating && !checkboxChecked}
+          disabled={(isAnimating && !checkboxChecked) || isEditing || isMoveMode}
           onChange={handleCheck}
           aria-label={
             checkboxChecked
@@ -416,15 +489,45 @@ export function TaskRow({
       </label>
 
       <div className="task-text-wrapper">
-        <span
-          ref={textRef}
-          className={`task-text ${isStruck ? 'task-text--struck' : ''}`}
-          style={{ opacity: textOpacity }}
-        >
-          {task.text}
-        </span>
+        {isEditing ? (
+          <input
+            ref={editInputRef}
+            type="text"
+            className="task-row__edit-input"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit();
+              }
+            }}
+            onBlur={saveEdit}
+            aria-label={`Edit task: ${task.text}`}
+          />
+        ) : (
+          <span
+            ref={textRef}
+            role="button"
+            tabIndex={isAnimating || isMoveMode || isDragging ? -1 : 0}
+            className={`task-text task-text--editable ${isStruck ? 'task-text--struck' : ''}`}
+            style={{ opacity: textOpacity }}
+            onClick={startEditing}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' && e.key !== ' ') return;
+              e.preventDefault();
+              startEditing();
+            }}
+            aria-label={`Edit task: ${task.text}`}
+          >
+            {task.text}
+          </span>
+        )}
 
-        {showStem && textWidth > 0 && (
+        {showStem && textWidth > 0 && !isEditing && (
           <div
             className="stem-overlay"
             style={{ width: textWidth + 48, height: rowHeight }}
@@ -441,21 +544,88 @@ export function TaskRow({
         )}
       </div>
 
-      <button
-        type="button"
-        className="task-delete"
-        onClick={handleDeleteClick}
-        disabled={isAnimating}
-        aria-label={`Delete "${task.text}"`}
-      >
-        ×
-      </button>
+      <div className="task-row__actions">
+        {isMoveMode ? (
+          <button
+            type="button"
+            className="task-row__move-done"
+            onClick={onExitMoveMode}
+            disabled={isDragging}
+          >
+            Done
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="task-row__edit-toggle"
+            onClick={toggleActionMenu}
+            disabled={isAnimating || isEditing}
+            aria-expanded={actionMenuOpen}
+            aria-haspopup="menu"
+            aria-label={`Options for ${task.text}`}
+          >
+            ⋯
+          </button>
+        )}
+        <TaskActionMenu
+          open={actionMenuOpen}
+          canMove={canMove}
+          onClose={() => onActionMenuOpenChange(false)}
+          onMove={() => {
+            onActionMenuOpenChange(false);
+            onEnterMoveMode();
+          }}
+          onDelete={() => {
+            onActionMenuOpenChange(false);
+            setDeleteConfirmOpen(true);
+          }}
+        />
+      </div>
 
       <DeleteConfirmDialog
         open={deleteConfirmOpen}
         onCancel={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
       />
+    </>
+  );
+
+  if (isDragging && dragPlaceholderHeight > 0) {
+    return (
+      <Fragment>
+        <li
+          className={`task-row task-row--drag-placeholder${dragPlaceholderCollapsed ? ' task-row--drag-placeholder--collapsed' : ''}${showInsertPreview ? ' task-row--insert-preview' : ''}`}
+          data-drag-placeholder={task.id}
+          style={{
+            height: dragPlaceholderCollapsed ? 0 : dragPlaceholderHeight,
+          }}
+          aria-hidden
+        />
+        <li
+          ref={rowRef}
+          id={`task-${task.id}`}
+          data-task-id={task.id}
+          data-drag-floating
+          className={rowClass}
+          style={floatStyle}
+          aria-grabbed
+        >
+          {rowInner}
+        </li>
+      </Fragment>
+    );
+  }
+
+  return (
+    <li
+      ref={rowRef}
+      id={`task-${task.id}`}
+      data-task-id={task.id}
+      className={rowClass}
+      style={shiftStyle}
+      onPointerDown={isMoveMode && canMove ? handleRowPointerDown : undefined}
+    >
+      {rowInner}
     </li>
   );
 }
