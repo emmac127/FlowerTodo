@@ -117,7 +117,7 @@ export function useTasks() {
                 completionIndex,
                 plantSlot: plant?.plantSlot,
                 plantX: plant?.plantX,
-                gardenRevealed: false,
+                gardenRevealed: true,
                 releaseToBottomAt,
               }
             : t,
@@ -233,20 +233,11 @@ export function useTasks() {
     return getCompletedCount(tasks) + 1;
   }, [tasks]);
 
-  const revealGardenFlower = useCallback((completionIndex: number) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.completionIndex === completionIndex ? { ...t, gardenRevealed: true } : t,
-      ),
-    );
-  }, []);
-
   return {
     tasks,
     hydrated,
     addTask,
     completeTask,
-    revealGardenFlower,
     uncompleteTask,
     updateTaskText,
     deleteTask,

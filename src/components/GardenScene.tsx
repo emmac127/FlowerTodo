@@ -1,14 +1,14 @@
 import { useMemo } from 'react';
-import type { Task } from '../hooks/useTasks';
 import { getGardenLayers, getSceneMilestoneCount } from '../lib/gardenProgress';
-import { buildPlantedFlowers } from '../lib/plantedGarden';
+import { getGardenCycleProgress } from '../lib/plantedGarden';
+import { getSeedGrowthStage } from '../lib/seedGrowth';
+import type { StartingSeed } from '../lib/startingSeed';
 import { CssDoodle } from './CssDoodle';
-import { PlantedFlower } from './PlantedFlower';
+import { GrowingSeedPlant } from './GrowingSeedPlant';
 
 interface GardenSceneProps {
-  tasks: Task[];
   completedCount: number;
-  newlyPlantedIndex?: number | null;
+  startingSeed?: StartingSeed | null;
 }
 
 const GRASS_DOODLE = `
@@ -25,19 +25,21 @@ const GRASS_DOODLE = `
 `;
 
 export function GardenScene({
-  tasks,
   completedCount,
-  newlyPlantedIndex = null,
+  startingSeed = null,
 }: GardenSceneProps) {
   const layers = useMemo(() => getGardenLayers(completedCount), [completedCount]);
-  const plantedFlowers = useMemo(() => buildPlantedFlowers(tasks), [tasks]);
   const stage = Math.min(getSceneMilestoneCount(completedCount), 12);
+  const growthStage = getSeedGrowthStage(completedCount);
+  const cycleProgress = getGardenCycleProgress(completedCount);
+  const showGrowingSeed = startingSeed != null;
+  const showGrass = layers.grass || showGrowingSeed;
 
   return (
     <div className="garden-scene" aria-hidden>
       <div className="garden-scene__sky" />
 
-      {layers.grass && (
+      {showGrass && (
         <div className={`garden-layer garden-layer--grass stage-${stage}`}>
           <CssDoodle className="garden-doodle garden-doodle--grass">{GRASS_DOODLE}</CssDoodle>
         </div>
@@ -58,19 +60,21 @@ export function GardenScene({
         preserveAspectRatio="xMidYMax meet"
         aria-hidden
       >
-        <g className="garden-planted-flowers">
-          {plantedFlowers.map((spec) => (
-            <PlantedFlower
-              key={spec.completionIndex}
-              spec={spec}
-              isNew={spec.completionIndex === newlyPlantedIndex}
-            />
-          ))}
+        <g className="garden-growing-seed">
+          {showGrowingSeed && (
+            <GrowingSeedPlant seed={startingSeed} growthStage={growthStage} />
+          )}
         </g>
       </svg>
 
-      {plantedFlowers.length === 0 && (
+      {!startingSeed && (
         <p className="garden-scene__hint">Complete tasks to plant your garden…</p>
+      )}
+
+      {startingSeed && cycleProgress.planted === 0 && (
+        <p className="garden-scene__hint garden-scene__hint--seed">
+          Complete tasks to help your seed grow…
+        </p>
       )}
     </div>
   );

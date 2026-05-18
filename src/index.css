@@ -1803,6 +1803,101 @@ body {
   opacity: 0.85;
 }
 
+.growing-seed__plant,
+.growing-seed__stem,
+.growing-seed__leaves,
+.growing-seed__bud,
+.growing-seed__bloom {
+  transition:
+    transform 0.6s cubic-bezier(0.34, 1.2, 0.64, 1),
+    opacity 0.5s ease;
+}
+
+.garden-scene__hint--seed {
+  opacity: 0.9;
+}
+
+/* Starting seed picker (garden level 0) */
+.starting-seed-picker {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: clamp(108px, 24vh, 176px);
+  z-index: 12;
+  width: min(520px, calc(100vw - 2rem));
+  pointer-events: auto;
+}
+
+.starting-seed-picker__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.starting-seed-picker__choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+.seed-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 9.5rem;
+  padding: 1.1rem 0.75rem;
+  border: 3px solid var(--card-border);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #fff 0%, #fff5f8 100%);
+  box-shadow: 0 6px 20px rgba(255, 143, 171, 0.28);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.seed-choice:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 28px rgba(255, 143, 171, 0.38);
+}
+
+.seed-choice:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.seed-choice--moon {
+  border-color: #9ec4e0;
+  background: linear-gradient(180deg, #f4f8ff 0%, #e4eef8 100%);
+}
+
+.seed-choice--sun {
+  border-color: #f0d060;
+  background: linear-gradient(180deg, #fffef0 0%, #fff4c8 100%);
+}
+
+.seed-choice__icon {
+  width: 3.4rem;
+  height: 3.4rem;
+  display: block;
+}
+
+.seed-choice__label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .flower-petal--bloom,
   .flower-petal--wilt,
@@ -1842,10 +1937,10 @@ body {
   .star-burst__spiral-arm,
   .star-burst__star,
   .star-burst__streak,
-  .garden-planting-show__mascot-wrap,
-  .garden-planting-show__falling-flower,
   .planted-flower__growth,
   .planted-flower--new,
+  .seed-choice:hover,
+  .seed-choice:active,
   .garden-layer,
   .garden-sakura-tree,
   .garden-bridge-piers,
@@ -1890,116 +1985,5 @@ body {
   }
   100% {
     opacity: 1;
-  }
-}
-
-/* Mascot plants a flower in the garden */
-.garden-planting-show {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: clamp(100px, 22vh, 160px);
-  z-index: 9;
-  pointer-events: none;
-  overflow: visible;
-}
-
-.garden-planting-show__mascot-wrap {
-  position: absolute;
-  bottom: 6%;
-  left: -32%;
-  width: auto;
-  transform: translateX(-50%);
-}
-
-.garden-planting-show__mascot {
-  position: relative;
-  z-index: 1;
-  display: block;
-  height: clamp(70px, 13vh, 105px);
-  width: auto;
-}
-
-.garden-planting-show__held-flower {
-  position: absolute;
-  left: calc(100% - 6px);
-  bottom: 22%;
-  z-index: 0;
-  filter: drop-shadow(0 2px 4px rgba(255, 143, 171, 0.35));
-  transition: opacity 0.2s ease;
-}
-
-.garden-planting-show__falling-flower {
-  position: absolute;
-  left: var(--plant-target-x);
-  bottom: 38%;
-  transform: translate(-50%, 0);
-  opacity: 0;
-  pointer-events: none;
-  filter: drop-shadow(0 2px 4px rgba(255, 143, 171, 0.35));
-}
-
-.garden-planting-show--enter .garden-planting-show__mascot-wrap {
-  animation: planterEnter 0.7s cubic-bezier(0.22, 0.85, 0.3, 1) forwards;
-}
-
-.garden-planting-show--walk .garden-planting-show__mascot-wrap {
-  animation: planterWalk 0.9s cubic-bezier(0.45, 0.05, 0.35, 1) forwards;
-}
-
-.garden-planting-show--drop .garden-planting-show__held-flower {
-  opacity: 0;
-}
-
-.garden-planting-show--drop .garden-planting-show__falling-flower {
-  animation: planterFlowerDrop 0.65s cubic-bezier(0.45, 0, 0.65, 1) forwards;
-}
-
-.garden-planting-show--exit .garden-planting-show__mascot-wrap {
-  animation: planterExit 0.75s cubic-bezier(0.55, 0, 0.75, 1) forwards;
-}
-
-.garden-planting-show--exit .garden-planting-show__held-flower {
-  opacity: 0;
-}
-
-@keyframes planterEnter {
-  from {
-    left: -32%;
-  }
-  to {
-    left: 16%;
-  }
-}
-
-@keyframes planterWalk {
-  from {
-    left: 16%;
-  }
-  to {
-    left: var(--plant-target-x);
-  }
-}
-
-@keyframes planterExit {
-  from {
-    left: var(--plant-target-x);
-  }
-  to {
-    left: -35%;
-  }
-}
-
-@keyframes planterFlowerDrop {
-  0% {
-    opacity: 1;
-    bottom: 38%;
-    transform: translate(-50%, -24px) scale(1);
-  }
-  100% {
-    opacity: 0;
-    bottom: 30%;
-    transform: translate(-50%, 0) scale(0.9);
   }
 }

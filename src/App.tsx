@@ -1,27 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FallingSakuraPetals } from './components/FallingSakuraPetals';
-import {
-  GardenPlantingShow,
-  type PlantingRequest,
-} from './components/GardenPlantingShow';
 import { GardenScene } from './components/GardenScene';
 import { StickyKawaiiHeader } from './components/StickyKawaiiHeader';
 import { SpiralCelebration } from './components/SpiralCelebration';
 import { StarBurst } from './components/StarBurst';
 import { TaskList } from './components/TaskList';
 import { getCompletedCount, useTasks } from './hooks/useTasks';
+import { useStartingSeed } from './hooks/useStartingSeed';
 import { getGardenCycleProgress, getGardenLevel } from './lib/gardenProgress';
 import {
   DEFAULT_CELEBRATION_ORIGIN,
   measureScreenCelebrationOrigin,
   type CelebrationOrigin,
 } from './lib/mascotCelebration';
-import { getGrowthTier } from './lib/growthTier';
-import {
-  getFixedSlotX,
-  getPlantSlotForCompletion,
-} from './lib/plantedGarden';
+import { StartingSeedPicker } from './components/StartingSeedPicker';
 import { pickMotivationalPhrase } from './lib/motivationalPhrases';
+import { STARTING_SEED_PROMPT, type StartingSeed } from './lib/startingSeed';
 import { playAddTaskSound, playCelebrationTune, unlockAudio } from './lib/sounds';
 
 const SPEECH_DURATION_MS = 3200;
@@ -55,9 +49,6 @@ export default function App() {
   const [spiralBurstId, setSpiralBurstId] = useState(0);
   const [celebrationOrigin, setCelebrationOrigin] =
     useState<CelebrationOrigin>(DEFAULT_CELEBRATION_ORIGIN);
-  const [plantRequest, setPlantRequest] = useState<PlantingRequest | null>(null);
-  const [newlyPlantedIndex, setNewlyPlantedIndex] = useState<number | null>(null);
-
   const inputRef = useRef<HTMLInputElement>(null);
   const mascotRef = useRef<HTMLDivElement>(null);
   const speechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,7 +62,6 @@ export default function App() {
     hydrated,
     addTask,
     completeTask,
-    revealGardenFlower,
     uncompleteTask,
     updateTaskText,
     deleteTask,
@@ -81,9 +71,17 @@ export default function App() {
     reorderTaskToIndex,
   } = useTasks();
 
+  const {
+    startingSeed,
+    hydrated: seedHydrated,
+    chooseStartingSeed,
+  } = useStartingSeed();
+
   const completedCount = getCompletedCount(tasks);
   const gardenLevel = getGardenLevel(completedCount);
   const gardenCycleProgress = getGardenCycleProgress(completedCount);
+  const showSeedPicker =
+    hydrated && seedHydrated && gardenLevel === 0 && startingSeed === null;
 
   const showMascotCheer = useCallback((phrase?: string) => {
     const text = phrase ?? pickMotivationalPhrase(lastPhraseRef.current);
@@ -175,18 +173,11 @@ export default function App() {
       lastCelebrationRef.current = { key: celebrationKey, at: now };
 
       const wasPicked = id === pickedTaskId;
-      const plantSlot = getPlantSlotForCompletion(completionIndex);
-      const plantX = getFixedSlotX(plantSlot);
-      completeTask(id, completionIndex, { plantSlot, plantX });
+      completeTask(id, completionIndex);
 
-      const tier = getGrowthTier(completionIndex);
-      const slotX = plantX;
-      setPlantRequest({
-        id: Date.now(),
-        completionIndex,
-        paletteIndex: tier.paletteIndex,
-        slotX,
-      });
+      if (completionIndex > 0 && completionIndex % 5 === 0) {
+        showMascotCheer('Garden level up! 🌸✨\nYour flower has fully bloomed!');
+      }
 
       if (wasPicked) {
         setPickedTaskId(null);
@@ -195,27 +186,7 @@ export default function App() {
       }
       runNormalCelebration();
     },
-    [completeTask, completedCount, pickedTaskId, runNormalCelebration, runPickedCelebration],
-  );
-
-  const handlePlantingDropComplete = useCallback(
-    (completionIndex: number) => {
-      revealGardenFlower(completionIndex);
-      setNewlyPlantedIndex(completionIndex);
-      window.setTimeout(() => setNewlyPlantedIndex(null), 900);
-    },
-    [revealGardenFlower],
-  );
-
-  const handlePlantingComplete = useCallback(
-    (completionIndex: number) => {
-      setPlantRequest(null);
-
-      if (completionIndex > 0 && completionIndex % 5 === 0) {
-        showMascotCheer('Garden level up! 🌸✨\nFive flowers planted!');
-      }
-    },
-    [showMascotCheer],
+    [completeTask, pickedTaskId, runNormalCelebration, runPickedCelebration, showMascotCheer],
   );
 
   const handleUncomplete = useCallback(
@@ -242,6 +213,21 @@ export default function App() {
       if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!showSeedPicker) return;
+    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+    setMascotMessage(STARTING_SEED_PROMPT);
+    setSpeechVisible(true);
+  }, [showSeedPicker]);
+
+  const handleStartingSeedSelect = useCallback(
+    (seed: StartingSeed) => {
+      chooseStartingSeed(seed);
+      showMascotCheer('Lovely choice!\nComplete a task to help it grow! 🌱');
+    },
+    [chooseStartingSeed, showMascotCheer],
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -321,6 +307,8 @@ export default function App() {
               onReorderToIndex={reorderTaskToIndex}
             />
           </main>
+
+          {showSeedPicker && <StartingSeedPicker onSelect={handleStartingSeedSelect} />}
         </div>
 
         <div className="app-celebrations-layer" aria-hidden>
@@ -349,16 +337,8 @@ export default function App() {
       </div>
 
       <GardenScene
-        tasks={tasks}
         completedCount={completedCount}
-        newlyPlantedIndex={newlyPlantedIndex}
-      />
-
-      <GardenPlantingShow
-        request={plantRequest}
-        reducedMotion={reducedMotion}
-        onDropComplete={handlePlantingDropComplete}
-        onComplete={handlePlantingComplete}
+        startingSeed={startingSeed}
       />
     </div>
   );
