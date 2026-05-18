@@ -13,6 +13,7 @@ import { TaskActionMenu } from './TaskActionMenu';
 
 interface TaskRowProps {
   task: Task;
+  blindIndex?: number;
   muted: boolean;
   reducedMotion: boolean;
   isPicked: boolean;
@@ -63,6 +64,7 @@ function easeInCubic(t: number): number {
 
 export function TaskRow({
   task,
+  blindIndex,
   muted,
   reducedMotion,
   isPicked,
@@ -371,6 +373,7 @@ export function TaskRow({
   const rowClass = [
     'task-row',
     checkboxChecked && animDirection !== 'uncomplete' ? 'task-row--completed' : '',
+    blindIndex != null ? 'task-row--garden-reveal-slat' : '',
     showPickedRing ? 'task-row--picked' : '',
     isDragging ? 'task-row--dragging' : '',
     isDroppingToBottom ? 'task-row--dropping' : '',
@@ -397,6 +400,13 @@ export function TaskRow({
     !isDragging && dragShiftY !== 0
       ? { transform: `translateY(${dragShiftY}px)` }
       : undefined;
+  const rowStyle =
+    blindIndex != null
+      ? ({
+          ...shiftStyle,
+          '--blind-index': blindIndex,
+        } as React.CSSProperties)
+      : shiftStyle;
 
   const handleDeleteConfirm = () => {
     setDeleteConfirmOpen(false);
@@ -622,7 +632,7 @@ export function TaskRow({
       id={`task-${task.id}`}
       data-task-id={task.id}
       className={rowClass}
-      style={shiftStyle}
+      style={rowStyle}
       onPointerDown={isMoveMode && canMove ? handleRowPointerDown : undefined}
     >
       {rowInner}

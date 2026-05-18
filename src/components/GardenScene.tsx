@@ -9,6 +9,7 @@ import {
 } from '../lib/gardenLevels';
 import type { Level2Seed } from '../lib/level2Seed';
 import type { Level3Seed } from '../lib/level3Seed';
+import type { Level4Seed } from '../lib/level4Seed';
 import { getGardenCycleProgress, getGardenLevel } from '../lib/plantedGarden';
 import { getSeedGrowthStage } from '../lib/seedGrowth';
 import type { StartingSeed } from '../lib/startingSeed';
@@ -19,6 +20,7 @@ interface GardenSceneProps {
   startingSeed?: StartingSeed | null;
   level2Seed?: Level2Seed | null;
   level3Seed?: Level3Seed | null;
+  level4Seed?: Level4Seed | null;
   muted?: boolean;
 }
 
@@ -40,11 +42,12 @@ export function GardenScene({
   startingSeed = null,
   level2Seed = null,
   level3Seed = null,
+  level4Seed = null,
   muted = false,
 }: GardenSceneProps) {
   const seedChoices: GardenSeedChoices = useMemo(
-    () => ({ starting: startingSeed, level2: level2Seed, level3: level3Seed }),
-    [startingSeed, level2Seed, level3Seed],
+    () => ({ starting: startingSeed, level2: level2Seed, level3: level3Seed, level4: level4Seed }),
+    [startingSeed, level2Seed, level3Seed, level4Seed],
   );
   const layers = useMemo(() => getGardenLayers(completedCount), [completedCount]);
   const stage = Math.min(getSceneMilestoneCount(completedCount), 12);
@@ -133,8 +136,20 @@ export function GardenScene({
       {startingSeed &&
         level2Seed &&
         level3Seed &&
+        !level4Seed &&
+        activeLevel >= 4 &&
+        cycleProgress.planted === 0 && (
+          <p className="garden-scene__hint garden-scene__hint--seed">
+            Choose your level 4 flower seed…
+          </p>
+        )}
+
+      {startingSeed &&
+        level2Seed &&
+        level3Seed &&
+        level4Seed &&
         cycleProgress.planted === 0 &&
-        completedLevels.length <= 2 && (
+        completedLevels.length <= 3 && (
           <p className="garden-scene__hint garden-scene__hint--seed">
             Complete tasks to help your seed grow…
           </p>

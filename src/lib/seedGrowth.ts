@@ -61,6 +61,22 @@ export const SEED_PALETTES: Record<GardenSeed, SeedPalette> = {
     petals: '#9ee87d',
     center: '#ffe566',
   },
+  puppypoppy: {
+    stem: '#4d8f3c',
+    leaf: '#8ed98e',
+    bud: '#ff6b6b',
+    budStroke: '#e85555',
+    petals: '#ff8f8f',
+    center: '#f5d4a8',
+  },
+  wigglewisteria: {
+    stem: '#5a7a4a',
+    leaf: '#8ed98e',
+    bud: '#d4b5ff',
+    budStroke: '#9b7fd4',
+    petals: '#c9b8ff',
+    center: '#e8dcff',
+  },
 };
 
 export interface SeedGrowthMetrics {

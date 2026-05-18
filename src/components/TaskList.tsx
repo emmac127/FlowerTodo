@@ -13,11 +13,14 @@ import {
 } from '../lib/sortTasks';
 import { TaskRow } from './TaskRow';
 
+export type GardenRevealPhase = 'idle' | 'active' | 'exit';
+
 interface TaskListProps {
   tasks: Task[];
   muted: boolean;
   reducedMotion: boolean;
   pickedTaskId: string | null;
+  gardenRevealPhase?: GardenRevealPhase;
   onComplete: (id: string, completionIndex: number) => void;
   onUncomplete: (id: string) => void;
   onDelete: (id: string) => void;
@@ -69,6 +72,7 @@ export function TaskList({
   muted,
   reducedMotion,
   pickedTaskId,
+  gardenRevealPhase = 'idle',
   onComplete,
   onUncomplete,
   onDelete,
@@ -89,6 +93,8 @@ export function TaskList({
   );
   const hasCompleted = tasks.some((t) => t.completed);
   const canReorder = tasks.filter((t) => !t.completed).length >= 2;
+  const gardenRevealActive = gardenRevealPhase !== 'idle';
+  const blindOffset = 1;
 
   const [actionMenuTaskId, setActionMenuTaskId] = useState<string | null>(null);
   const [moveModeTaskId, setMoveModeTaskId] = useState<string | null>(null);
@@ -331,7 +337,9 @@ export function TaskList({
   }
 
   return (
-    <div className="task-list-wrap">
+    <div
+      className={`task-list-wrap${gardenRevealActive ? ' task-list-wrap--garden-reveal' : ''}${gardenRevealPhase === 'exit' ? ' task-list-wrap--garden-reveal-exit' : ''}`}
+    >
       {moveModeTaskId && (
         <p className="task-list__reorder-hint" id="task-reorder-hint" role="status">
           Drag the purple task, then release to place it.{' '}
@@ -351,10 +359,10 @@ export function TaskList({
         </p>
       )}
       <ul
-        className={`task-list${moveModeTaskId ? ' task-list--reordering' : ''}${draggingId ? ' task-list--dragging' : ''}`}
+        className={`task-list${moveModeTaskId ? ' task-list--reordering' : ''}${draggingId ? ' task-list--dragging' : ''}${gardenRevealActive ? ' task-list--garden-reveal' : ''}${gardenRevealPhase === 'exit' ? ' task-list--garden-reveal-exit' : ''}`}
         aria-describedby={moveModeTaskId ? 'task-reorder-hint' : undefined}
       >
-        {visibleTasks.map((task) => {
+        {visibleTasks.map((task, rowIndex) => {
           const incompleteIndex = incompleteIds.indexOf(task.id);
           const isActiveDrag = draggingId === task.id;
           const previewIndex = previewInsertIndex ?? dragFromIndex;
@@ -374,6 +382,7 @@ export function TaskList({
           return (
             <TaskRow
               key={task.id}
+              blindIndex={gardenRevealActive ? rowIndex + blindOffset : undefined}
               task={task}
               muted={muted}
               reducedMotion={reducedMotion}

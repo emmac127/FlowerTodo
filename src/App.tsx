@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FallingSakuraPetals } from './components/FallingSakuraPetals';
+import { GardenRevealReturnButton } from './components/GardenRevealReturnButton';
 import { GardenScene } from './components/GardenScene';
 import { StickyKawaiiHeader } from './components/StickyKawaiiHeader';
 import { SpiralCelebration } from './components/SpiralCelebration';
@@ -8,7 +9,15 @@ import { TaskList } from './components/TaskList';
 import { useTasks } from './hooks/useTasks';
 import { useLevel2Seed } from './hooks/useLevel2Seed';
 import { useLevel3Seed } from './hooks/useLevel3Seed';
+import { useLevel4Seed } from './hooks/useLevel4Seed';
 import { useStartingSeed } from './hooks/useStartingSeed';
+import {
+  GARDEN_REVEAL_ANIM_MS,
+  getGardenAutoReturnDelayMs,
+  getGardenRevealGrowthStartDelayMs,
+  getGardenRevealScrollTop,
+  shouldRevealGardenForCompletion,
+} from './lib/gardenReveal';
 import { getGardenCycleProgress, getGardenLevel } from './lib/gardenProgress';
 import { isGardenLevelComplete } from './lib/plantedGarden';
 import {
@@ -18,10 +27,12 @@ import {
 } from './lib/mascotCelebration';
 import { Level2SeedPicker } from './components/Level2SeedPicker';
 import { Level3SeedPicker } from './components/Level3SeedPicker';
+import { Level4SeedPicker } from './components/Level4SeedPicker';
 import { StartingSeedPicker } from './components/StartingSeedPicker';
 import { pickMotivationalPhrase } from './lib/motivationalPhrases';
 import { LEVEL_2_SEED_PROMPT, type Level2Seed } from './lib/level2Seed';
 import { LEVEL_3_SEED_PROMPT, type Level3Seed } from './lib/level3Seed';
+import { LEVEL_4_SEED_PROMPT, type Level4Seed } from './lib/level4Seed';
 import { STARTING_SEED_PROMPT, type StartingSeed } from './lib/startingSeed';
 import { playAddTaskSound, playCelebrationTune, unlockAudio } from './lib/sounds';
 
@@ -62,7 +73,15 @@ export default function App() {
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPhraseRef = useRef<string | undefined>(undefined);
   const lastCelebrationRef = useRef<{ key: string; at: number } | null>(null);
+  const savedScrollYRef = useRef(0);
+  const gardenRevealAutoReturnRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gardenRevealGrowthTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reducedMotion = usePrefersReducedMotion();
+  const [gardenRevealPhase, setGardenRevealPhase] = useState<'idle' | 'active' | 'exit'>(
+    'idle',
+  );
+  const [gardenRevealHeldCount, setGardenRevealHeldCount] = useState<number | null>(null);
+  const [gardenRevealGrowthUnlocked, setGardenRevealGrowthUnlocked] = useState(false);
 
   const {
     tasks,
@@ -97,8 +116,20 @@ export default function App() {
     chooseLevel3Seed,
   } = useLevel3Seed();
 
+  const {
+    level4Seed,
+    hydrated: level4SeedHydrated,
+    chooseLevel4Seed,
+  } = useLevel4Seed();
+
   const gardenLevel = getGardenLevel(gardenProgressCount);
   const gardenCycleProgress = getGardenCycleProgress(gardenProgressCount);
+  const gardenDisplayCount =
+    gardenRevealPhase === 'active' &&
+    !gardenRevealGrowthUnlocked &&
+    gardenRevealHeldCount != null
+      ? gardenRevealHeldCount
+      : gardenProgressCount;
   const showSeedPicker =
     hydrated && seedHydrated && gardenLevel === 0 && startingSeed === null;
   const showLevel2SeedPicker =
@@ -117,6 +148,19 @@ export default function App() {
     startingSeed != null &&
     level2Seed != null &&
     level3Seed === null;
+  const showLevel4SeedPicker =
+    hydrated &&
+    seedHydrated &&
+    level2SeedHydrated &&
+    level3SeedHydrated &&
+    level4SeedHydrated &&
+    gardenLevel >= 4 &&
+    startingSeed != null &&
+    level2Seed != null &&
+    level3Seed != null &&
+    level4Seed === null;
+  const showLevelSeedPicker =
+    showLevel2SeedPicker || showLevel3SeedPicker || showLevel4SeedPicker;
 
   const showMascotCheer = useCallback((phrase?: string) => {
     const text = phrase ?? pickMotivationalPhrase(lastPhraseRef.current);
@@ -183,6 +227,91 @@ export default function App() {
     })();
   }, [muted, measureMascotOrigin, reducedMotion, showMascotCheer]);
 
+  const beginGardenReveal = useCallback(() => {
+    savedScrollYRef.current = window.scrollY;
+    setGardenRevealPhase('active');
+    requestAnimationFrame(() => {
+      const top = getGardenRevealScrollTop();
+      window.scrollTo({ top, behavior: reducedMotion ? 'auto' : 'smooth' });
+    });
+  }, [reducedMotion]);
+
+  const clearGardenRevealAutoReturn = useCallback(() => {
+    if (gardenRevealAutoReturnRef.current !== null) {
+      clearTimeout(gardenRevealAutoReturnRef.current);
+      gardenRevealAutoReturnRef.current = null;
+    }
+  }, []);
+
+  const clearGardenRevealGrowthTimer = useCallback(() => {
+    if (gardenRevealGrowthTimerRef.current !== null) {
+      clearTimeout(gardenRevealGrowthTimerRef.current);
+      gardenRevealGrowthTimerRef.current = null;
+    }
+  }, []);
+
+  const endGardenReveal = useCallback(() => {
+    clearGardenRevealAutoReturn();
+    clearGardenRevealGrowthTimer();
+    setGardenRevealPhase('exit');
+    window.scrollTo({
+      top: savedScrollYRef.current,
+      behavior: reducedMotion ? 'auto' : 'smooth',
+    });
+    window.setTimeout(
+      () => setGardenRevealPhase('idle'),
+      reducedMotion ? 0 : GARDEN_REVEAL_ANIM_MS,
+    );
+  }, [clearGardenRevealAutoReturn, clearGardenRevealGrowthTimer, reducedMotion]);
+
+  useEffect(() => {
+    if (gardenRevealPhase !== 'active') {
+      clearGardenRevealGrowthTimer();
+      if (gardenRevealPhase === 'idle') {
+        setGardenRevealHeldCount(null);
+        setGardenRevealGrowthUnlocked(false);
+      }
+      return;
+    }
+
+    setGardenRevealGrowthUnlocked(false);
+    const blindSlatCount = Math.max(1, tasks.length) + 1;
+    const growthDelay = getGardenRevealGrowthStartDelayMs(blindSlatCount, reducedMotion);
+    gardenRevealGrowthTimerRef.current = window.setTimeout(() => {
+      gardenRevealGrowthTimerRef.current = null;
+      setGardenRevealGrowthUnlocked(true);
+    }, growthDelay);
+
+    return clearGardenRevealGrowthTimer;
+  }, [
+    gardenRevealPhase,
+    tasks.length,
+    reducedMotion,
+    clearGardenRevealGrowthTimer,
+  ]);
+
+  useEffect(() => {
+    if (gardenRevealPhase !== 'active') {
+      clearGardenRevealAutoReturn();
+      return;
+    }
+
+    const blindSlatCount = Math.max(1, tasks.length) + 1;
+    const delay = getGardenAutoReturnDelayMs(blindSlatCount, reducedMotion);
+    gardenRevealAutoReturnRef.current = window.setTimeout(() => {
+      gardenRevealAutoReturnRef.current = null;
+      endGardenReveal();
+    }, delay);
+
+    return clearGardenRevealAutoReturn;
+  }, [
+    gardenRevealPhase,
+    tasks.length,
+    reducedMotion,
+    endGardenReveal,
+    clearGardenRevealAutoReturn,
+  ]);
+
   const handlePickRandom = useCallback(() => {
     const incomplete = tasks.filter((t) => !t.completed);
     if (incomplete.length === 0) return;
@@ -208,7 +337,17 @@ export default function App() {
       lastCelebrationRef.current = { key: celebrationKey, at: now };
 
       const wasPicked = id === pickedTaskId;
+      const previousGardenCount = gardenProgressCount;
       completeTask(id, completionIndex);
+
+      if (
+        startingSeed &&
+        shouldRevealGardenForCompletion(completionIndex, previousGardenCount)
+      ) {
+        setGardenRevealHeldCount(previousGardenCount);
+        setGardenRevealGrowthUnlocked(false);
+        beginGardenReveal();
+      }
 
       if (isGardenLevelComplete(completionIndex)) {
         showMascotCheer('Garden level up! 🌸✨\nYour flower has fully bloomed!');
@@ -221,7 +360,16 @@ export default function App() {
       }
       runNormalCelebration();
     },
-    [completeTask, pickedTaskId, runNormalCelebration, runPickedCelebration, showMascotCheer],
+    [
+      beginGardenReveal,
+      completeTask,
+      gardenProgressCount,
+      pickedTaskId,
+      runNormalCelebration,
+      runPickedCelebration,
+      showMascotCheer,
+      startingSeed,
+    ],
   );
 
   const handleUncomplete = useCallback(
@@ -246,8 +394,10 @@ export default function App() {
     return () => {
       if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
       if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
+      clearGardenRevealAutoReturn();
+      clearGardenRevealGrowthTimer();
     };
-  }, []);
+  }, [clearGardenRevealAutoReturn, clearGardenRevealGrowthTimer]);
 
   useEffect(() => {
     if (!showSeedPicker) return;
@@ -269,6 +419,13 @@ export default function App() {
     setMascotMessage(LEVEL_3_SEED_PROMPT);
     setSpeechVisible(true);
   }, [showLevel3SeedPicker]);
+
+  useEffect(() => {
+    if (!showLevel4SeedPicker) return;
+    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+    setMascotMessage(LEVEL_4_SEED_PROMPT);
+    setSpeechVisible(true);
+  }, [showLevel4SeedPicker]);
 
   const handleStartingSeedSelect = useCallback(
     (seed: StartingSeed) => {
@@ -296,6 +453,18 @@ export default function App() {
       showMascotCheer(cheer);
     },
     [chooseLevel3Seed, showMascotCheer],
+  );
+
+  const handleLevel4SeedSelect = useCallback(
+    (seed: Level4Seed) => {
+      chooseLevel4Seed(seed);
+      const cheer =
+        seed === 'puppypoppy'
+          ? 'Puppy poppy!\nA puppy with its tongue out awaits! 🐶🌺'
+          : 'Wiggle wisteria!\nWatch the stem and leaves dance! 💜';
+      showMascotCheer(cheer);
+    },
+    [chooseLevel4Seed, showMascotCheer],
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -344,8 +513,18 @@ export default function App() {
           pickDisabled={tasks.filter((t) => !t.completed).length === 0}
         />
 
-        <div className="app-body">
-          <form className="add-task-form" onSubmit={handleSubmit}>
+        <div
+          className={`app-body${gardenRevealPhase !== 'idle' ? ' app-body--garden-reveal' : ''}${gardenRevealPhase === 'exit' ? ' app-body--garden-reveal-exit' : ''}`}
+        >
+          <form
+            className={`add-task-form${gardenRevealPhase !== 'idle' ? ' garden-reveal-slat' : ''}`}
+            style={
+              gardenRevealPhase !== 'idle'
+                ? ({ '--blind-index': 0 } as React.CSSProperties)
+                : undefined
+            }
+            onSubmit={handleSubmit}
+          >
             <input
               ref={inputRef}
               type="text"
@@ -360,12 +539,15 @@ export default function App() {
             </button>
           </form>
 
-          <main className="app-main">
+          <main
+            className={`app-main${gardenRevealPhase !== 'idle' ? ' app-main--garden-reveal' : ''}${gardenRevealPhase === 'exit' ? ' app-main--garden-reveal-exit' : ''}`}
+          >
             <TaskList
               tasks={tasks}
               muted={muted}
               reducedMotion={reducedMotion}
               pickedTaskId={pickedTaskId}
+              gardenRevealPhase={gardenRevealPhase}
               onComplete={handleTaskCompleted}
               onUncomplete={handleUncomplete}
               onDelete={handleDelete}
@@ -380,7 +562,12 @@ export default function App() {
           {showSeedPicker && <StartingSeedPicker onSelect={handleStartingSeedSelect} />}
           {showLevel2SeedPicker && <Level2SeedPicker onSelect={handleLevel2SeedSelect} />}
           {showLevel3SeedPicker && <Level3SeedPicker onSelect={handleLevel3SeedSelect} />}
+          {showLevel4SeedPicker && <Level4SeedPicker onSelect={handleLevel4SeedSelect} />}
         </div>
+
+        {gardenRevealPhase === 'active' && !showLevelSeedPicker && (
+          <GardenRevealReturnButton onReturn={endGardenReveal} />
+        )}
 
         <div className="app-celebrations-layer" aria-hidden>
           <SpiralCelebration
@@ -408,10 +595,11 @@ export default function App() {
       </div>
 
       <GardenScene
-        completedCount={gardenProgressCount}
+        completedCount={gardenDisplayCount}
         startingSeed={startingSeed}
         level2Seed={level2Seed}
         level3Seed={level3Seed}
+        level4Seed={level4Seed}
         muted={muted}
       />
     </div>
