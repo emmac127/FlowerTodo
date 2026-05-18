@@ -1410,7 +1410,9 @@ body {
 .flower-anchor {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
 
 .flower-petal {
@@ -1755,6 +1757,110 @@ body {
   bottom: 4%;
 }
 
+.garden-flower-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4%;
+  z-index: 4;
+  height: 92%;
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.garden-flower-strip--scrollable {
+  padding: 0 2.25rem;
+}
+
+.garden-flower-scroll__viewport {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  pointer-events: auto;
+}
+
+.garden-flower-scroll__viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.garden-flower-scroll__inner {
+  height: 100%;
+}
+
+.garden-svg--strip {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.garden-flower-scroll-btn {
+  position: absolute;
+  bottom: 0;
+  z-index: 6;
+  width: 2.25rem;
+  height: 72%;
+  max-height: 7.5rem;
+  padding: 0;
+  border: none;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 238, 245, 0.92) 0%,
+    rgba(255, 238, 245, 0.55) 70%,
+    transparent 100%
+  );
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease;
+}
+
+.garden-flower-scroll-btn--left {
+  left: 0;
+}
+
+.garden-flower-scroll-btn--right {
+  right: 0;
+  background: linear-gradient(
+    270deg,
+    rgba(255, 238, 245, 0.92) 0%,
+    rgba(255, 238, 245, 0.55) 70%,
+    transparent 100%
+  );
+}
+
+.garden-flower-scroll-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.garden-flower-scroll-btn::before {
+  content: '';
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent;
+  filter: drop-shadow(0 1px 2px rgba(255, 143, 171, 0.35));
+}
+
+.garden-flower-scroll-btn--left::before {
+  border-right: 14px solid #ff8fab;
+  margin-left: -2px;
+}
+
+.garden-flower-scroll-btn--right::before {
+  border-left: 14px solid #ff8fab;
+  margin-right: -2px;
+}
+
 .garden-sakura-tree,
 .garden-bridge-piers,
 .garden-bridge,
@@ -1885,6 +1991,44 @@ body {
   background: linear-gradient(180deg, #fffef0 0%, #fff4c8 100%);
 }
 
+.seed-choice--star {
+  border-color: #d4b5ff;
+  background: linear-gradient(180deg, #faf5ff 0%, #ede4ff 100%);
+}
+
+.seed-choice--saturn {
+  border-color: #e8c878;
+  background: linear-gradient(180deg, #fff8ee 0%, #ffe9c8 100%);
+}
+
+.seed-choice--tulip {
+  border-color: #ff8fab;
+  background: linear-gradient(180deg, #fff5f8 0%, #ffe4ec 100%);
+}
+
+.seed-choice--catgrass {
+  border-color: #7dd87d;
+  background: linear-gradient(180deg, #f0fff0 0%, #dff8df 100%);
+}
+
+@keyframes cat-grass-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-4deg);
+  }
+  75% {
+    transform: rotate(4deg);
+  }
+}
+
+.growing-seed--catgrass-mature .growing-seed__plant--catgrass {
+  animation: cat-grass-wiggle 2.8s ease-in-out infinite;
+  transform-origin: 0 0;
+}
+
 .seed-choice__icon {
   width: 3.4rem;
   height: 3.4rem;
@@ -1939,6 +2083,8 @@ body {
   .star-burst__streak,
   .planted-flower__growth,
   .planted-flower--new,
+  .growing-seed--catgrass-mature .growing-seed__plant--catgrass,
+  .garden-flower-scroll__viewport,
   .seed-choice:hover,
   .seed-choice:active,
   .garden-layer,

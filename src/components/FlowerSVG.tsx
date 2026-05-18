@@ -1,4 +1,8 @@
-import { FLOWER_PALETTES } from '../lib/growthTier';
+import {
+  clampTaskFlowerScale,
+  FLOWER_PALETTES,
+  TASK_FLOWER_VIEW_BOX,
+} from '../lib/growthTier';
 
 interface FlowerSVGProps {
   paletteIndex: number;
@@ -18,8 +22,10 @@ export function FlowerSVG({
   size = 36,
 }: FlowerSVGProps) {
   const palette = FLOWER_PALETTES[paletteIndex % FLOWER_PALETTES.length];
-  const cx = size / 2;
-  const cy = size / 2;
+  const drawScale = clampTaskFlowerScale(scale);
+  const viewBox = TASK_FLOWER_VIEW_BOX;
+  const cx = viewBox / 2;
+  const cy = viewBox / 2;
 
   const petals = Array.from({ length: petalCount }, (_, i) => {
     const angle = (360 / petalCount) * i;
@@ -27,9 +33,9 @@ export function FlowerSVG({
       <g key={i} transform={`rotate(${angle} ${cx} ${cy})`}>
         <ellipse
           cx={cx}
-          cy={cy - 8 * scale}
-          rx={7 * scale}
-          ry={10 * scale}
+          cy={cy - 7 * drawScale}
+          rx={6 * drawScale}
+          ry={9 * drawScale}
           fill={palette.petals}
           stroke="#fff"
           strokeWidth={1.5}
@@ -46,7 +52,7 @@ export function FlowerSVG({
     <svg
       width={size}
       height={size}
-      viewBox={`0 0 ${size} ${size}`}
+      viewBox={`0 0 ${viewBox} ${viewBox}`}
       className={`flower-svg ${blooming ? 'flower-svg--blooming' : ''} ${wilting ? 'flower-svg--wilting' : ''}`}
       aria-hidden
     >
@@ -54,7 +60,7 @@ export function FlowerSVG({
       <circle
         cx={cx}
         cy={cy}
-        r={5 * scale}
+        r={4.5 * drawScale}
         fill={palette.center}
         stroke="#fff"
         strokeWidth={1.5}

@@ -1,14 +1,25 @@
 import { useMemo } from 'react';
+import { GardenFlowerStrip, type GardenFlowerItem } from './GardenFlowerStrip';
+import { getSeedForGardenLevel, type GardenSeedChoices } from '../lib/gardenSeed';
 import { getGardenLayers, getSceneMilestoneCount } from '../lib/gardenProgress';
-import { getGardenCycleProgress } from '../lib/plantedGarden';
+import {
+  getCompletedGardenLevels,
+  getMaxGrowthStageForLevel,
+  shouldShowActiveLevelGrower,
+} from '../lib/gardenLevels';
+import type { Level2Seed } from '../lib/level2Seed';
+import type { Level3Seed } from '../lib/level3Seed';
+import { getGardenCycleProgress, getGardenLevel } from '../lib/plantedGarden';
 import { getSeedGrowthStage } from '../lib/seedGrowth';
 import type { StartingSeed } from '../lib/startingSeed';
 import { CssDoodle } from './CssDoodle';
-import { GrowingSeedPlant } from './GrowingSeedPlant';
 
 interface GardenSceneProps {
   completedCount: number;
   startingSeed?: StartingSeed | null;
+  level2Seed?: Level2Seed | null;
+  level3Seed?: Level3Seed | null;
+  muted?: boolean;
 }
 
 const GRASS_DOODLE = `
@@ -27,13 +38,56 @@ const GRASS_DOODLE = `
 export function GardenScene({
   completedCount,
   startingSeed = null,
+  level2Seed = null,
+  level3Seed = null,
+  muted = false,
 }: GardenSceneProps) {
+  const seedChoices: GardenSeedChoices = useMemo(
+    () => ({ starting: startingSeed, level2: level2Seed, level3: level3Seed }),
+    [startingSeed, level2Seed, level3Seed],
+  );
   const layers = useMemo(() => getGardenLayers(completedCount), [completedCount]);
   const stage = Math.min(getSceneMilestoneCount(completedCount), 12);
-  const growthStage = getSeedGrowthStage(completedCount);
+  const completedLevels = useMemo(
+    () => getCompletedGardenLevels(completedCount),
+    [completedCount],
+  );
+  const activeLevel = getGardenLevel(completedCount);
+  const activeSeed = getSeedForGardenLevel(activeLevel, seedChoices);
+  const showActiveGrower =
+    activeSeed != null && shouldShowActiveLevelGrower(completedCount);
+  const activeGrowthStage = getSeedGrowthStage(completedCount);
   const cycleProgress = getGardenCycleProgress(completedCount);
-  const showGrowingSeed = startingSeed != null;
-  const showGrass = layers.grass || showGrowingSeed;
+  const showGrass = layers.grass || startingSeed != null;
+
+  const flowers = useMemo(() => {
+    const items: GardenFlowerItem[] = [];
+    for (const level of completedLevels) {
+      const seed = getSeedForGardenLevel(level, seedChoices);
+      if (!seed) continue;
+      items.push({
+        key: `level-${level}`,
+        seed,
+        growthStage: getMaxGrowthStageForLevel(level),
+        className: 'growing-seed--planted',
+      });
+    }
+    if (showActiveGrower && activeSeed) {
+      items.push({
+        key: 'active-level',
+        seed: activeSeed,
+        growthStage: activeGrowthStage,
+        className: 'growing-seed--active',
+      });
+    }
+    return items;
+  }, [
+    activeGrowthStage,
+    activeSeed,
+    completedLevels,
+    seedChoices,
+    showActiveGrower,
+  ]);
 
   return (
     <div className="garden-scene" aria-hidden>
@@ -54,28 +108,37 @@ export function GardenScene({
         </div>
       )}
 
-      <svg
-        className="garden-svg garden-svg--planted"
-        viewBox="0 0 400 120"
-        preserveAspectRatio="xMidYMax meet"
-        aria-hidden
-      >
-        <g className="garden-growing-seed">
-          {showGrowingSeed && (
-            <GrowingSeedPlant seed={startingSeed} growthStage={growthStage} />
-          )}
-        </g>
-      </svg>
+      <GardenFlowerStrip flowers={flowers} muted={muted} />
 
       {!startingSeed && (
         <p className="garden-scene__hint">Complete tasks to plant your garden…</p>
       )}
 
-      {startingSeed && cycleProgress.planted === 0 && (
+      {startingSeed && !level2Seed && activeLevel >= 2 && cycleProgress.planted === 0 && (
         <p className="garden-scene__hint garden-scene__hint--seed">
-          Complete tasks to help your seed grow…
+          Choose your level 2 flower seed…
         </p>
       )}
+
+      {startingSeed &&
+        level2Seed &&
+        !level3Seed &&
+        activeLevel >= 3 &&
+        cycleProgress.planted === 0 && (
+          <p className="garden-scene__hint garden-scene__hint--seed">
+            Choose your level 3 flower seed…
+          </p>
+        )}
+
+      {startingSeed &&
+        level2Seed &&
+        level3Seed &&
+        cycleProgress.planted === 0 &&
+        completedLevels.length <= 2 && (
+          <p className="garden-scene__hint garden-scene__hint--seed">
+            Complete tasks to help your seed grow…
+          </p>
+        )}
     </div>
   );
 }

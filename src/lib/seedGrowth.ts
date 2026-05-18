@@ -1,5 +1,5 @@
+import type { GardenSeed } from './gardenSeed';
 import { getGardenCycleProgress } from './plantedGarden';
-import type { StartingSeed } from './startingSeed';
 
 export type SeedGrowthStage = 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -12,7 +12,7 @@ export interface SeedPalette {
   center: string;
 }
 
-export const SEED_PALETTES: Record<StartingSeed, SeedPalette> = {
+export const SEED_PALETTES: Record<GardenSeed, SeedPalette> = {
   moonflower: {
     stem: '#5a7a8a',
     leaf: '#9ec4e0',
@@ -28,6 +28,38 @@ export const SEED_PALETTES: Record<StartingSeed, SeedPalette> = {
     budStroke: '#e8b830',
     petals: '#ffe566',
     center: '#ff9f43',
+  },
+  starflower: {
+    stem: '#6b5a9a',
+    leaf: '#c9b8ff',
+    bud: '#ffe566',
+    budStroke: '#d4a830',
+    petals: '#fff4a3',
+    center: '#ffe566',
+  },
+  saturnflower: {
+    stem: '#8a6b4a',
+    leaf: '#e8c898',
+    bud: '#f5d4a8',
+    budStroke: '#d4a060',
+    petals: '#ffd8a8',
+    center: '#f5c878',
+  },
+  tulip: {
+    stem: '#4d8f3c',
+    leaf: '#8ed98e',
+    bud: '#ff8fab',
+    budStroke: '#ff6b9d',
+    petals: '#ffb7d5',
+    center: '#ffe566',
+  },
+  catgrass: {
+    stem: '#5cb85c',
+    leaf: '#8ed98e',
+    bud: '#7dd87d',
+    budStroke: '#5cb85c',
+    petals: '#9ee87d',
+    center: '#ffe566',
   },
 };
 
@@ -51,8 +83,8 @@ const STAGE_METRICS: readonly Omit<SeedGrowthMetrics, 'stage'>[] = [
 ];
 
 export function getSeedGrowthStage(completedCount: number): SeedGrowthStage {
-  const { planted } = getGardenCycleProgress(completedCount);
-  return Math.min(planted, 5) as SeedGrowthStage;
+  const { planted, max } = getGardenCycleProgress(completedCount);
+  return Math.min(planted, max) as SeedGrowthStage;
 }
 
 export function getSeedGrowthMetrics(stage: SeedGrowthStage): SeedGrowthMetrics {

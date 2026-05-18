@@ -5,16 +5,23 @@ import { StickyKawaiiHeader } from './components/StickyKawaiiHeader';
 import { SpiralCelebration } from './components/SpiralCelebration';
 import { StarBurst } from './components/StarBurst';
 import { TaskList } from './components/TaskList';
-import { getCompletedCount, useTasks } from './hooks/useTasks';
+import { useTasks } from './hooks/useTasks';
+import { useLevel2Seed } from './hooks/useLevel2Seed';
+import { useLevel3Seed } from './hooks/useLevel3Seed';
 import { useStartingSeed } from './hooks/useStartingSeed';
 import { getGardenCycleProgress, getGardenLevel } from './lib/gardenProgress';
+import { isGardenLevelComplete } from './lib/plantedGarden';
 import {
   DEFAULT_CELEBRATION_ORIGIN,
   measureScreenCelebrationOrigin,
   type CelebrationOrigin,
 } from './lib/mascotCelebration';
+import { Level2SeedPicker } from './components/Level2SeedPicker';
+import { Level3SeedPicker } from './components/Level3SeedPicker';
 import { StartingSeedPicker } from './components/StartingSeedPicker';
 import { pickMotivationalPhrase } from './lib/motivationalPhrases';
+import { LEVEL_2_SEED_PROMPT, type Level2Seed } from './lib/level2Seed';
+import { LEVEL_3_SEED_PROMPT, type Level3Seed } from './lib/level3Seed';
 import { STARTING_SEED_PROMPT, type StartingSeed } from './lib/startingSeed';
 import { playAddTaskSound, playCelebrationTune, unlockAudio } from './lib/sounds';
 
@@ -67,6 +74,7 @@ export default function App() {
     deleteTask,
     clearCompleted,
     getNextCompletionIndex,
+    gardenProgressCount,
     reorderTask,
     reorderTaskToIndex,
   } = useTasks();
@@ -77,11 +85,38 @@ export default function App() {
     chooseStartingSeed,
   } = useStartingSeed();
 
-  const completedCount = getCompletedCount(tasks);
-  const gardenLevel = getGardenLevel(completedCount);
-  const gardenCycleProgress = getGardenCycleProgress(completedCount);
+  const {
+    level2Seed,
+    hydrated: level2SeedHydrated,
+    chooseLevel2Seed,
+  } = useLevel2Seed();
+
+  const {
+    level3Seed,
+    hydrated: level3SeedHydrated,
+    chooseLevel3Seed,
+  } = useLevel3Seed();
+
+  const gardenLevel = getGardenLevel(gardenProgressCount);
+  const gardenCycleProgress = getGardenCycleProgress(gardenProgressCount);
   const showSeedPicker =
     hydrated && seedHydrated && gardenLevel === 0 && startingSeed === null;
+  const showLevel2SeedPicker =
+    hydrated &&
+    seedHydrated &&
+    level2SeedHydrated &&
+    gardenLevel >= 2 &&
+    startingSeed != null &&
+    level2Seed === null;
+  const showLevel3SeedPicker =
+    hydrated &&
+    seedHydrated &&
+    level2SeedHydrated &&
+    level3SeedHydrated &&
+    gardenLevel >= 3 &&
+    startingSeed != null &&
+    level2Seed != null &&
+    level3Seed === null;
 
   const showMascotCheer = useCallback((phrase?: string) => {
     const text = phrase ?? pickMotivationalPhrase(lastPhraseRef.current);
@@ -175,7 +210,7 @@ export default function App() {
       const wasPicked = id === pickedTaskId;
       completeTask(id, completionIndex);
 
-      if (completionIndex > 0 && completionIndex % 5 === 0) {
+      if (isGardenLevelComplete(completionIndex)) {
         showMascotCheer('Garden level up! 🌸✨\nYour flower has fully bloomed!');
       }
 
@@ -221,12 +256,46 @@ export default function App() {
     setSpeechVisible(true);
   }, [showSeedPicker]);
 
+  useEffect(() => {
+    if (!showLevel2SeedPicker) return;
+    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+    setMascotMessage(LEVEL_2_SEED_PROMPT);
+    setSpeechVisible(true);
+  }, [showLevel2SeedPicker]);
+
+  useEffect(() => {
+    if (!showLevel3SeedPicker) return;
+    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+    setMascotMessage(LEVEL_3_SEED_PROMPT);
+    setSpeechVisible(true);
+  }, [showLevel3SeedPicker]);
+
   const handleStartingSeedSelect = useCallback(
     (seed: StartingSeed) => {
       chooseStartingSeed(seed);
       showMascotCheer('Lovely choice!\nComplete a task to help it grow! 🌱');
     },
     [chooseStartingSeed, showMascotCheer],
+  );
+
+  const handleLevel2SeedSelect = useCallback(
+    (seed: Level2Seed) => {
+      chooseLevel2Seed(seed);
+      showMascotCheer('Wonderful pick!\nComplete a task to help it grow! ✨');
+    },
+    [chooseLevel2Seed, showMascotCheer],
+  );
+
+  const handleLevel3SeedSelect = useCallback(
+    (seed: Level3Seed) => {
+      chooseLevel3Seed(seed);
+      const cheer =
+        seed === 'catgrass'
+          ? 'Cat grass!\nIt might meow as it grows! 🐱🌿'
+          : 'A cheerful tulip!\nComplete a task to help it bloom! 🌷';
+      showMascotCheer(cheer);
+    },
+    [chooseLevel3Seed, showMascotCheer],
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -309,6 +378,8 @@ export default function App() {
           </main>
 
           {showSeedPicker && <StartingSeedPicker onSelect={handleStartingSeedSelect} />}
+          {showLevel2SeedPicker && <Level2SeedPicker onSelect={handleLevel2SeedSelect} />}
+          {showLevel3SeedPicker && <Level3SeedPicker onSelect={handleLevel3SeedSelect} />}
         </div>
 
         <div className="app-celebrations-layer" aria-hidden>
@@ -337,8 +408,11 @@ export default function App() {
       </div>
 
       <GardenScene
-        completedCount={completedCount}
+        completedCount={gardenProgressCount}
         startingSeed={startingSeed}
+        level2Seed={level2Seed}
+        level3Seed={level3Seed}
+        muted={muted}
       />
     </div>
   );

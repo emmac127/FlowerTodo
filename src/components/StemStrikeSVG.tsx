@@ -1,4 +1,9 @@
-import { FLOWER_PALETTES, type GrowthTier } from '../lib/growthTier';
+import {
+  FLOWER_PALETTES,
+  getTaskFlowerSize,
+  TASK_FLOWER_VIEW_BOX,
+  type GrowthTier,
+} from '../lib/growthTier';
 import { FlowerSVG } from './FlowerSVG';
 
 interface StemStrikeSVGProps {
@@ -21,13 +26,14 @@ export function StemStrikeSVG({
   const palette = FLOWER_PALETTES[tier.paletteIndex];
   const stemLength = Math.max(textWidth * progress, 0);
   const y = rowHeight / 2;
-  const flowerSize = 32 + tier.flowerScale * 8;
+  const flowerSize = getTaskFlowerSize(tier.flowerScale);
   const tipX = stemLength;
+  const flowerCenterX = tipX;
 
   return (
     <svg
       className="stem-strike-svg"
-      width={textWidth + flowerSize}
+      width={textWidth + TASK_FLOWER_VIEW_BOX}
       height={rowHeight}
       style={{ overflow: 'visible' }}
       aria-hidden
@@ -37,7 +43,7 @@ export function StemStrikeSVG({
           <line
             x1={0}
             y1={y}
-            x2={tipX}
+            x2={flowerCenterX + 3}
             y2={y}
             stroke={palette.stem}
             strokeWidth={tier.stemWidth}
@@ -69,14 +75,13 @@ export function StemStrikeSVG({
       )}
       {(progress >= 1 || wilting) && (
         <foreignObject
-          x={tipX - 4}
-          y={y - flowerSize / 2 - 2}
-          width={flowerSize + 8}
-          height={flowerSize + 8}
+          x={flowerCenterX - TASK_FLOWER_VIEW_BOX / 2}
+          y={y - TASK_FLOWER_VIEW_BOX / 2}
+          width={TASK_FLOWER_VIEW_BOX}
+          height={TASK_FLOWER_VIEW_BOX}
         >
           <div
             className={`flower-anchor ${wilting ? 'flower-anchor--wilt' : ''}`}
-            style={{ width: flowerSize, height: flowerSize }}
           >
             <FlowerSVG
               paletteIndex={tier.paletteIndex}

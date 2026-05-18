@@ -1,4 +1,4 @@
-import { FLOWERS_PER_GARDEN_LEVEL } from '../lib/plantedGarden';
+import { LEVEL_1_TASKS } from '../lib/plantedGarden';
 
 interface GardenProgressMeterProps {
   planted: number;
@@ -7,7 +7,7 @@ interface GardenProgressMeterProps {
 
 export function GardenProgressMeter({
   planted,
-  max = FLOWERS_PER_GARDEN_LEVEL,
+  max = LEVEL_1_TASKS,
 }: GardenProgressMeterProps) {
   const filled = Math.min(Math.max(0, planted), max);
 

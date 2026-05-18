@@ -220,6 +220,17 @@ export function scheduleUncompleteSounds(
   scheduleRetractAt(ctx, completionIndex, retractDurationMs, now + wiltSec);
 }
 
+/** Short "meow" for cat grass garden growth. */
+export async function playMeowSound(muted: boolean) {
+  if (muted) return;
+  const ctx = await getContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  playTone(ctx, 420, now, 0.1, 0.09, 'triangle');
+  playTone(ctx, 340, now + 0.09, 0.14, 0.08, 'triangle');
+  playTone(ctx, 260, now + 0.2, 0.22, 0.06, 'sine');
+}
+
 export async function playGrowSound(
   completedCount: number,
   durationMs: number,

@@ -24,6 +24,17 @@ export interface Task {
 
 interface StoredState {
   tasks: Task[];
+  /** Lifetime completions — kept when clearing completed tasks from the list. */
+  gardenProgressCount?: number;
+}
+
+function inferGardenProgressCount(tasks: Task[], stored?: number): number {
+  const fromIndices = tasks
+    .filter((t) => t.completionIndex != null)
+    .map((t) => t.completionIndex!);
+  const fromTasks = fromIndices.length > 0 ? Math.max(...fromIndices) : 0;
+  const fromStored = typeof stored === 'number' && stored >= 0 ? stored : 0;
+  return Math.max(fromStored, fromTasks);
 }
 
 const STORAGE_KEY = 'kawaii-todo-tasks';
@@ -45,7 +56,7 @@ function renumberCompleted(tasks: Task[]): Task[] {
 function loadState(): StoredState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { tasks: [] };
+    if (!raw) return { tasks: [], gardenProgressCount: 0 };
     const parsed = JSON.parse(raw) as StoredState & { totalCompletedEver?: number };
     const storedTasks = parsed.tasks ?? [];
     const tasks = renumberCompleted(
@@ -57,9 +68,14 @@ function loadState(): StoredState {
           t.completed && t.gardenRevealed === false ? true : t.gardenRevealed,
       })),
     );
-    return { tasks };
+    const legacyEver = parsed.totalCompletedEver;
+    const gardenProgressCount = inferGardenProgressCount(
+      tasks,
+      parsed.gardenProgressCount ?? legacyEver,
+    );
+    return { tasks, gardenProgressCount };
   } catch {
-    return { tasks: [] };
+    return { tasks: [], gardenProgressCount: 0 };
   }
 }
 
@@ -73,18 +89,20 @@ export function getCompletedCount(tasks: Task[]): number {
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [gardenProgressCount, setGardenProgressCount] = useState(0);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const stored = loadState();
     setTasks(stored.tasks);
+    setGardenProgressCount(stored.gardenProgressCount ?? 0);
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    saveState({ tasks });
-  }, [tasks, hydrated]);
+    saveState({ tasks, gardenProgressCount });
+  }, [tasks, gardenProgressCount, hydrated]);
 
   const addTask = useCallback((text: string) => {
     const trimmed = text.trim();
@@ -123,6 +141,7 @@ export function useTasks() {
             : t,
         ),
       );
+      setGardenProgressCount((prev) => Math.max(prev, completionIndex));
     },
     [],
   );
@@ -230,11 +249,12 @@ export function useTasks() {
   }, []);
 
   const getNextCompletionIndex = useCallback(() => {
-    return getCompletedCount(tasks) + 1;
-  }, [tasks]);
+    return gardenProgressCount + 1;
+  }, [gardenProgressCount]);
 
   return {
     tasks,
+    gardenProgressCount,
     hydrated,
     addTask,
     completeTask,

@@ -22,10 +22,26 @@ export interface GrowthTier {
   growDurationMs: number;
 }
 
+/** Keeps task-row blooms round — petals must not touch the square anchor edges. */
+export const MAX_TASK_FLOWER_SCALE = 1.05;
+export const MAX_TASK_FLOWER_SIZE = 40;
+export const TASK_FLOWER_VIEW_BOX = 48;
+const BASE_TASK_FLOWER_SIZE = 30;
+
+export function clampTaskFlowerScale(scale: number): number {
+  return Math.min(scale, MAX_TASK_FLOWER_SCALE);
+}
+
+export function getTaskFlowerSize(flowerScale: number): number {
+  const scaled = BASE_TASK_FLOWER_SIZE + clampTaskFlowerScale(flowerScale) * 8;
+  return Math.min(scaled, MAX_TASK_FLOWER_SIZE);
+}
+
 export function getGrowthTier(completedCount: number): GrowthTier {
+  const rawScale = 0.6 + Math.min(completedCount * 0.08, 0.5);
   return {
     stemWidth: 2 + Math.min(completedCount * 0.4, 4),
-    flowerScale: 0.6 + Math.min(completedCount * 0.08, 1.2),
+    flowerScale: clampTaskFlowerScale(rawScale),
     petalCount: completedCount < 3 ? 5 : completedCount < 8 ? 6 : 8,
     paletteIndex: completedCount % FLOWER_PALETTES.length,
     growDurationMs: 400 + Math.min(completedCount * 20, 200),

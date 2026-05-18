@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import type { Task } from '../hooks/useTasks';
-import { getGrowthTier, type GrowthTier } from '../lib/growthTier';
+import { getGrowthTier, TASK_FLOWER_VIEW_BOX, type GrowthTier } from '../lib/growthTier';
 import {
   playBloomSound,
   scheduleCompletionSounds,
@@ -530,7 +530,7 @@ export function TaskRow({
         {showStem && textWidth > 0 && !isEditing && (
           <div
             className="stem-overlay"
-            style={{ width: textWidth + 48, height: rowHeight }}
+            style={{ width: textWidth + TASK_FLOWER_VIEW_BOX, height: rowHeight }}
           >
             <StemStrikeSVG
               textWidth={textWidth}
