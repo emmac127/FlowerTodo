@@ -28,17 +28,20 @@ const GARDEN_VIEW_WIDTH = 400;
 /** Base scale for bottom-garden flower geometry (stems, leaves, blooms). */
 export const GARDEN_PLANT_SCALE = 2;
 
-/** SVG viewBox height for an individual flower cell. */
+/** Legacy strip height (ground line uses {@link GARDEN_CELL_VIEW_HEIGHT}). */
 export const GARDEN_STRIP_VIEW_HEIGHT = 220;
 
 /** SVG viewBox width for an individual flower cell. */
 export const GARDEN_CELL_VIEW_WIDTH = 200;
 
-/** Taller viewBox so flowers like pinwheel/wisteria are not clipped at the top. */
-export const GARDEN_CELL_VIEW_HEIGHT = 260;
+/**
+ * Tall viewBox so pinwheel (2× stem + stacked blooms) fits above the ground line.
+ * Ground sits near the bottom via {@link GARDEN_CELL_GROUND_Y}.
+ */
+export const GARDEN_CELL_VIEW_HEIGHT = 320;
 
 const GROUND_INSET = 20;
-const GROUND_Y = GARDEN_STRIP_VIEW_HEIGHT - GROUND_INSET;
+export const GARDEN_CELL_GROUND_Y = GARDEN_CELL_VIEW_HEIGHT - GROUND_INSET;
 
 /**
  * Target on-screen height for a fully bloomed flower, as a percentage of the
@@ -66,12 +69,12 @@ export function getFlowerHeightDvh(seed: GardenSeed): number {
 export const FIXED_SLOT_X: readonly number[] = [104, 152, 200, 248, 296];
 
 export function getGardenGroundY(): number {
-  return GROUND_Y;
+  return GARDEN_CELL_GROUND_Y;
 }
 
 /** Root transform for a bottom-garden plant anchored at ground level. */
 export function getGardenPlantRootTransform(x: number): string {
-  return `translate(${x} ${GROUND_Y}) scale(${GARDEN_PLANT_SCALE})`;
+  return `translate(${x} ${GARDEN_CELL_GROUND_Y}) scale(${GARDEN_PLANT_SCALE})`;
 }
 
 /** Completions required before a garden level begins (level 1 starts at 0). */

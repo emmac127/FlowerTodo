@@ -120,6 +120,14 @@ body {
   width: 100%;
   margin: 0 auto;
   padding: 1.25rem 1.25rem calc(var(--garden-band-height) + 5rem);
+  /* Let garden scroll controls receive taps in bottom padding (full-width app on narrow screens). */
+  pointer-events: none;
+}
+
+.sticky-kawaii-header,
+.app-body,
+.garden-reveal-return {
+  pointer-events: auto;
 }
 
 .app-body {
@@ -1797,6 +1805,8 @@ body {
 }
 
 .garden-flower-scroll__viewport {
+  position: relative;
+  z-index: 0;
   flex: 1 1 auto;
   align-self: stretch;
   min-width: 0;
@@ -1843,7 +1853,7 @@ body {
   /* dvh = visible viewport on iOS Safari; vh fallback for older browsers */
   height: calc(var(--flower-h, 25) * 1vh);
   height: calc(var(--flower-h, 25) * 1dvh);
-  aspect-ratio: 200 / 260;
+  aspect-ratio: 200 / 320;
   pointer-events: none;
   overflow: visible;
 }
@@ -1858,7 +1868,7 @@ body {
 .garden-flower-scroll-btn {
   position: absolute;
   bottom: 0;
-  z-index: 10;
+  z-index: 2;
   width: 2.75rem;
   min-width: 44px;
   height: 72%;

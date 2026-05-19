@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import type { GardenSeed } from '../lib/gardenSeed';
 import {
@@ -37,22 +37,7 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
   const innerRef = useRef<HTMLDivElement>(null);
   const savedScrollLeftRef = useRef(0);
   const hasScrolledToEndRef = useRef(false);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
   const needsScroll = gardenStripNeedsScroll(flowers.length);
-
-  const updateScrollButtons = useCallback(() => {
-    const el = viewportRef.current;
-    if (!el || !needsScroll) {
-      setCanScrollLeft(false);
-      setCanScrollRight(false);
-      return;
-    }
-    const maxScroll = getMaxScrollLeft(el);
-    savedScrollLeftRef.current = el.scrollLeft;
-    setCanScrollLeft(el.scrollLeft > 2);
-    setCanScrollRight(maxScroll > 2 && el.scrollLeft < maxScroll - 2);
-  }, [needsScroll]);
 
   const scrollViewportTo = useCallback(
     (left: number, smooth: boolean) => {
@@ -70,9 +55,8 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
         el.scrollLeft = next;
       }
       savedScrollLeftRef.current = next;
-      requestAnimationFrame(updateScrollButtons);
     },
-    [updateScrollButtons],
+    [],
   );
 
   const scrollToEnd = useCallback(
@@ -102,7 +86,9 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
     const el = viewportRef.current;
     if (!el) return;
 
-    const onScroll = () => updateScrollButtons();
+    const onScroll = () => {
+      savedScrollLeftRef.current = el.scrollLeft;
+    };
     el.addEventListener('scroll', onScroll, { passive: true });
 
     const ro = new ResizeObserver(() => {
@@ -113,7 +99,7 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
         el.scrollLeft = maxScroll;
         hasScrolledToEndRef.current = true;
       }
-      updateScrollButtons();
+      savedScrollLeftRef.current = el.scrollLeft;
     });
     ro.observe(el);
     if (innerRef.current) ro.observe(innerRef.current);
@@ -122,7 +108,7 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
       el.removeEventListener('scroll', onScroll);
       ro.disconnect();
     };
-  }, [flowers.length, needsScroll, updateScrollButtons]);
+  }, [flowers.length, needsScroll]);
 
   useEffect(() => {
     hasScrolledToEndRef.current = false;
@@ -147,19 +133,6 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
     <div
       className={`garden-flower-strip${needsScroll ? ' garden-flower-strip--scrollable' : ''}`}
     >
-      {needsScroll && (
-        <button
-          type="button"
-          className="garden-flower-scroll-btn garden-flower-scroll-btn--left"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            scrollByPage(-1);
-          }}
-          disabled={!canScrollLeft}
-          aria-label="Scroll garden flowers left"
-        />
-      )}
-
       <div ref={viewportRef} className="garden-flower-scroll__viewport">
         <div ref={innerRef} className="garden-flower-scroll__inner">
           {flowers.map((flower) => {
@@ -191,16 +164,20 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
       </div>
 
       {needsScroll && (
-        <button
-          type="button"
-          className="garden-flower-scroll-btn garden-flower-scroll-btn--right"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            scrollByPage(1);
-          }}
-          disabled={!canScrollRight}
-          aria-label="Scroll garden flowers right"
-        />
+        <>
+          <button
+            type="button"
+            className="garden-flower-scroll-btn garden-flower-scroll-btn--left"
+            onClick={() => scrollByPage(-1)}
+            aria-label="Scroll garden flowers left"
+          />
+          <button
+            type="button"
+            className="garden-flower-scroll-btn garden-flower-scroll-btn--right"
+            onClick={() => scrollByPage(1)}
+            aria-label="Scroll garden flowers right"
+          />
+        </>
       )}
     </div>
   );
