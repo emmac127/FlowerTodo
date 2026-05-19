@@ -30,76 +30,108 @@ type CellStyle = CSSProperties & { '--flower-h': number };
 
 export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [scrollIndex, setScrollIndex] = useState(0);
   const needsScroll = gardenStripNeedsScroll(flowers.length);
 
-  const updateScrollButtons = useCallback(() => {
-    const el = viewportRef.current;
-    if (!el || !needsScroll) {
-      setCanScrollLeft(false);
-      setCanScrollRight(false);
-      return;
-    }
-    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-    setCanScrollLeft(el.scrollLeft > 2);
-    setCanScrollRight(maxScroll > 2 && el.scrollLeft < maxScroll - 2);
+  const scrollToCell = useCallback(
+    (index: number, inline: ScrollLogicalPosition = 'nearest') => {
+      const cell = cellRefs.current[index];
+      if (!cell) return;
+      try {
+        cell.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline,
+        });
+      } catch {
+        cell.scrollIntoView();
+      }
+    },
+    [],
+  );
+
+  const syncScrollIndexFromViewport = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || !needsScroll) return;
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const viewportCenter = viewportRect.left + viewportRect.width / 2;
+
+    let closestIndex = 0;
+    let closestDistance = Infinity;
+
+    cellRefs.current.forEach((cell, index) => {
+      if (!cell) return;
+      const rect = cell.getBoundingClientRect();
+      const cellCenter = rect.left + rect.width / 2;
+      const distance = Math.abs(cellCenter - viewportCenter);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    setScrollIndex(closestIndex);
   }, [needsScroll]);
 
   useEffect(() => {
-    const el = viewportRef.current;
-    if (!el) return;
-    updateScrollButtons();
-    el.addEventListener('scroll', updateScrollButtons, { passive: true });
-    const ro = new ResizeObserver(updateScrollButtons);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener('scroll', updateScrollButtons);
-      ro.disconnect();
-    };
-  }, [flowers.length, needsScroll, updateScrollButtons]);
+    cellRefs.current = cellRefs.current.slice(0, flowers.length);
+  }, [flowers.length]);
 
   useEffect(() => {
-    const el = viewportRef.current;
-    if (!el || !needsScroll) return;
+    const viewport = viewportRef.current;
+    if (!viewport) return;
 
-    const scrollToEnd = () => {
-      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-      el.scrollLeft = maxScroll;
-      updateScrollButtons();
+    const onScroll = () => syncScrollIndexFromViewport();
+    viewport.addEventListener('scroll', onScroll, { passive: true });
+    const ro = new ResizeObserver(onScroll);
+    ro.observe(viewport);
+
+    return () => {
+      viewport.removeEventListener('scroll', onScroll);
+      ro.disconnect();
     };
+  }, [flowers.length, needsScroll, syncScrollIndexFromViewport]);
 
+  useEffect(() => {
+    if (!needsScroll || flowers.length === 0) return;
+
+    const endIndex = flowers.length - 1;
+    setScrollIndex(endIndex);
+
+    const scrollToEnd = () => scrollToCell(endIndex, 'end');
     scrollToEnd();
     requestAnimationFrame(scrollToEnd);
-    const t1 = window.setTimeout(scrollToEnd, 60);
-    const t2 = window.setTimeout(scrollToEnd, 260);
+    const t1 = window.setTimeout(scrollToEnd, 80);
+    const t2 = window.setTimeout(scrollToEnd, 300);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
-  }, [flowers.length, needsScroll, updateScrollButtons]);
+  }, [flowers.length, needsScroll, scrollToCell]);
 
   const scrollByPage = useCallback(
     (direction: -1 | 1) => {
-      const el = viewportRef.current;
-      if (!el) return;
-      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
-      if (maxScroll <= 0) return;
+      if (!needsScroll) return;
 
-      const step = el.clientWidth / FLOWERS_PER_SCROLL_PAGE;
-      const next = Math.max(0, Math.min(maxScroll, el.scrollLeft + step * direction));
-
-      try {
-        el.scrollTo({ left: next, behavior: 'smooth' });
-      } catch {
-        el.scrollLeft = next;
-      }
-
-      window.setTimeout(updateScrollButtons, 350);
-      requestAnimationFrame(updateScrollButtons);
+      setScrollIndex((prev) => {
+        const step = FLOWERS_PER_SCROLL_PAGE;
+        const next = Math.max(
+          0,
+          Math.min(flowers.length - 1, prev + direction * step),
+        );
+        requestAnimationFrame(() => {
+          scrollToCell(next, direction < 0 ? 'start' : 'end');
+        });
+        return next;
+      });
     },
-    [updateScrollButtons],
+    [flowers.length, needsScroll, scrollToCell],
   );
+
+  const canScrollLeft = needsScroll && scrollIndex > 0;
+  const canScrollRight = needsScroll && scrollIndex < flowers.length - 1;
 
   if (flowers.length === 0) return null;
 
@@ -111,7 +143,10 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
         <button
           type="button"
           className="garden-flower-scroll-btn garden-flower-scroll-btn--left"
-          onClick={() => scrollByPage(-1)}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            scrollByPage(-1);
+          }}
           disabled={!canScrollLeft}
           aria-label="Scroll garden flowers left"
         />
@@ -119,12 +154,19 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
 
       <div ref={viewportRef} className="garden-flower-scroll__viewport">
         <div className="garden-flower-scroll__inner">
-          {flowers.map((flower) => {
+          {flowers.map((flower, index) => {
             const cellStyle: CellStyle = {
               '--flower-h': FLOWER_HEIGHT_DVH[flower.seed],
             };
             return (
-              <div key={flower.key} className="garden-flower-cell" style={cellStyle}>
+              <div
+                key={flower.key}
+                ref={(el) => {
+                  cellRefs.current[index] = el;
+                }}
+                className="garden-flower-cell"
+                style={cellStyle}
+              >
                 <svg
                   className="garden-flower-cell__svg"
                   viewBox={`0 0 ${GARDEN_CELL_VIEW_WIDTH} ${GARDEN_CELL_VIEW_HEIGHT}`}
@@ -151,7 +193,10 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
         <button
           type="button"
           className="garden-flower-scroll-btn garden-flower-scroll-btn--right"
-          onClick={() => scrollByPage(1)}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            scrollByPage(1);
+          }}
           disabled={!canScrollRight}
           aria-label="Scroll garden flowers right"
         />

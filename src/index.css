@@ -1801,17 +1801,15 @@ body {
   align-self: stretch;
   min-width: 0;
   height: 100%;
-  /* Plain block scroll container - no flex centering hijacking overflow on iOS */
   display: block;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   pointer-events: auto;
   touch-action: pan-x;
-  text-align: left;
 }
 
 .garden-flower-scroll__viewport::-webkit-scrollbar {
@@ -1819,7 +1817,6 @@ body {
 }
 
 .garden-flower-scroll__inner {
-  /* inline-flex sizes to content; min-width:100% + center keeps small rows centered */
   display: inline-flex;
   align-items: flex-end;
   vertical-align: bottom;
@@ -1828,6 +1825,14 @@ body {
   min-width: 100%;
   justify-content: center;
   box-sizing: border-box;
+}
+
+/* Scrollable: row grows past viewport width; no flex centering (breaks iOS overflow) */
+.garden-flower-strip--scrollable .garden-flower-scroll__inner {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  justify-content: flex-start;
 }
 
 .garden-flower-cell {
