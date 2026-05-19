@@ -1793,9 +1793,14 @@ body {
 }
 
 .garden-flower-scroll__viewport {
-  flex: 1;
+  flex: 1 1 auto;
+  align-self: stretch;
   min-width: 0;
+  min-height: 0;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
   overflow-x: auto;
   overflow-y: visible;
   scroll-behavior: smooth;
@@ -1809,10 +1814,14 @@ body {
 }
 
 .garden-flower-scroll__inner {
-  height: 100%;
+  flex: 0 0 92%;
+  width: 100%;
+  height: 92%;
+  min-height: 9rem;
 }
 
-.garden-svg--strip {
+/* iOS Safari: explicit strip SVG box + plant scale in SVG (not viewBox shrink) */
+.garden-svg.garden-svg--planted.garden-svg--strip {
   position: relative;
   bottom: auto;
   left: auto;
@@ -1820,6 +1829,18 @@ body {
   display: block;
   width: 100%;
   height: 100%;
+  min-height: 9rem;
+  max-height: 100%;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+/* iOS Safari: flex + percentage SVG height often collapses without a floor */
+@supports (-webkit-touch-callout: none) {
+  .garden-flower-scroll__inner,
+  .garden-svg.garden-svg--planted.garden-svg--strip {
+    min-height: 11rem;
+  }
 }
 
 .garden-flower-scroll-btn {

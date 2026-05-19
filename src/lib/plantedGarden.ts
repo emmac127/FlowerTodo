@@ -28,24 +28,20 @@ const GARDEN_VIEW_WIDTH = 400;
 export const GARDEN_PLANT_SCALE = 2;
 
 /**
- * On-screen flower size vs the base garden layout (grass band unchanged).
- * 1.5 = 150% of the original bottom-garden flower height.
+ * On-screen flower size vs {@link GARDEN_PLANT_SCALE} alone (grass band unchanged).
+ * 1.5 = 150% taller/wider flowers; 2 = double.
  */
 export const GARDEN_FLOWER_SIZE_MULTIPLIER = 1.5;
 
-/** Design viewBox height at multiplier 1 (matches original garden strip). */
-export const GARDEN_STRIP_VIEW_HEIGHT_BASE = 220;
+/** SVG viewBox height for the bottom flower strip. */
+export const GARDEN_STRIP_VIEW_HEIGHT = 220;
 
-/**
- * Shorter viewBox → same SVG pixel box zooms flowers in (preserveAspectRatio meet).
- * At 1.5× this is 220 / 1.5 ≈ 147.
- */
-export function getGardenStripViewHeight(): number {
-  return GARDEN_STRIP_VIEW_HEIGHT_BASE / GARDEN_FLOWER_SIZE_MULTIPLIER;
+const GROUND_Y = GARDEN_STRIP_VIEW_HEIGHT - 20;
+
+/** Total SVG scale applied at each plant root (reliable on iOS; not viewBox tricks). */
+export function getGardenFlowerScale(): number {
+  return GARDEN_PLANT_SCALE * GARDEN_FLOWER_SIZE_MULTIPLIER;
 }
-
-const GROUND_INSET = 20 / GARDEN_FLOWER_SIZE_MULTIPLIER;
-const GROUND_Y = getGardenStripViewHeight() - GROUND_INSET;
 
 /** Five fixed horizontal slots — positions never change when new flowers are planted. */
 export const FIXED_SLOT_X: readonly number[] = [104, 152, 200, 248, 296];
@@ -56,7 +52,7 @@ export function getGardenGroundY(): number {
 
 /** Root transform for a bottom-garden plant anchored at ground level. */
 export function getGardenPlantRootTransform(x: number): string {
-  return `translate(${x} ${GROUND_Y}) scale(${GARDEN_PLANT_SCALE})`;
+  return `translate(${x} ${GROUND_Y}) scale(${getGardenFlowerScale()})`;
 }
 
 /** Completions required before a garden level begins (level 1 starts at 0). */

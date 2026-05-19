@@ -1,4 +1,4 @@
-import { GARDEN_PLANT_SCALE } from './plantedGarden';
+import { getGardenFlowerScale } from './plantedGarden';
 
 /** Flowers visible at once before horizontal scroll + arrows appear. */
 export const FLOWERS_PER_SCROLL_PAGE = 3;
@@ -6,9 +6,10 @@ export const FLOWERS_PER_SCROLL_PAGE = 3;
 const STRIP_VIEW_WIDTH = 400;
 const STRIP_MIN_X = 104;
 const STRIP_MAX_X = 296;
-const SCROLL_SLOT_START = 56 * GARDEN_PLANT_SCALE;
-export const SCROLL_SLOT_SPACING = 96 * GARDEN_PLANT_SCALE;
-const SCROLL_END_PADDING = 56 * GARDEN_PLANT_SCALE;
+const flowerScale = getGardenFlowerScale();
+const SCROLL_SLOT_START = 56 * flowerScale;
+export const SCROLL_SLOT_SPACING = 96 * flowerScale;
+const SCROLL_END_PADDING = 56 * flowerScale;
 
 /** Left-to-right X in the garden SVG for flower at index (0-based). */
 export function getFlowerStripX(index: number, total: number): number {

@@ -7,7 +7,10 @@ import {
   getFlowerStripX,
   SCROLL_SLOT_SPACING,
 } from '../lib/gardenFlowerStrip';
-import { getGardenStripViewHeight } from '../lib/plantedGarden';
+import {
+  GARDEN_FLOWER_SIZE_MULTIPLIER,
+  GARDEN_STRIP_VIEW_HEIGHT,
+} from '../lib/plantedGarden';
 import type { SeedGrowthStage } from '../lib/seedGrowth';
 import { GrowingSeedPlant } from './GrowingSeedPlant';
 
@@ -83,6 +86,11 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
   return (
     <div
       className={`garden-flower-strip${needsScroll ? ' garden-flower-strip--scrollable' : ''}`}
+      style={
+        {
+          '--garden-flower-size-multiplier': String(GARDEN_FLOWER_SIZE_MULTIPLIER),
+        } as React.CSSProperties
+      }
     >
       {needsScroll && (
         <button
@@ -98,7 +106,9 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
         <div className="garden-flower-scroll__inner" style={{ minWidth: innerMinWidth }}>
           <svg
             className="garden-svg garden-svg--planted garden-svg--strip"
-            viewBox={`0 0 ${stripWidth} ${getGardenStripViewHeight()}`}
+            width="100%"
+            height="100%"
+            viewBox={`0 0 ${stripWidth} ${GARDEN_STRIP_VIEW_HEIGHT}`}
             preserveAspectRatio={needsScroll ? 'xMinYMax meet' : 'xMidYMax meet'}
             aria-hidden
           >
