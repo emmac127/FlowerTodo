@@ -23,13 +23,25 @@ export interface PlantedFlowerSpec {
 }
 
 const GARDEN_VIEW_WIDTH = 400;
-const GROUND_Y = 82;
+
+/** Bottom-garden plants render at 2× (stems, leaves, blooms). */
+export const GARDEN_PLANT_SCALE = 2;
+
+/** SVG viewBox height for the flower strip (taller to fit scaled plants). */
+export const GARDEN_STRIP_VIEW_HEIGHT = 220;
+
+const GROUND_Y = GARDEN_STRIP_VIEW_HEIGHT - 20;
 
 /** Five fixed horizontal slots — positions never change when new flowers are planted. */
 export const FIXED_SLOT_X: readonly number[] = [104, 152, 200, 248, 296];
 
 export function getGardenGroundY(): number {
   return GROUND_Y;
+}
+
+/** Root transform for a bottom-garden plant anchored at ground level. */
+export function getGardenPlantRootTransform(x: number): string {
+  return `translate(${x} ${GROUND_Y}) scale(${GARDEN_PLANT_SCALE})`;
 }
 
 /** Completions required before a garden level begins (level 1 starts at 0). */

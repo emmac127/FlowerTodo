@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { getGardenGroundY } from '../lib/plantedGarden';
+import { getGardenPlantRootTransform } from '../lib/plantedGarden';
 import { getSeedGrowthMetrics, type SeedGrowthStage } from '../lib/seedGrowth';
 import { playMeowSound } from '../lib/sounds';
 
@@ -25,7 +25,6 @@ export function CatGrassPlant({
   muted = false,
 }: CatGrassPlantProps) {
   const metrics = getSeedGrowthMetrics(growthStage);
-  const groundY = getGardenGroundY();
   const prevStage = useRef(growthStage);
   const mature = growthStage >= 3;
   const visibleBlades = Math.min(BLADES.length, Math.max(1, growthStage + 1));
@@ -41,7 +40,7 @@ export function CatGrassPlant({
   return (
     <g
       className={`growing-seed growing-seed--catgrass${mature ? ' growing-seed--catgrass-mature' : ''}${className ? ` ${className}` : ''}`}
-      transform={`translate(${x} ${groundY})`}
+      transform={getGardenPlantRootTransform(x)}
       aria-hidden
     >
       <g

@@ -1,4 +1,4 @@
-import { getGardenGroundY } from '../lib/plantedGarden';
+import { getGardenPlantRootTransform } from '../lib/plantedGarden';
 import {
   getSeedGrowthMetrics,
   SEED_PALETTES,
@@ -57,7 +57,6 @@ export function WiggleWisteriaPlant({
 }: WiggleWisteriaPlantProps) {
   const palette = SEED_PALETTES.wigglewisteria;
   const metrics = getSeedGrowthMetrics(growthStage);
-  const groundY = getGardenGroundY();
   const stemScale = metrics.stemHeight / MAX_STEM_HEIGHT;
   const animate = growthStage >= 3;
   const showLowerBloom = growthStage >= 3;
@@ -66,7 +65,7 @@ export function WiggleWisteriaPlant({
   return (
     <g
       className={`growing-seed growing-seed--wisteria${animate ? ' growing-seed--wisteria-mature' : ''}${className ? ` ${className}` : ''}`}
-      transform={`translate(${x} ${groundY})`}
+      transform={getGardenPlantRootTransform(x)}
       aria-hidden
     >
       <g
@@ -80,37 +79,56 @@ export function WiggleWisteriaPlant({
           }}
         >
           <g className="growing-seed__wisteria-stem">
-          <path
-            d="M 0 0 Q 10 -16 -4 -30 Q -12 -42 2 -52"
-            fill="none"
-            stroke={palette.stem}
-            strokeWidth={metrics.stemWidth + 0.5}
-            strokeLinecap="round"
-          />
+            {/* Lower segment — base of the snake body */}
+            <g className="growing-seed__wisteria-seg growing-seed__wisteria-seg--lower">
+              <path
+                d="M 0 0 Q 10 -16 -4 -30"
+                fill="none"
+                stroke={palette.stem}
+                strokeWidth={metrics.stemWidth + 0.5}
+                strokeLinecap="round"
+              />
+              <ellipse
+                className="growing-seed__wisteria-leaf growing-seed__wisteria-leaf--a"
+                cx={-8}
+                cy={-22}
+                rx={5}
+                ry={2.5}
+                fill={palette.leaf}
+                transform="rotate(-32 -8 -22)"
+              />
+              {showLowerBloom && (
+                <WisteriaCluster
+                  x={-2}
+                  y={-28}
+                  scale={0.85}
+                  opacity={showUpperBloom ? 1 : 0.85}
+                />
+              )}
 
-          <ellipse
-            className="growing-seed__wisteria-leaf growing-seed__wisteria-leaf--a"
-            cx={-8}
-            cy={-22}
-            rx={5}
-            ry={2.5}
-            fill={palette.leaf}
-            transform="rotate(-32 -8 -22)"
-          />
-          <ellipse
-            className="growing-seed__wisteria-leaf growing-seed__wisteria-leaf--b"
-            cx={9}
-            cy={-36}
-            rx={4.5}
-            ry={2.2}
-            fill={palette.leaf}
-            transform="rotate(28 9 -36)"
-          />
-
-          {showLowerBloom && (
-            <WisteriaCluster x={-2} y={-28} scale={0.85} opacity={showUpperBloom ? 1 : 0.85} />
-          )}
-          {showUpperBloom && <WisteriaCluster x={4} y={-50} scale={1} opacity={1} />}
+              {/* Upper segment — tip follows with opposite sway (snake wave) */}
+              <g transform="translate(-4 -30)">
+                <g className="growing-seed__wisteria-seg growing-seed__wisteria-seg--upper">
+                  <path
+                    d="M 0 0 Q -8 -12 6 -22"
+                    fill="none"
+                    stroke={palette.stem}
+                    strokeWidth={metrics.stemWidth + 0.5}
+                    strokeLinecap="round"
+                  />
+                  <ellipse
+                    className="growing-seed__wisteria-leaf growing-seed__wisteria-leaf--b"
+                    cx={9}
+                    cy={-6}
+                    rx={4.5}
+                    ry={2.2}
+                    fill={palette.leaf}
+                    transform="rotate(28 9 -6)"
+                  />
+                  {showUpperBloom && <WisteriaCluster x={8} y={-20} scale={1} opacity={1} />}
+                </g>
+              </g>
+            </g>
           </g>
         </g>
 

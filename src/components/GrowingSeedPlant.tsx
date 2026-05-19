@@ -1,4 +1,4 @@
-import { getGardenGroundY } from '../lib/plantedGarden';
+import { getGardenPlantRootTransform } from '../lib/plantedGarden';
 
 import {
 
@@ -13,6 +13,8 @@ import {
 import type { GardenSeed } from '../lib/gardenSeed';
 
 import { CatGrassPlant } from './CatGrassPlant';
+import { FireFlowerPlant } from './FireFlowerPlant';
+import { PinwheelFlowerPlant } from './PinwheelFlowerPlant';
 import { PuppyPoppyPlant } from './PuppyPoppyPlant';
 import { TulipPlant } from './TulipPlant';
 import { WiggleWisteriaPlant } from './WiggleWisteriaPlant';
@@ -82,12 +84,18 @@ export function GrowingSeedPlant({
     return <WiggleWisteriaPlant growthStage={growthStage} x={x} className={className} />;
   }
 
+  if (seed === 'pinwheelflower') {
+    return <PinwheelFlowerPlant growthStage={growthStage} x={x} className={className} />;
+  }
+
+  if (seed === 'fireflower') {
+    return <FireFlowerPlant growthStage={growthStage} x={x} className={className} />;
+  }
+
   const palette = SEED_PALETTES[seed];
 
   const metrics = getSeedGrowthMetrics(growthStage);
   const visiblePetalCount = fullPetalBloom ? MAX_PETALS : metrics.petalCount;
-
-  const groundY = getGardenGroundY();
 
   const stemTop = -metrics.stemHeight;
 
@@ -123,7 +131,7 @@ export function GrowingSeedPlant({
 
       className={`growing-seed${className ? ` ${className}` : ''}`}
 
-      transform={`translate(${x} ${groundY})`}
+      transform={getGardenPlantRootTransform(x)}
 
       aria-hidden
 

@@ -7,6 +7,7 @@ import {
   getFlowerStripX,
   SCROLL_SLOT_SPACING,
 } from '../lib/gardenFlowerStrip';
+import { GARDEN_STRIP_VIEW_HEIGHT } from '../lib/plantedGarden';
 import type { SeedGrowthStage } from '../lib/seedGrowth';
 import { GrowingSeedPlant } from './GrowingSeedPlant';
 
@@ -97,7 +98,7 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
         <div className="garden-flower-scroll__inner" style={{ minWidth: innerMinWidth }}>
           <svg
             className="garden-svg garden-svg--planted garden-svg--strip"
-            viewBox={`0 0 ${stripWidth} 120`}
+            viewBox={`0 0 ${stripWidth} ${GARDEN_STRIP_VIEW_HEIGHT}`}
             preserveAspectRatio={needsScroll ? 'xMinYMax meet' : 'xMidYMax meet'}
             aria-hidden
           >

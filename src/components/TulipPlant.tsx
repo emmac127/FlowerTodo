@@ -1,4 +1,4 @@
-import { getGardenGroundY } from '../lib/plantedGarden';
+import { getGardenPlantRootTransform } from '../lib/plantedGarden';
 import {
   getSeedGrowthMetrics,
   SEED_PALETTES,
@@ -16,7 +16,6 @@ interface TulipPlantProps {
 export function TulipPlant({ growthStage, x = 200, className = '' }: TulipPlantProps) {
   const palette = SEED_PALETTES.tulip;
   const metrics = getSeedGrowthMetrics(growthStage);
-  const groundY = getGardenGroundY();
   const stemTop = -metrics.stemHeight;
   const stemScaleY = metrics.stemHeight / MAX_STEM_HEIGHT;
   const showBloom = metrics.showBloom;
@@ -26,7 +25,7 @@ export function TulipPlant({ growthStage, x = 200, className = '' }: TulipPlantP
   return (
     <g
       className={`growing-seed growing-seed--tulip${className ? ` ${className}` : ''}`}
-      transform={`translate(${x} ${groundY})`}
+      transform={getGardenPlantRootTransform(x)}
       aria-hidden
     >
       <g

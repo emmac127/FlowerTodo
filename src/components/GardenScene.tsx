@@ -11,6 +11,8 @@ import {
 import type { Level2Seed } from '../lib/level2Seed';
 import type { Level3Seed } from '../lib/level3Seed';
 import type { Level4Seed } from '../lib/level4Seed';
+import type { GardenSeed } from '../lib/gardenSeed';
+import type { Level5Seed } from '../lib/level5Seed';
 import { getGardenCycleProgress, getGardenLevel } from '../lib/plantedGarden';
 import { getSeedGrowthStage } from '../lib/seedGrowth';
 import type { StartingSeed } from '../lib/startingSeed';
@@ -22,6 +24,8 @@ interface GardenSceneProps {
   level2Seed?: Level2Seed | null;
   level3Seed?: Level3Seed | null;
   level4Seed?: Level4Seed | null;
+  level5Seed?: Level5Seed | null;
+  level6Seed?: GardenSeed | null;
   muted?: boolean;
 }
 
@@ -44,11 +48,20 @@ export function GardenScene({
   level2Seed = null,
   level3Seed = null,
   level4Seed = null,
+  level5Seed = null,
+  level6Seed = null,
   muted = false,
 }: GardenSceneProps) {
   const seedChoices: GardenSeedChoices = useMemo(
-    () => ({ starting: startingSeed, level2: level2Seed, level3: level3Seed, level4: level4Seed }),
-    [startingSeed, level2Seed, level3Seed, level4Seed],
+    () => ({
+      starting: startingSeed,
+      level2: level2Seed,
+      level3: level3Seed,
+      level4: level4Seed,
+      level5: level5Seed,
+      level6: level6Seed,
+    }),
+    [startingSeed, level2Seed, level3Seed, level4Seed, level5Seed, level6Seed],
   );
   const layers = useMemo(() => getGardenLayers(completedCount), [completedCount]);
   const stage = Math.min(getSceneMilestoneCount(completedCount), 12);
@@ -158,8 +171,35 @@ export function GardenScene({
         level2Seed &&
         level3Seed &&
         level4Seed &&
+        !level5Seed &&
+        activeLevel >= 5 &&
+        cycleProgress.planted === 0 && (
+          <p className="garden-scene__hint garden-scene__hint--seed">
+            Choose your level 5 flower seed…
+          </p>
+        )}
+
+      {startingSeed &&
+        level2Seed &&
+        level3Seed &&
+        level4Seed &&
+        level5Seed &&
+        !level6Seed &&
+        activeLevel >= 6 &&
+        cycleProgress.planted === 0 && (
+          <p className="garden-scene__hint garden-scene__hint--seed">
+            Choose your level 6 flower seed…
+          </p>
+        )}
+
+      {startingSeed &&
+        level2Seed &&
+        level3Seed &&
+        level4Seed &&
+        level5Seed &&
+        level6Seed &&
         cycleProgress.planted === 0 &&
-        completedLevels.length <= 3 && (
+        completedLevels.length <= 5 && (
           <p className="garden-scene__hint garden-scene__hint--seed">
             Complete tasks to help your seed grow…
           </p>

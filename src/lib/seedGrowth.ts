@@ -77,6 +77,22 @@ export const SEED_PALETTES: Record<GardenSeed, SeedPalette> = {
     petals: '#c9b8ff',
     center: '#e8dcff',
   },
+  pinwheelflower: {
+    stem: '#4d8f3c',
+    leaf: '#8ed98e',
+    bud: '#ffe566',
+    budStroke: '#e8b830',
+    petals: '#ffb7d5',
+    center: '#fff8c8',
+  },
+  fireflower: {
+    stem: '#5a4a3a',
+    leaf: '#ff9f43',
+    bud: '#ff6b35',
+    budStroke: '#e85530',
+    petals: '#ffcc66',
+    center: '#fff4a3',
+  },
 };
 
 export interface SeedGrowthMetrics {

@@ -1,4 +1,4 @@
-import { getGardenGroundY } from '../lib/plantedGarden';
+import { getGardenPlantRootTransform } from '../lib/plantedGarden';
 import {
   getSeedGrowthMetrics,
   SEED_PALETTES,
@@ -44,7 +44,6 @@ export function PuppyPoppyPlant({
 }: PuppyPoppyPlantProps) {
   const palette = SEED_PALETTES.puppypoppy;
   const metrics = getSeedGrowthMetrics(growthStage);
-  const groundY = getGardenGroundY();
   const stemTop = -metrics.stemHeight;
   const stemScaleY = metrics.stemHeight / MAX_STEM_HEIGHT;
   const showBloom = metrics.showBloom;
@@ -54,7 +53,7 @@ export function PuppyPoppyPlant({
   return (
     <g
       className={`growing-seed growing-seed--puppypoppy${className ? ` ${className}` : ''}`}
-      transform={`translate(${x} ${groundY})`}
+      transform={getGardenPlantRootTransform(x)}
       aria-hidden
     >
       <g

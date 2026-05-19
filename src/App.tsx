@@ -10,6 +10,8 @@ import { useTasks } from './hooks/useTasks';
 import { useLevel2Seed } from './hooks/useLevel2Seed';
 import { useLevel3Seed } from './hooks/useLevel3Seed';
 import { useLevel4Seed } from './hooks/useLevel4Seed';
+import { useLevel5Seed } from './hooks/useLevel5Seed';
+import { useLevel6Seed } from './hooks/useLevel6Seed';
 import { useStartingSeed } from './hooks/useStartingSeed';
 import {
   GARDEN_REVEAL_ANIM_MS,
@@ -18,6 +20,10 @@ import {
   getGardenRevealScrollTop,
   shouldRevealGardenForCompletion,
 } from './lib/gardenReveal';
+import {
+  getLevel6PickerOptions,
+  SEED_DISPLAY_NAMES,
+} from './lib/gardenSeedCatalog';
 import {
   getPendingSeedPicker,
   isBackfillSeedPicker,
@@ -32,11 +38,16 @@ import {
 import { Level2SeedPicker } from './components/Level2SeedPicker';
 import { Level3SeedPicker } from './components/Level3SeedPicker';
 import { Level4SeedPicker } from './components/Level4SeedPicker';
+import { Level5SeedPicker } from './components/Level5SeedPicker';
+import { Level6SeedPicker } from './components/Level6SeedPicker';
 import { StartingSeedPicker } from './components/StartingSeedPicker';
 import { pickMotivationalPhrase } from './lib/motivationalPhrases';
 import { LEVEL_2_SEED_PROMPT, type Level2Seed } from './lib/level2Seed';
 import { LEVEL_3_SEED_PROMPT, type Level3Seed } from './lib/level3Seed';
 import { LEVEL_4_SEED_PROMPT, type Level4Seed } from './lib/level4Seed';
+import { LEVEL_5_SEED_PROMPT, type Level5Seed } from './lib/level5Seed';
+import { LEVEL_6_SEED_PROMPT } from './lib/level6Seed';
+import type { GardenSeed } from './lib/gardenSeed';
 import { STARTING_SEED_PROMPT, type StartingSeed } from './lib/startingSeed';
 import { playAddTaskSound, playCelebrationTune, unlockAudio } from './lib/sounds';
 
@@ -126,6 +137,18 @@ export default function App() {
     chooseLevel4Seed,
   } = useLevel4Seed();
 
+  const {
+    level5Seed,
+    hydrated: level5SeedHydrated,
+    chooseLevel5Seed,
+  } = useLevel5Seed();
+
+  const {
+    level6Seed,
+    hydrated: level6SeedHydrated,
+    chooseLevel6Seed,
+  } = useLevel6Seed();
+
   const gardenLevel = getGardenLevel(gardenProgressCount);
   const gardenCycleProgress = getGardenCycleProgress(gardenProgressCount);
   const gardenDisplayCount =
@@ -139,15 +162,23 @@ export default function App() {
     seedHydrated &&
     level2SeedHydrated &&
     level3SeedHydrated &&
-    level4SeedHydrated;
+    level4SeedHydrated &&
+    level5SeedHydrated &&
+    level6SeedHydrated;
   const seedChoices = useMemo(
     () => ({
       starting: startingSeed,
       level2: level2Seed,
       level3: level3Seed,
       level4: level4Seed,
+      level5: level5Seed,
+      level6: level6Seed,
     }),
-    [startingSeed, level2Seed, level3Seed, level4Seed],
+    [startingSeed, level2Seed, level3Seed, level4Seed, level5Seed, level6Seed],
+  );
+  const level6PickerOptions = useMemo(
+    () => getLevel6PickerOptions(seedChoices),
+    [seedChoices],
   );
   const pendingSeedPicker = seedsHydrated
     ? getPendingSeedPicker(gardenProgressCount, seedChoices)
@@ -156,8 +187,15 @@ export default function App() {
   const showLevel2SeedPicker = pendingSeedPicker === 'level2';
   const showLevel3SeedPicker = pendingSeedPicker === 'level3';
   const showLevel4SeedPicker = pendingSeedPicker === 'level4';
+  const showLevel5SeedPicker = pendingSeedPicker === 'level5';
+  const showLevel6SeedPicker =
+    pendingSeedPicker === 'level6' && level6PickerOptions != null;
   const showLevelSeedPicker =
-    showLevel2SeedPicker || showLevel3SeedPicker || showLevel4SeedPicker;
+    showLevel2SeedPicker ||
+    showLevel3SeedPicker ||
+    showLevel4SeedPicker ||
+    showLevel5SeedPicker ||
+    showLevel6SeedPicker;
 
   const showMascotCheer = useCallback((phrase?: string) => {
     const text = phrase ?? pickMotivationalPhrase(lastPhraseRef.current);
@@ -440,6 +478,29 @@ export default function App() {
     setSpeechVisible(true);
   }, [gardenProgressCount, showLevel4SeedPicker]);
 
+  useEffect(() => {
+    if (!showLevel5SeedPicker) return;
+    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+    setMascotMessage(
+      isBackfillSeedPicker('level5', gardenProgressCount)
+        ? 'Pick your level 5 flower to grow the next garden spot! 🌸'
+        : LEVEL_5_SEED_PROMPT,
+    );
+    setSpeechVisible(true);
+  }, [gardenProgressCount, showLevel5SeedPicker]);
+
+  useEffect(() => {
+    if (!showLevel6SeedPicker || !level6PickerOptions) return;
+    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+    const [a, b] = level6PickerOptions;
+    setMascotMessage(
+      isBackfillSeedPicker('level6', gardenProgressCount)
+        ? `Pick ${SEED_DISPLAY_NAMES[a]} or ${SEED_DISPLAY_NAMES[b]} for level 6! 🌸`
+        : LEVEL_6_SEED_PROMPT,
+    );
+    setSpeechVisible(true);
+  }, [gardenProgressCount, level6PickerOptions, showLevel6SeedPicker]);
+
   const handleStartingSeedSelect = useCallback(
     (seed: StartingSeed) => {
       chooseStartingSeed(seed);
@@ -494,6 +555,37 @@ export default function App() {
       showMascotCheer(cheer);
     },
     [chooseLevel4Seed, gardenProgressCount, showMascotCheer],
+  );
+
+  const handleLevel5SeedSelect = useCallback(
+    (seed: Level5Seed) => {
+      chooseLevel5Seed(seed);
+      const backfill = isBackfillSeedPicker('level5', gardenProgressCount);
+      const cheer =
+        seed === 'pinwheelflower'
+          ? backfill
+            ? 'Pinwheel flower!\nYour spinning blooms are in the garden! 🎡'
+            : 'Pinwheel flower!\nA new bloom spins in for every task! 🎡'
+          : backfill
+            ? 'Fire flower!\nYour fiery sprout is in the garden! 🔥'
+            : 'Fire flower!\nWatch the flames dance as it grows! 🔥';
+      showMascotCheer(cheer);
+    },
+    [chooseLevel5Seed, gardenProgressCount, showMascotCheer],
+  );
+
+  const handleLevel6SeedSelect = useCallback(
+    (seed: GardenSeed) => {
+      chooseLevel6Seed(seed);
+      const name = SEED_DISPLAY_NAMES[seed];
+      const backfill = isBackfillSeedPicker('level6', gardenProgressCount);
+      showMascotCheer(
+        backfill
+          ? `${name}!\nYour level 6 sprout is in the garden! 🌸`
+          : `${name}!\nA flower you skipped before — let's grow it! 🌱`,
+      );
+    },
+    [chooseLevel6Seed, gardenProgressCount, showMascotCheer],
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -625,6 +717,8 @@ export default function App() {
         level2Seed={level2Seed}
         level3Seed={level3Seed}
         level4Seed={level4Seed}
+        level5Seed={level5Seed}
+        level6Seed={level6Seed}
         muted={muted}
       />
 
@@ -632,6 +726,10 @@ export default function App() {
       {showLevel2SeedPicker && <Level2SeedPicker onSelect={handleLevel2SeedSelect} />}
       {showLevel3SeedPicker && <Level3SeedPicker onSelect={handleLevel3SeedSelect} />}
       {showLevel4SeedPicker && <Level4SeedPicker onSelect={handleLevel4SeedSelect} />}
+      {showLevel5SeedPicker && <Level5SeedPicker onSelect={handleLevel5SeedSelect} />}
+      {showLevel6SeedPicker && level6PickerOptions && (
+        <Level6SeedPicker options={level6PickerOptions} onSelect={handleLevel6SeedSelect} />
+      )}
     </div>
   );
 }
