@@ -28,110 +28,118 @@ interface GardenFlowerStripProps {
 
 type CellStyle = CSSProperties & { '--flower-h': number };
 
+function getMaxScrollLeft(viewport: HTMLElement): number {
+  return Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+}
+
 export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [scrollIndex, setScrollIndex] = useState(0);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const savedScrollLeftRef = useRef(0);
+  const hasScrolledToEndRef = useRef(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
   const needsScroll = gardenStripNeedsScroll(flowers.length);
 
-  const scrollToCell = useCallback(
-    (index: number, inline: ScrollLogicalPosition = 'nearest') => {
-      const cell = cellRefs.current[index];
-      if (!cell) return;
-      try {
-        cell.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest',
-          inline,
-        });
-      } catch {
-        cell.scrollIntoView();
-      }
-    },
-    [],
-  );
-
-  const syncScrollIndexFromViewport = useCallback(() => {
-    const viewport = viewportRef.current;
-    if (!viewport || !needsScroll) return;
-
-    const viewportRect = viewport.getBoundingClientRect();
-    const viewportCenter = viewportRect.left + viewportRect.width / 2;
-
-    let closestIndex = 0;
-    let closestDistance = Infinity;
-
-    cellRefs.current.forEach((cell, index) => {
-      if (!cell) return;
-      const rect = cell.getBoundingClientRect();
-      const cellCenter = rect.left + rect.width / 2;
-      const distance = Math.abs(cellCenter - viewportCenter);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = index;
-      }
-    });
-
-    setScrollIndex(closestIndex);
+  const updateScrollButtons = useCallback(() => {
+    const el = viewportRef.current;
+    if (!el || !needsScroll) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+    const maxScroll = getMaxScrollLeft(el);
+    savedScrollLeftRef.current = el.scrollLeft;
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(maxScroll > 2 && el.scrollLeft < maxScroll - 2);
   }, [needsScroll]);
 
-  useEffect(() => {
-    cellRefs.current = cellRefs.current.slice(0, flowers.length);
-  }, [flowers.length]);
+  const scrollViewportTo = useCallback(
+    (left: number, smooth: boolean) => {
+      const el = viewportRef.current;
+      if (!el) return;
+      const maxScroll = getMaxScrollLeft(el);
+      const next = Math.max(0, Math.min(maxScroll, left));
+      if (smooth) {
+        try {
+          el.scrollTo({ left: next, behavior: 'smooth' });
+        } catch {
+          el.scrollLeft = next;
+        }
+      } else {
+        el.scrollLeft = next;
+      }
+      savedScrollLeftRef.current = next;
+      requestAnimationFrame(updateScrollButtons);
+    },
+    [updateScrollButtons],
+  );
+
+  const scrollToEnd = useCallback(
+    (smooth: boolean) => {
+      const el = viewportRef.current;
+      if (!el) return;
+      scrollViewportTo(getMaxScrollLeft(el), smooth);
+    },
+    [scrollViewportTo],
+  );
+
+  const scrollByPage = useCallback(
+    (direction: -1 | 1) => {
+      const el = viewportRef.current;
+      if (!el || !needsScroll) return;
+      const maxScroll = getMaxScrollLeft(el);
+      if (maxScroll <= 0) return;
+
+      const step = el.clientWidth / FLOWERS_PER_SCROLL_PAGE;
+      const next = el.scrollLeft + step * direction;
+      scrollViewportTo(next, true);
+    },
+    [needsScroll, scrollViewportTo],
+  );
 
   useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
+    const el = viewportRef.current;
+    if (!el) return;
 
-    const onScroll = () => syncScrollIndexFromViewport();
-    viewport.addEventListener('scroll', onScroll, { passive: true });
-    const ro = new ResizeObserver(onScroll);
-    ro.observe(viewport);
+    const onScroll = () => updateScrollButtons();
+    el.addEventListener('scroll', onScroll, { passive: true });
+
+    const ro = new ResizeObserver(() => {
+      const maxScroll = getMaxScrollLeft(el);
+      if (savedScrollLeftRef.current > 0 && maxScroll > 0) {
+        el.scrollLeft = Math.min(savedScrollLeftRef.current, maxScroll);
+      } else if (!hasScrolledToEndRef.current && needsScroll) {
+        el.scrollLeft = maxScroll;
+        hasScrolledToEndRef.current = true;
+      }
+      updateScrollButtons();
+    });
+    ro.observe(el);
+    if (innerRef.current) ro.observe(innerRef.current);
 
     return () => {
-      viewport.removeEventListener('scroll', onScroll);
+      el.removeEventListener('scroll', onScroll);
       ro.disconnect();
     };
-  }, [flowers.length, needsScroll, syncScrollIndexFromViewport]);
+  }, [flowers.length, needsScroll, updateScrollButtons]);
 
   useEffect(() => {
+    hasScrolledToEndRef.current = false;
+    savedScrollLeftRef.current = 0;
+
     if (!needsScroll || flowers.length === 0) return;
 
-    const endIndex = flowers.length - 1;
-    setScrollIndex(endIndex);
-
-    const scrollToEnd = () => scrollToCell(endIndex, 'end');
-    scrollToEnd();
-    requestAnimationFrame(scrollToEnd);
-    const t1 = window.setTimeout(scrollToEnd, 80);
-    const t2 = window.setTimeout(scrollToEnd, 300);
+    const scroll = () => scrollToEnd(false);
+    scroll();
+    requestAnimationFrame(scroll);
+    const t1 = window.setTimeout(scroll, 80);
+    const t2 = window.setTimeout(scroll, 300);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
-  }, [flowers.length, needsScroll, scrollToCell]);
-
-  const scrollByPage = useCallback(
-    (direction: -1 | 1) => {
-      if (!needsScroll) return;
-
-      setScrollIndex((prev) => {
-        const step = FLOWERS_PER_SCROLL_PAGE;
-        const next = Math.max(
-          0,
-          Math.min(flowers.length - 1, prev + direction * step),
-        );
-        requestAnimationFrame(() => {
-          scrollToCell(next, direction < 0 ? 'start' : 'end');
-        });
-        return next;
-      });
-    },
-    [flowers.length, needsScroll, scrollToCell],
-  );
-
-  const canScrollLeft = needsScroll && scrollIndex > 0;
-  const canScrollRight = needsScroll && scrollIndex < flowers.length - 1;
+  }, [flowers.length, needsScroll, scrollToEnd]);
 
   if (flowers.length === 0) return null;
 
@@ -153,20 +161,13 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
       )}
 
       <div ref={viewportRef} className="garden-flower-scroll__viewport">
-        <div className="garden-flower-scroll__inner">
-          {flowers.map((flower, index) => {
+        <div ref={innerRef} className="garden-flower-scroll__inner">
+          {flowers.map((flower) => {
             const cellStyle: CellStyle = {
               '--flower-h': FLOWER_HEIGHT_DVH[flower.seed],
             };
             return (
-              <div
-                key={flower.key}
-                ref={(el) => {
-                  cellRefs.current[index] = el;
-                }}
-                className="garden-flower-cell"
-                style={cellStyle}
-              >
+              <div key={flower.key} className="garden-flower-cell" style={cellStyle}>
                 <svg
                   className="garden-flower-cell__svg"
                   viewBox={`0 0 ${GARDEN_CELL_VIEW_WIDTH} ${GARDEN_CELL_VIEW_HEIGHT}`}
