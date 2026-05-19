@@ -24,13 +24,28 @@ export interface PlantedFlowerSpec {
 
 const GARDEN_VIEW_WIDTH = 400;
 
-/** Bottom-garden plants render at 2× (stems, leaves, blooms). */
+/** Base scale for bottom-garden flower geometry (stems, leaves, blooms). */
 export const GARDEN_PLANT_SCALE = 2;
 
-/** SVG viewBox height for the flower strip (taller to fit scaled plants). */
-export const GARDEN_STRIP_VIEW_HEIGHT = 220;
+/**
+ * On-screen flower size vs the base garden layout (grass band unchanged).
+ * 1.5 = 150% of the original bottom-garden flower height.
+ */
+export const GARDEN_FLOWER_SIZE_MULTIPLIER = 1.5;
 
-const GROUND_Y = GARDEN_STRIP_VIEW_HEIGHT - 20;
+/** Design viewBox height at multiplier 1 (matches original garden strip). */
+export const GARDEN_STRIP_VIEW_HEIGHT_BASE = 220;
+
+/**
+ * Shorter viewBox → same SVG pixel box zooms flowers in (preserveAspectRatio meet).
+ * At 1.5× this is 220 / 1.5 ≈ 147.
+ */
+export function getGardenStripViewHeight(): number {
+  return GARDEN_STRIP_VIEW_HEIGHT_BASE / GARDEN_FLOWER_SIZE_MULTIPLIER;
+}
+
+const GROUND_INSET = 20 / GARDEN_FLOWER_SIZE_MULTIPLIER;
+const GROUND_Y = getGardenStripViewHeight() - GROUND_INSET;
 
 /** Five fixed horizontal slots — positions never change when new flowers are planted. */
 export const FIXED_SLOT_X: readonly number[] = [104, 152, 200, 248, 296];

@@ -31,7 +31,6 @@ export function getSceneMilestoneCount(completedCount: number): number {
 
 export interface GardenLayers {
   grass: boolean;
-  grassDetail: boolean;
 }
 
 export function getGardenLayers(completedCount: number): GardenLayers {
@@ -39,6 +38,5 @@ export function getGardenLayers(completedCount: number): GardenLayers {
 
   return {
     grass: n >= 1,
-    grassDetail: n >= 2,
   };
 }

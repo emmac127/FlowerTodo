@@ -1714,11 +1714,20 @@ body {
 
 .garden-layer--grass {
   height: 55%;
+  background: linear-gradient(#b8e8a8 0%, #8ed98e 55%, #6bc96b 100%);
 }
 
-.garden-layer--tufts {
-  height: 45%;
-  bottom: 38%;
+.garden-layer--grass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  background-image:
+    radial-gradient(ellipse 28% 22% at 12% 88%, rgba(125, 216, 125, 0.55) 0%, transparent 72%),
+    radial-gradient(ellipse 24% 20% at 32% 92%, rgba(168, 240, 160, 0.45) 0%, transparent 68%),
+    radial-gradient(ellipse 26% 22% at 68% 90%, rgba(125, 216, 125, 0.5) 0%, transparent 70%),
+    radial-gradient(ellipse 22% 18% at 88% 86%, rgba(168, 240, 160, 0.4) 0%, transparent 65%);
 }
 
 .garden-layer--pond {
@@ -1804,6 +1813,10 @@ body {
 }
 
 .garden-svg--strip {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  right: auto;
   display: block;
   width: 100%;
   height: 100%;
@@ -1986,21 +1999,6 @@ body {
     transform: scale(1);
   }
 }
-
-.grass-tuft {
-  position: absolute;
-  bottom: 0;
-  width: 12px;
-  height: 22px;
-  background: linear-gradient(#8ed98e, #5cb85c);
-  border-radius: 50% 50% 20% 20%;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-}
-
-.grass-tuft--1 { left: 12%; height: 18px; }
-.grass-tuft--2 { left: 28%; height: 26px; }
-.grass-tuft--3 { left: 72%; height: 20px; }
-.grass-tuft--4 { left: 88%; height: 24px; }
 
 .garden-scene__hint {
   position: absolute;

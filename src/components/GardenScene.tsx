@@ -16,7 +16,6 @@ import type { Level5Seed } from '../lib/level5Seed';
 import { getGardenCycleProgress, getGardenLevel } from '../lib/plantedGarden';
 import { getSeedGrowthStage } from '../lib/seedGrowth';
 import type { StartingSeed } from '../lib/startingSeed';
-import { CssDoodle } from './CssDoodle';
 
 interface GardenSceneProps {
   completedCount: number;
@@ -28,19 +27,6 @@ interface GardenSceneProps {
   level6Seed?: GardenSeed | null;
   muted?: boolean;
 }
-
-const GRASS_DOODLE = `
-  :doodle {
-    @grid: 24x3 / 100% 100%;
-    background: linear-gradient(#b8e8a8 0%, #8ed98e 55%, #6bc96b 100%);
-  }
-  @size: 100%;
-  background: @pn(
-    radial-gradient(@wc(h) @wc(h) at @r(100%) @r(100%), #7dd87d 0%, transparent 70%),
-    radial-gradient(@wc(h) @wc(h) at @r(100%) @r(100%), #a8f0a0 0%, transparent 65%)
-  );
-  opacity: @r(.35, .75);
-`;
 
 export function GardenScene({
   completedCount,
@@ -120,18 +106,7 @@ export function GardenScene({
       <div className="garden-scene__sky" />
 
       {showGrass && (
-        <div className={`garden-layer garden-layer--grass stage-${stage}`}>
-          <CssDoodle className="garden-doodle garden-doodle--grass">{GRASS_DOODLE}</CssDoodle>
-        </div>
-      )}
-
-      {layers.grassDetail && (
-        <div className={`garden-layer garden-layer--tufts stage-${stage}`}>
-          <span className="grass-tuft grass-tuft--1" />
-          <span className="grass-tuft grass-tuft--2" />
-          <span className="grass-tuft grass-tuft--3" />
-          <span className="grass-tuft grass-tuft--4" />
-        </div>
+        <div className={`garden-layer garden-layer--grass stage-${stage}`} />
       )}
 
       <GardenFlowerStrip flowers={flowers} muted={muted} />
