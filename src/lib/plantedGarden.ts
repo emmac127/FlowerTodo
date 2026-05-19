@@ -1,4 +1,5 @@
 import type { Task } from '../hooks/useTasks';
+import type { GardenSeed } from './gardenSeed';
 import { FLOWER_PALETTES, getGrowthTier } from './growthTier';
 
 /** Tasks to complete in garden level 1 (first bloom on the 3rd). */
@@ -27,22 +28,38 @@ const GARDEN_VIEW_WIDTH = 400;
 /** Base scale for bottom-garden flower geometry (stems, leaves, blooms). */
 export const GARDEN_PLANT_SCALE = 2;
 
-/**
- * Extra on-screen flower size (grass band unchanged).
- * Applied via CSS `--garden-flower-size-multiplier` on the strip + scroll spacing.
- * 2 = double the base garden flower height.
- */
-export const GARDEN_FLOWER_SIZE_MULTIPLIER = 2;
-
-/** SVG viewBox height for the bottom flower strip. */
+/** SVG viewBox height for an individual flower cell. */
 export const GARDEN_STRIP_VIEW_HEIGHT = 220;
+
+/** SVG viewBox width for an individual flower cell. */
+export const GARDEN_CELL_VIEW_WIDTH = 200;
+
+/** Taller viewBox so flowers like pinwheel/wisteria are not clipped at the top. */
+export const GARDEN_CELL_VIEW_HEIGHT = 260;
 
 const GROUND_INSET = 20;
 const GROUND_Y = GARDEN_STRIP_VIEW_HEIGHT - GROUND_INSET;
 
-/** Layout scale for horizontal flower spacing when scrolling. */
-export function getGardenFlowerLayoutScale(): number {
-  return GARDEN_PLANT_SCALE * GARDEN_FLOWER_SIZE_MULTIPLIER;
+/**
+ * Target on-screen height for a fully bloomed flower, as a percentage of the
+ * visible viewport height (dvh). Younger growth stages render proportionally
+ * shorter because each flower's `growthStage` already scales its geometry.
+ */
+export const FLOWER_HEIGHT_DVH: Record<GardenSeed, number> = {
+  moonflower: 22,
+  sunflower: 25,
+  starflower: 22,
+  saturnflower: 25,
+  tulip: 22,
+  catgrass: 20,
+  puppypoppy: 25,
+  wigglewisteria: 28,
+  pinwheelflower: 30,
+  fireflower: 30,
+};
+
+export function getFlowerHeightDvh(seed: GardenSeed): number {
+  return FLOWER_HEIGHT_DVH[seed];
 }
 
 /** Five fixed horizontal slots — positions never change when new flowers are planted. */

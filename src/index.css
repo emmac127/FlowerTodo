@@ -21,8 +21,6 @@
     var(--garden-band-height) + var(--seed-picker-clearance) + env(safe-area-inset-bottom, 0px)
   );
   --seed-picker-top: max(4.75rem, calc(env(safe-area-inset-top, 0px) + 4.25rem));
-  /* Synced from GARDEN_FLOWER_SIZE_MULTIPLIER in plantedGarden.ts */
-  --garden-flower-size-multiplier: 2;
 }
 
 *,
@@ -1771,44 +1769,49 @@ body {
   z-index: 2;
 }
 
-.garden-svg--planted:not(.garden-svg--strip) {
+.garden-svg--planted {
   z-index: 4;
   height: 92%;
   bottom: 4%;
 }
 
+/* Flower strip: flex row of per-flower cells. Each cell is sized in dvh, so
+ * its on-screen height equals a percentage of the visible viewport (iOS-safe). */
 .garden-flower-strip {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 4;
-  height: 100%;
   display: flex;
   align-items: flex-end;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   overflow: visible;
 }
 
 .garden-flower-strip--scrollable {
-  padding: 0 2.25rem;
+  padding: 0 2.75rem;
+  pointer-events: auto;
 }
 
 .garden-flower-scroll__viewport {
   flex: 1 1 auto;
   align-self: stretch;
   min-width: 0;
-  min-height: 0;
   height: 100%;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  align-items: flex-end;
+  justify-content: center;
   overflow-x: auto;
   overflow-y: visible;
+  overscroll-behavior-x: contain;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   pointer-events: auto;
+  touch-action: pan-x;
 }
 
 .garden-flower-scroll__viewport::-webkit-scrollbar {
@@ -1816,41 +1819,44 @@ body {
 }
 
 .garden-flower-scroll__inner {
-  flex: 0 0 calc(92% * var(--garden-flower-size-multiplier, 1));
-  width: 100%;
-  height: calc(92% * var(--garden-flower-size-multiplier, 1));
-  min-height: calc(9rem * var(--garden-flower-size-multiplier, 1));
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0 0.25rem;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
-/* Flower strip: multiplier grows pixel height (iOS-safe); grass band unchanged */
-.garden-svg.garden-svg--planted.garden-svg--strip {
-  position: relative;
-  bottom: auto;
-  left: auto;
-  right: auto;
-  z-index: 4;
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-height: calc(9rem * var(--garden-flower-size-multiplier, 1));
-  flex-shrink: 0;
+.garden-flower-cell {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* dvh = visible viewport on iOS Safari; vh fallback for older browsers */
+  height: calc(var(--flower-h, 25) * 1vh);
+  height: calc(var(--flower-h, 25) * 1dvh);
+  aspect-ratio: 200 / 260;
+  pointer-events: none;
   overflow: visible;
 }
 
-@supports (-webkit-touch-callout: none) {
-  .garden-flower-scroll__inner,
-  .garden-svg.garden-svg--planted.garden-svg--strip {
-    min-height: calc(11rem * var(--garden-flower-size-multiplier, 1));
-  }
+.garden-flower-cell__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
 .garden-flower-scroll-btn {
   position: absolute;
   bottom: 0;
-  z-index: 6;
-  width: 2.25rem;
+  z-index: 10;
+  width: 2.75rem;
+  min-width: 44px;
   height: 72%;
   max-height: 7.5rem;
+  min-height: 44px;
   padding: 0;
   border: none;
   background: linear-gradient(
@@ -1861,6 +1867,8 @@ body {
   );
   cursor: pointer;
   pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1884,6 +1892,13 @@ body {
 .garden-flower-scroll-btn:disabled {
   opacity: 0.25;
   cursor: default;
+  pointer-events: none;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .garden-flower-scroll-btn:not(:disabled):active {
+    opacity: 0.85;
+  }
 }
 
 .garden-flower-scroll-btn::before {

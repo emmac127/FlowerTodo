@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { GardenSeed } from '../lib/gardenSeed';
 import {
   FLOWERS_PER_SCROLL_PAGE,
   gardenStripNeedsScroll,
-  getFlowerStripViewWidth,
-  getFlowerStripX,
-  SCROLL_SLOT_SPACING,
 } from '../lib/gardenFlowerStrip';
 import {
-  GARDEN_FLOWER_SIZE_MULTIPLIER,
-  GARDEN_STRIP_VIEW_HEIGHT,
+  FLOWER_HEIGHT_DVH,
+  GARDEN_CELL_VIEW_HEIGHT,
+  GARDEN_CELL_VIEW_WIDTH,
 } from '../lib/plantedGarden';
 import type { SeedGrowthStage } from '../lib/seedGrowth';
 import { GrowingSeedPlant } from './GrowingSeedPlant';
@@ -27,12 +26,13 @@ interface GardenFlowerStripProps {
   muted?: boolean;
 }
 
+type CellStyle = CSSProperties & { '--flower-h': number };
+
 export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const needsScroll = gardenStripNeedsScroll(flowers.length);
-  const stripWidth = getFlowerStripViewWidth(flowers.length);
 
   const updateScrollButtons = useCallback(() => {
     const el = viewportRef.current;
@@ -41,9 +41,9 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
       setCanScrollRight(false);
       return;
     }
-    const maxScroll = el.scrollWidth - el.clientWidth;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft < maxScroll - 4);
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(maxScroll > 2 && el.scrollLeft < maxScroll - 2);
   }, [needsScroll]);
 
   useEffect(() => {
@@ -62,35 +62,50 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
   useEffect(() => {
     const el = viewportRef.current;
     if (!el || !needsScroll) return;
-    el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' });
-    requestAnimationFrame(updateScrollButtons);
+
+    const scrollToEnd = () => {
+      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+      el.scrollLeft = maxScroll;
+      updateScrollButtons();
+    };
+
+    scrollToEnd();
+    requestAnimationFrame(scrollToEnd);
+    const t1 = window.setTimeout(scrollToEnd, 60);
+    const t2 = window.setTimeout(scrollToEnd, 260);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, [flowers.length, needsScroll, updateScrollButtons]);
 
   const scrollByPage = useCallback(
     (direction: -1 | 1) => {
       const el = viewportRef.current;
       if (!el) return;
-      const step = Math.min(SCROLL_SLOT_SPACING, el.clientWidth / FLOWERS_PER_SCROLL_PAGE);
-      el.scrollBy({ left: step * direction, behavior: 'smooth' });
-    },
-    [],
-  );
+      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+      if (maxScroll <= 0) return;
 
-  const innerMinWidth = useMemo(() => {
-    if (!needsScroll) return undefined;
-    return `${(flowers.length / FLOWERS_PER_SCROLL_PAGE) * 100}%`;
-  }, [flowers.length, needsScroll]);
+      const step = el.clientWidth / FLOWERS_PER_SCROLL_PAGE;
+      const next = Math.max(0, Math.min(maxScroll, el.scrollLeft + step * direction));
+
+      try {
+        el.scrollTo({ left: next, behavior: 'smooth' });
+      } catch {
+        el.scrollLeft = next;
+      }
+
+      window.setTimeout(updateScrollButtons, 350);
+      requestAnimationFrame(updateScrollButtons);
+    },
+    [updateScrollButtons],
+  );
 
   if (flowers.length === 0) return null;
 
   return (
     <div
       className={`garden-flower-strip${needsScroll ? ' garden-flower-strip--scrollable' : ''}`}
-      style={
-        {
-          '--garden-flower-size-multiplier': String(GARDEN_FLOWER_SIZE_MULTIPLIER),
-        } as React.CSSProperties
-      }
     >
       {needsScroll && (
         <button
@@ -103,30 +118,32 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
       )}
 
       <div ref={viewportRef} className="garden-flower-scroll__viewport">
-        <div className="garden-flower-scroll__inner" style={{ minWidth: innerMinWidth }}>
-          <svg
-            className="garden-svg garden-svg--planted garden-svg--strip"
-            width="100%"
-            height="100%"
-            viewBox={`0 0 ${stripWidth} ${GARDEN_STRIP_VIEW_HEIGHT}`}
-            preserveAspectRatio={needsScroll ? 'xMinYMax meet' : 'xMidYMax meet'}
-            overflow="visible"
-            aria-hidden
-          >
-            <g className="garden-growing-seed">
-              {flowers.map((flower, index) => (
-                <GrowingSeedPlant
-                  key={flower.key}
-                  seed={flower.seed}
-                  growthStage={flower.growthStage}
-                  x={getFlowerStripX(index, flowers.length)}
-                  className={flower.className}
-                  fullPetalBloom={flower.fullPetalBloom}
-                  muted={muted}
-                />
-              ))}
-            </g>
-          </svg>
+        <div className="garden-flower-scroll__inner">
+          {flowers.map((flower) => {
+            const cellStyle: CellStyle = {
+              '--flower-h': FLOWER_HEIGHT_DVH[flower.seed],
+            };
+            return (
+              <div key={flower.key} className="garden-flower-cell" style={cellStyle}>
+                <svg
+                  className="garden-flower-cell__svg"
+                  viewBox={`0 0 ${GARDEN_CELL_VIEW_WIDTH} ${GARDEN_CELL_VIEW_HEIGHT}`}
+                  preserveAspectRatio="xMidYMax meet"
+                  overflow="visible"
+                  aria-hidden
+                >
+                  <GrowingSeedPlant
+                    seed={flower.seed}
+                    growthStage={flower.growthStage}
+                    x={GARDEN_CELL_VIEW_WIDTH / 2}
+                    className={flower.className}
+                    fullPetalBloom={flower.fullPetalBloom}
+                    muted={muted}
+                  />
+                </svg>
+              </div>
+            );
+          })}
         </div>
       </div>
 
