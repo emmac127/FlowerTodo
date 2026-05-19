@@ -28,18 +28,20 @@ const GARDEN_VIEW_WIDTH = 400;
 export const GARDEN_PLANT_SCALE = 2;
 
 /**
- * On-screen flower size vs {@link GARDEN_PLANT_SCALE} alone (grass band unchanged).
- * 1.5 = 150% taller/wider flowers; 2 = double.
+ * Extra on-screen flower size (grass band unchanged).
+ * Applied via CSS `--garden-flower-size-multiplier` on the strip + scroll spacing.
+ * 2 = double the base garden flower height.
  */
-export const GARDEN_FLOWER_SIZE_MULTIPLIER = 1.5;
+export const GARDEN_FLOWER_SIZE_MULTIPLIER = 2;
 
 /** SVG viewBox height for the bottom flower strip. */
 export const GARDEN_STRIP_VIEW_HEIGHT = 220;
 
-const GROUND_Y = GARDEN_STRIP_VIEW_HEIGHT - 20;
+const GROUND_INSET = 20;
+const GROUND_Y = GARDEN_STRIP_VIEW_HEIGHT - GROUND_INSET;
 
-/** Total SVG scale applied at each plant root (reliable on iOS; not viewBox tricks). */
-export function getGardenFlowerScale(): number {
+/** Layout scale for horizontal flower spacing when scrolling. */
+export function getGardenFlowerLayoutScale(): number {
   return GARDEN_PLANT_SCALE * GARDEN_FLOWER_SIZE_MULTIPLIER;
 }
 
@@ -52,7 +54,7 @@ export function getGardenGroundY(): number {
 
 /** Root transform for a bottom-garden plant anchored at ground level. */
 export function getGardenPlantRootTransform(x: number): string {
-  return `translate(${x} ${GROUND_Y}) scale(${getGardenFlowerScale()})`;
+  return `translate(${x} ${GROUND_Y}) scale(${GARDEN_PLANT_SCALE})`;
 }
 
 /** Completions required before a garden level begins (level 1 starts at 0). */

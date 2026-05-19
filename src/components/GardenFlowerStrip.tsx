@@ -110,6 +110,7 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
             height="100%"
             viewBox={`0 0 ${stripWidth} ${GARDEN_STRIP_VIEW_HEIGHT}`}
             preserveAspectRatio={needsScroll ? 'xMinYMax meet' : 'xMidYMax meet'}
+            overflow="visible"
             aria-hidden
           >
             <g className="garden-growing-seed">

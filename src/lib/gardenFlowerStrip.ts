@@ -1,4 +1,4 @@
-import { getGardenFlowerScale } from './plantedGarden';
+import { getGardenFlowerLayoutScale } from './plantedGarden';
 
 /** Flowers visible at once before horizontal scroll + arrows appear. */
 export const FLOWERS_PER_SCROLL_PAGE = 3;
@@ -6,7 +6,7 @@ export const FLOWERS_PER_SCROLL_PAGE = 3;
 const STRIP_VIEW_WIDTH = 400;
 const STRIP_MIN_X = 104;
 const STRIP_MAX_X = 296;
-const flowerScale = getGardenFlowerScale();
+const flowerScale = getGardenFlowerLayoutScale();
 const SCROLL_SLOT_START = 56 * flowerScale;
 export const SCROLL_SLOT_SPACING = 96 * flowerScale;
 const SCROLL_END_PADDING = 56 * flowerScale;
