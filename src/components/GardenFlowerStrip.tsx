@@ -9,8 +9,10 @@ import {
   FLOWER_HEIGHT_DVH,
   GARDEN_CELL_VIEW_HEIGHT,
   GARDEN_CELL_VIEW_WIDTH,
+  gardenFlowerNeedsCellClip,
 } from '../lib/plantedGarden';
 import type { SeedGrowthStage } from '../lib/seedGrowth';
+import { GroundFlowerLayer } from './GroundFlowerLayer';
 import { GrowingSeedPlant } from './GrowingSeedPlant';
 
 export interface GardenFlowerItem {
@@ -23,6 +25,7 @@ export interface GardenFlowerItem {
 
 interface GardenFlowerStripProps {
   flowers: GardenFlowerItem[];
+  completedCount?: number;
   muted?: boolean;
 }
 
@@ -32,7 +35,11 @@ function getMaxScrollLeft(viewport: HTMLElement): number {
   return Math.max(0, viewport.scrollWidth - viewport.clientWidth);
 }
 
-export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripProps) {
+export function GardenFlowerStrip({
+  flowers,
+  completedCount = 0,
+  muted = false,
+}: GardenFlowerStripProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const savedScrollLeftRef = useRef(0);
@@ -139,13 +146,18 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
             const cellStyle: CellStyle = {
               '--flower-h': FLOWER_HEIGHT_DVH[flower.seed],
             };
+            const clipCell = gardenFlowerNeedsCellClip(flower.seed);
             return (
-              <div key={flower.key} className="garden-flower-cell" style={cellStyle}>
+              <div
+                key={flower.key}
+                className={`garden-flower-cell${clipCell ? ' garden-flower-cell--clip' : ''}`}
+                style={cellStyle}
+              >
                 <svg
                   className="garden-flower-cell__svg"
                   viewBox={`0 0 ${GARDEN_CELL_VIEW_WIDTH} ${GARDEN_CELL_VIEW_HEIGHT}`}
                   preserveAspectRatio="xMidYMax meet"
-                  overflow="visible"
+                  overflow={clipCell ? 'hidden' : 'visible'}
                   aria-hidden
                 >
                   <GrowingSeedPlant
@@ -160,6 +172,11 @@ export function GardenFlowerStrip({ flowers, muted = false }: GardenFlowerStripP
               </div>
             );
           })}
+          <GroundFlowerLayer
+            completedCount={completedCount}
+            innerRef={innerRef}
+            mainFlowerCount={flowers.length}
+          />
         </div>
       </div>
 

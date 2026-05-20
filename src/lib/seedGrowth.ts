@@ -93,6 +93,22 @@ export const SEED_PALETTES: Record<GardenSeed, SeedPalette> = {
     petals: '#ffcc66',
     center: '#fff4a3',
   },
+  toastflower: {
+    stem: '#c4a574',
+    leaf: '#8ed98e',
+    bud: '#ffe566',
+    budStroke: '#e8b830',
+    petals: '#ffb7d5',
+    center: '#fff8c8',
+  },
+  jamflower: {
+    stem: '#5cb85c',
+    leaf: '#8ed98e',
+    bud: '#ffb7d5',
+    budStroke: '#ff6b9d',
+    petals: '#ffb7d5',
+    center: '#ffe566',
+  },
 };
 
 export interface SeedGrowthMetrics {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { GardenSeed } from '../lib/gardenSeed';
-import { loadLevel6Seed, saveLevel6Seed } from '../lib/level6Seed';
+import { clearLevel6Seed, loadLevel6Seed, saveLevel6Seed } from '../lib/level6Seed';
 
 export function useLevel6Seed() {
   const [level6Seed, setLevel6Seed] = useState<GardenSeed | null>(null);
@@ -16,5 +16,10 @@ export function useLevel6Seed() {
     setLevel6Seed(seed);
   }, []);
 
-  return { level6Seed, hydrated, chooseLevel6Seed };
+  const resetLevel6Seed = useCallback(() => {
+    clearLevel6Seed();
+    setLevel6Seed(null);
+  }, []);
+
+  return { level6Seed, hydrated, chooseLevel6Seed, resetLevel6Seed };
 }

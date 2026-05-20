@@ -12,6 +12,7 @@ import { useLevel3Seed } from './hooks/useLevel3Seed';
 import { useLevel4Seed } from './hooks/useLevel4Seed';
 import { useLevel5Seed } from './hooks/useLevel5Seed';
 import { useLevel6Seed } from './hooks/useLevel6Seed';
+import { useLevel7Seed } from './hooks/useLevel7Seed';
 import { useStartingSeed } from './hooks/useStartingSeed';
 import {
   GARDEN_REVEAL_ANIM_MS,
@@ -40,6 +41,8 @@ import { Level3SeedPicker } from './components/Level3SeedPicker';
 import { Level4SeedPicker } from './components/Level4SeedPicker';
 import { Level5SeedPicker } from './components/Level5SeedPicker';
 import { Level6SeedPicker } from './components/Level6SeedPicker';
+import { Level7SeedPicker } from './components/Level7SeedPicker';
+import { DevPanel } from './components/DevPanel';
 import { StartingSeedPicker } from './components/StartingSeedPicker';
 import { pickMotivationalPhrase } from './lib/motivationalPhrases';
 import { LEVEL_2_SEED_PROMPT, type Level2Seed } from './lib/level2Seed';
@@ -47,6 +50,7 @@ import { LEVEL_3_SEED_PROMPT, type Level3Seed } from './lib/level3Seed';
 import { LEVEL_4_SEED_PROMPT, type Level4Seed } from './lib/level4Seed';
 import { LEVEL_5_SEED_PROMPT, type Level5Seed } from './lib/level5Seed';
 import { LEVEL_6_SEED_PROMPT } from './lib/level6Seed';
+import { LEVEL_7_SEED_PROMPT, type Level7Seed } from './lib/level7Seed';
 import type { GardenSeed } from './lib/gardenSeed';
 import { STARTING_SEED_PROMPT, type StartingSeed } from './lib/startingSeed';
 import { playAddTaskSound, playCelebrationTune, unlockAudio } from './lib/sounds';
@@ -111,43 +115,100 @@ export default function App() {
     gardenProgressCount,
     reorderTask,
     reorderTaskToIndex,
+    setGardenProgressForDev,
   } = useTasks();
 
   const {
     startingSeed,
     hydrated: seedHydrated,
     chooseStartingSeed,
+    resetStartingSeed,
   } = useStartingSeed();
 
   const {
     level2Seed,
     hydrated: level2SeedHydrated,
     chooseLevel2Seed,
+    resetLevel2Seed,
   } = useLevel2Seed();
 
   const {
     level3Seed,
     hydrated: level3SeedHydrated,
     chooseLevel3Seed,
+    resetLevel3Seed,
   } = useLevel3Seed();
 
   const {
     level4Seed,
     hydrated: level4SeedHydrated,
     chooseLevel4Seed,
+    resetLevel4Seed,
   } = useLevel4Seed();
 
   const {
     level5Seed,
     hydrated: level5SeedHydrated,
     chooseLevel5Seed,
+    resetLevel5Seed,
   } = useLevel5Seed();
 
   const {
     level6Seed,
     hydrated: level6SeedHydrated,
     chooseLevel6Seed,
+    resetLevel6Seed,
   } = useLevel6Seed();
+
+  const {
+    level7Seed,
+    hydrated: level7SeedHydrated,
+    chooseLevel7Seed,
+    resetLevel7Seed,
+  } = useLevel7Seed();
+
+  const [devPanelOpen, setDevPanelOpen] = useState(false);
+  const isDev = import.meta.env.DEV;
+
+  const resetSeedsFromLevel = useCallback(
+    (fromLevel: number) => {
+      if (fromLevel <= 1) resetStartingSeed();
+      if (fromLevel <= 2) resetLevel2Seed();
+      if (fromLevel <= 3) resetLevel3Seed();
+      if (fromLevel <= 4) resetLevel4Seed();
+      if (fromLevel <= 5) resetLevel5Seed();
+      if (fromLevel <= 6) resetLevel6Seed();
+      if (fromLevel <= 7) resetLevel7Seed();
+    },
+    [
+      resetStartingSeed,
+      resetLevel2Seed,
+      resetLevel3Seed,
+      resetLevel4Seed,
+      resetLevel5Seed,
+      resetLevel6Seed,
+      resetLevel7Seed,
+    ],
+  );
+
+  const handleDevApply = useCallback(
+    ({
+      completedCount,
+      clearSeedsFromLevel,
+    }: {
+      completedCount: number;
+      clearSeedsFromLevel: number;
+    }) => {
+      setGardenProgressForDev(completedCount);
+      resetSeedsFromLevel(clearSeedsFromLevel);
+    },
+    [setGardenProgressForDev, resetSeedsFromLevel],
+  );
+
+  const handleDevResetEverything = useCallback(() => {
+    setGardenProgressForDev(0);
+    resetSeedsFromLevel(1);
+  }, [setGardenProgressForDev, resetSeedsFromLevel]);
 
   const gardenLevel = getGardenLevel(gardenProgressCount);
   const gardenCycleProgress = getGardenCycleProgress(gardenProgressCount);
@@ -164,7 +225,8 @@ export default function App() {
     level3SeedHydrated &&
     level4SeedHydrated &&
     level5SeedHydrated &&
-    level6SeedHydrated;
+    level6SeedHydrated &&
+    level7SeedHydrated;
   const seedChoices = useMemo(
     () => ({
       starting: startingSeed,
@@ -173,8 +235,17 @@ export default function App() {
       level4: level4Seed,
       level5: level5Seed,
       level6: level6Seed,
+      level7: level7Seed,
     }),
-    [startingSeed, level2Seed, level3Seed, level4Seed, level5Seed, level6Seed],
+    [
+      startingSeed,
+      level2Seed,
+      level3Seed,
+      level4Seed,
+      level5Seed,
+      level6Seed,
+      level7Seed,
+    ],
   );
   const level6PickerOptions = useMemo(
     () => getLevel6PickerOptions(seedChoices),
@@ -190,12 +261,14 @@ export default function App() {
   const showLevel5SeedPicker = pendingSeedPicker === 'level5';
   const showLevel6SeedPicker =
     pendingSeedPicker === 'level6' && level6PickerOptions != null;
+  const showLevel7SeedPicker = pendingSeedPicker === 'level7';
   const showLevelSeedPicker =
     showLevel2SeedPicker ||
     showLevel3SeedPicker ||
     showLevel4SeedPicker ||
     showLevel5SeedPicker ||
-    showLevel6SeedPicker;
+    showLevel6SeedPicker ||
+    showLevel7SeedPicker;
 
   const showMascotCheer = useCallback((phrase?: string) => {
     const text = phrase ?? pickMotivationalPhrase(lastPhraseRef.current);
@@ -501,6 +574,17 @@ export default function App() {
     setSpeechVisible(true);
   }, [gardenProgressCount, level6PickerOptions, showLevel6SeedPicker]);
 
+  useEffect(() => {
+    if (!showLevel7SeedPicker) return;
+    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+    setMascotMessage(
+      isBackfillSeedPicker('level7', gardenProgressCount)
+        ? 'Pick Toast flower or Jam flower for level 7! 🌸'
+        : LEVEL_7_SEED_PROMPT,
+    );
+    setSpeechVisible(true);
+  }, [gardenProgressCount, showLevel7SeedPicker]);
+
   const handleStartingSeedSelect = useCallback(
     (seed: StartingSeed) => {
       chooseStartingSeed(seed);
@@ -586,6 +670,23 @@ export default function App() {
       );
     },
     [chooseLevel6Seed, gardenProgressCount, showMascotCheer],
+  );
+
+  const handleLevel7SeedSelect = useCallback(
+    (seed: Level7Seed) => {
+      chooseLevel7Seed(seed);
+      const backfill = isBackfillSeedPicker('level7', gardenProgressCount);
+      const cheer =
+        seed === 'toastflower'
+          ? backfill
+            ? 'Toast flower!\nYour breakfast bloom is in the garden! 🍞'
+            : 'Toast flower!\nWatch your toast sprout petal by petal! 🍞'
+          : backfill
+            ? 'Jam flower!\nYour jam jars are in the garden! 🫙'
+            : 'Jam flower!\nEach task adds another colorful jar! 🫙';
+      showMascotCheer(cheer);
+    },
+    [chooseLevel7Seed, gardenProgressCount, showMascotCheer],
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -719,6 +820,7 @@ export default function App() {
         level4Seed={level4Seed}
         level5Seed={level5Seed}
         level6Seed={level6Seed}
+        level7Seed={level7Seed}
         muted={muted}
       />
 
@@ -729,6 +831,30 @@ export default function App() {
       {showLevel5SeedPicker && <Level5SeedPicker onSelect={handleLevel5SeedSelect} />}
       {showLevel6SeedPicker && level6PickerOptions && (
         <Level6SeedPicker options={level6PickerOptions} onSelect={handleLevel6SeedSelect} />
+      )}
+      {showLevel7SeedPicker && (
+        <Level7SeedPicker onSelect={handleLevel7SeedSelect} />
+      )}
+
+      {isDev && (
+        <>
+          <button
+            type="button"
+            className="dev-toggle-btn"
+            onClick={() => setDevPanelOpen(true)}
+            aria-label="Open dev tools"
+            title="Dev tools"
+          >
+            DEV
+          </button>
+          <DevPanel
+            open={devPanelOpen}
+            currentGardenProgressCount={gardenProgressCount}
+            onClose={() => setDevPanelOpen(false)}
+            onApply={handleDevApply}
+            onResetEverything={handleDevResetEverything}
+          />
+        </>
       )}
     </div>
   );

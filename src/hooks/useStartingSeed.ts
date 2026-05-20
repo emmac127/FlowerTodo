@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  clearStartingSeed,
   loadStartingSeed,
   saveStartingSeed,
   type StartingSeed,
@@ -19,5 +20,10 @@ export function useStartingSeed() {
     setStartingSeed(seed);
   }, []);
 
-  return { startingSeed, hydrated, chooseStartingSeed };
+  const resetStartingSeed = useCallback(() => {
+    clearStartingSeed();
+    setStartingSeed(null);
+  }, []);
+
+  return { startingSeed, hydrated, chooseStartingSeed, resetStartingSeed };
 }

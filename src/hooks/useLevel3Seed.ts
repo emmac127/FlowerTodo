@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { loadLevel3Seed, saveLevel3Seed, type Level3Seed } from '../lib/level3Seed';
+import {
+  clearLevel3Seed,
+  loadLevel3Seed,
+  saveLevel3Seed,
+  type Level3Seed,
+} from '../lib/level3Seed';
 
 export function useLevel3Seed() {
   const [level3Seed, setLevel3Seed] = useState<Level3Seed | null>(null);
@@ -15,5 +20,10 @@ export function useLevel3Seed() {
     setLevel3Seed(seed);
   }, []);
 
-  return { level3Seed, hydrated, chooseLevel3Seed };
+  const resetLevel3Seed = useCallback(() => {
+    clearLevel3Seed();
+    setLevel3Seed(null);
+  }, []);
+
+  return { level3Seed, hydrated, chooseLevel3Seed, resetLevel3Seed };
 }

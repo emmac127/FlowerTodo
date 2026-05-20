@@ -18,6 +18,8 @@ import { PinwheelFlowerPlant } from './PinwheelFlowerPlant';
 import { PuppyPoppyPlant } from './PuppyPoppyPlant';
 import { TulipPlant } from './TulipPlant';
 import { WiggleWisteriaPlant } from './WiggleWisteriaPlant';
+import { ToastFlowerPlant } from './ToastFlowerPlant';
+import { JamFlowerPlant } from './JamFlowerPlant';
 
 
 
@@ -90,6 +92,14 @@ export function GrowingSeedPlant({
 
   if (seed === 'fireflower') {
     return <FireFlowerPlant growthStage={growthStage} x={x} className={className} />;
+  }
+
+  if (seed === 'toastflower') {
+    return <ToastFlowerPlant growthStage={growthStage} x={x} className={className} />;
+  }
+
+  if (seed === 'jamflower') {
+    return <JamFlowerPlant growthStage={growthStage} x={x} className={className} />;
   }
 
   const palette = SEED_PALETTES[seed];

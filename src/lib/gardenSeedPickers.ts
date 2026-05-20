@@ -1,8 +1,19 @@
 import type { GardenSeedChoices } from './gardenSeed';
-import { allLevel5SeedsChosen, getLevel6PickerOptions } from './gardenSeedCatalog';
+import {
+  allLevel5SeedsChosen,
+  allLevel6SeedsChosen,
+  getLevel6PickerOptions,
+} from './gardenSeedCatalog';
 import { getGardenLevel } from './plantedGarden';
 
-export type PendingSeedPicker = 'starting' | 'level2' | 'level3' | 'level4' | 'level5' | 'level6';
+export type PendingSeedPicker =
+  | 'starting'
+  | 'level2'
+  | 'level3'
+  | 'level4'
+  | 'level5'
+  | 'level6'
+  | 'level7';
 
 /**
  * Which flower picker (if any) should show for the current garden progress.
@@ -37,6 +48,9 @@ export function getPendingSeedPicker(
   ) {
     return 'level6';
   }
+  if (gardenLevel >= 7 && !choices.level7 && allLevel6SeedsChosen(choices)) {
+    return 'level7';
+  }
   return null;
 }
 
@@ -58,6 +72,8 @@ export function isBackfillSeedPicker(
       return gardenLevel >= 5;
     case 'level6':
       return gardenLevel >= 6;
+    case 'level7':
+      return gardenLevel >= 7;
     default:
       return false;
   }

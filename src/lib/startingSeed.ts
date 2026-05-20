@@ -18,3 +18,11 @@ export function loadStartingSeed(): StartingSeed | null {
 export function saveStartingSeed(seed: StartingSeed): void {
   localStorage.setItem(STORAGE_KEY, seed);
 }
+
+export function clearStartingSeed(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}

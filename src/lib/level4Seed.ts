@@ -18,3 +18,11 @@ export function loadLevel4Seed(): Level4Seed | null {
 export function saveLevel4Seed(seed: Level4Seed): void {
   localStorage.setItem(STORAGE_KEY, seed);
 }
+
+export function clearLevel4Seed(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}

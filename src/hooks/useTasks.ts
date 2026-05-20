@@ -252,6 +252,39 @@ export function useTasks() {
     return gardenProgressCount + 1;
   }, [gardenProgressCount]);
 
+  /**
+   * Dev helper: force the garden progress count to a target value and drop any
+   * task completion data that no longer makes sense (completionIndex above the
+   * new count). Existing tasks are kept but reset to "not completed" when the
+   * progress count moves backwards, so the picker / planting flow can replay.
+   */
+  const setGardenProgressForDev = useCallback((target: number) => {
+    const safe = Math.max(0, Math.floor(target));
+    setGardenProgressCount(safe);
+    setTasks((prev) =>
+      renumberCompleted(
+        prev.map((t) => {
+          if (
+            t.completed &&
+            t.completionIndex != null &&
+            t.completionIndex > safe
+          ) {
+            return {
+              ...t,
+              completed: false,
+              completionIndex: undefined,
+              plantSlot: undefined,
+              plantX: undefined,
+              gardenRevealed: undefined,
+              releaseToBottomAt: undefined,
+            };
+          }
+          return t;
+        }),
+      ),
+    );
+  }, []);
+
   return {
     tasks,
     gardenProgressCount,
@@ -265,5 +298,6 @@ export function useTasks() {
     getNextCompletionIndex,
     reorderTask,
     reorderTaskToIndex,
+    setGardenProgressForDev,
   };
 }

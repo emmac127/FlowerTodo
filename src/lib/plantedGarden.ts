@@ -34,13 +34,21 @@ export const GARDEN_STRIP_VIEW_HEIGHT = 220;
 /** SVG viewBox width for an individual flower cell. */
 export const GARDEN_CELL_VIEW_WIDTH = 200;
 
+/** Usable width inside {@link getGardenPlantRootTransform} before viewBox scaling. */
+export const GARDEN_CELL_INNER_WIDTH = GARDEN_CELL_VIEW_WIDTH / GARDEN_PLANT_SCALE;
+
+export function gardenFlowerNeedsCellClip(seed: GardenSeed): boolean {
+  return seed === 'toastflower' || seed === 'jamflower';
+}
+
 /**
  * Tall viewBox so pinwheel (2× stem + stacked blooms) fits above the ground line.
  * Ground sits near the bottom via {@link GARDEN_CELL_GROUND_Y}.
  */
 export const GARDEN_CELL_VIEW_HEIGHT = 320;
 
-const GROUND_INSET = 20;
+/** Keeps scaled stem strokes inside the cell bottom (above the viewport edge). */
+const GROUND_INSET = 14;
 export const GARDEN_CELL_GROUND_Y = GARDEN_CELL_VIEW_HEIGHT - GROUND_INSET;
 
 /**
@@ -59,6 +67,8 @@ export const FLOWER_HEIGHT_DVH: Record<GardenSeed, number> = {
   wigglewisteria: 28,
   pinwheelflower: 30,
   fireflower: 30,
+  toastflower: 28,
+  jamflower: 26,
 };
 
 export function getFlowerHeightDvh(seed: GardenSeed): number {
@@ -66,7 +76,7 @@ export function getFlowerHeightDvh(seed: GardenSeed): number {
 }
 
 /** Five fixed horizontal slots — positions never change when new flowers are planted. */
-export const FIXED_SLOT_X: readonly number[] = [104, 152, 200, 248, 296];
+export const FIXED_SLOT_X: readonly number[] = [104, 152, 200, 248, 296, 344];
 
 export function getGardenGroundY(): number {
   return GARDEN_CELL_GROUND_Y;

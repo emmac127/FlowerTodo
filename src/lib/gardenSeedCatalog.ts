@@ -3,7 +3,14 @@ import type { Level2Seed } from './level2Seed';
 import type { Level3Seed } from './level3Seed';
 import type { Level4Seed } from './level4Seed';
 import type { Level5Seed } from './level5Seed';
+import type { Level7Seed } from './level7Seed';
 import type { StartingSeed } from './startingSeed';
+
+/** Fixed pair offered at garden level 7. */
+export const LEVEL_7_SEED_PAIR: readonly [Level7Seed, Level7Seed] = [
+  'toastflower',
+  'jamflower',
+];
 
 /** Pairs offered at each garden level (levels 1–5). */
 export const LEVEL_SEED_PAIRS: readonly {
@@ -16,9 +23,10 @@ export const LEVEL_SEED_PAIRS: readonly {
   { options: ['pinwheelflower', 'fireflower'] },
 ] as const;
 
-export const ALL_GARDEN_SEEDS: readonly GardenSeed[] = LEVEL_SEED_PAIRS.flatMap(
-  (pair) => pair.options,
-);
+export const ALL_GARDEN_SEEDS: readonly GardenSeed[] = [
+  ...LEVEL_SEED_PAIRS.flatMap((pair) => pair.options),
+  ...LEVEL_7_SEED_PAIR,
+];
 
 const GARDEN_SEED_SET = new Set<string>(ALL_GARDEN_SEEDS);
 
@@ -37,6 +45,8 @@ export const SEED_DISPLAY_NAMES: Record<GardenSeed, string> = {
   wigglewisteria: 'Wiggle wisteria',
   pinwheelflower: 'Pinwheel flower',
   fireflower: 'Fire flower',
+  toastflower: 'Toast flower',
+  jamflower: 'Jam flower',
 };
 
 export const SEED_CHOICE_CLASS: Record<GardenSeed, string> = {
@@ -50,6 +60,8 @@ export const SEED_CHOICE_CLASS: Record<GardenSeed, string> = {
   wigglewisteria: 'seed-choice--wisteria',
   pinwheelflower: 'seed-choice--pinwheel',
   fireflower: 'seed-choice--fireflower',
+  toastflower: 'seed-choice--toast',
+  jamflower: 'seed-choice--jam',
 };
 
 /** Seeds the player already chose for levels 1–5. */
@@ -94,4 +106,8 @@ export function allLevel5SeedsChosen(choices: GardenSeedChoices): boolean {
   );
 }
 
-export type { StartingSeed, Level2Seed, Level3Seed, Level4Seed, Level5Seed };
+export function allLevel6SeedsChosen(choices: GardenSeedChoices): boolean {
+  return choices.level6 != null;
+}
+
+export type { StartingSeed, Level2Seed, Level3Seed, Level4Seed, Level5Seed, Level7Seed };

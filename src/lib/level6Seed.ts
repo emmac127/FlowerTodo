@@ -19,3 +19,11 @@ export function loadLevel6Seed(): GardenSeed | null {
 export function saveLevel6Seed(seed: GardenSeed): void {
   localStorage.setItem(STORAGE_KEY, seed);
 }
+
+export function clearLevel6Seed(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}

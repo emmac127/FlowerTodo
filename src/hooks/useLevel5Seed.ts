@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { loadLevel5Seed, saveLevel5Seed, type Level5Seed } from '../lib/level5Seed';
+import {
+  clearLevel5Seed,
+  loadLevel5Seed,
+  saveLevel5Seed,
+  type Level5Seed,
+} from '../lib/level5Seed';
 
 export function useLevel5Seed() {
   const [level5Seed, setLevel5Seed] = useState<Level5Seed | null>(null);
@@ -15,5 +20,10 @@ export function useLevel5Seed() {
     setLevel5Seed(seed);
   }, []);
 
-  return { level5Seed, hydrated, chooseLevel5Seed };
+  const resetLevel5Seed = useCallback(() => {
+    clearLevel5Seed();
+    setLevel5Seed(null);
+  }, []);
+
+  return { level5Seed, hydrated, chooseLevel5Seed, resetLevel5Seed };
 }
