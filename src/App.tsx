@@ -73,6 +73,7 @@ export default function App() {
   );
   const [gardenRevealHeldCount, setGardenRevealHeldCount] = useState<number | null>(null);
   const [gardenRevealGrowthUnlocked, setGardenRevealGrowthUnlocked] = useState(false);
+  const [gardenRevealManual, setGardenRevealManual] = useState(false);
 
   const {
     tasks,
@@ -205,6 +206,7 @@ export default function App() {
   const endGardenReveal = useCallback(() => {
     clearGardenRevealAutoReturn();
     clearGardenRevealGrowthTimer();
+    setGardenRevealManual(false);
     setGardenRevealPhase('exit');
     window.scrollTo({
       top: savedScrollYRef.current,
@@ -215,6 +217,15 @@ export default function App() {
       reducedMotion ? 0 : GARDEN_REVEAL_ANIM_MS,
     );
   }, [clearGardenRevealAutoReturn, clearGardenRevealGrowthTimer, reducedMotion]);
+
+  const handleViewGarden = useCallback(() => {
+    if (gardenRevealPhase !== 'idle') return;
+    void unlockAudio();
+    setGardenRevealManual(true);
+    setGardenRevealHeldCount(null);
+    setGardenRevealGrowthUnlocked(false);
+    beginGardenReveal();
+  }, [gardenRevealPhase, beginGardenReveal]);
 
   useEffect(() => {
     if (gardenRevealPhase !== 'active') {
@@ -243,7 +254,7 @@ export default function App() {
   ]);
 
   useEffect(() => {
-    if (gardenRevealPhase !== 'active') {
+    if (gardenRevealPhase !== 'active' || gardenRevealManual) {
       clearGardenRevealAutoReturn();
       return;
     }
@@ -258,6 +269,7 @@ export default function App() {
     return clearGardenRevealAutoReturn;
   }, [
     gardenRevealPhase,
+    gardenRevealManual,
     tasks.length,
     reducedMotion,
     endGardenReveal,
@@ -385,10 +397,13 @@ export default function App() {
           gardenCyclePlanted={gardenCycleProgress.planted}
           gardenCycleMax={gardenCycleProgress.max}
           muted={muted}
+          gardenRevealPhase={gardenRevealPhase}
           onToggleMute={() => {
             void unlockAudio();
             setMuted((m) => !m);
           }}
+          onViewGarden={handleViewGarden}
+          gardenViewOpen={gardenRevealPhase !== 'idle'}
           onPickRandom={tasks.length > 0 ? handlePickRandom : undefined}
           pickDisabled={tasks.filter((t) => !t.completed).length === 0}
         />

@@ -192,6 +192,14 @@ function planterFillCount(def: GardenDefinition, level: number): number {
   return Math.min(max, tasks);
 }
 
+export interface GardenSceneInstances {
+  elements: PlacedElement[];
+  /** Id of the element added or advanced by the latest completion (pre–z-index sort). */
+  newestId: string | null;
+  /** Normalized x of that element for horizontal scroll focus. */
+  scrollFocusX: number;
+}
+
 /**
  * Build the elements visible in the garden for a given lifetime completion
  * count. Levels render from 1 up to the active level; each level contributes
@@ -200,9 +208,11 @@ function planterFillCount(def: GardenDefinition, level: number): number {
 export function buildGardenSceneInstances(
   completedCount: number,
   layout: LayoutConfig = defaultLayout,
-): PlacedElement[] {
+): GardenSceneInstances {
   const activeLevel = getGardenLevel(completedCount);
-  if (activeLevel < 1) return [];
+  if (activeLevel < 1) {
+    return { elements: [], newestId: null, scrollFocusX: 0 };
+  }
 
   const elements: PlacedElement[] = [];
 
@@ -272,8 +282,13 @@ export function buildGardenSceneInstances(
     }
   }
 
+  const newest = elements.length > 0 ? elements[elements.length - 1]! : null;
   elements.sort((a, b) => a.zIndex - b.zIndex);
-  return elements;
+  return {
+    elements,
+    newestId: newest?.id ?? null,
+    scrollFocusX: newest?.x ?? 0,
+  };
 }
 
 /** A selectable row in the Garden Editor's element list. */

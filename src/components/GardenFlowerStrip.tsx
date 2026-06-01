@@ -21,7 +21,7 @@ function getMaxScrollLeft(viewport: HTMLElement): number {
   return Math.max(0, viewport.scrollWidth - viewport.clientWidth);
 }
 
-/** Scroll so `focusXNorm` (0–1 across the canvas) sits in the left-center of the viewport. */
+/** Scroll so `focusXNorm` (0–1 across the canvas) sits centered in the viewport. */
 function scrollToDesignFocus(
   viewport: HTMLElement,
   focusXNorm: number,
@@ -32,7 +32,7 @@ function scrollToDesignFocus(
 
   const focusPx = focusXNorm * canvas.offsetWidth;
   const maxScroll = getMaxScrollLeft(viewport);
-  const target = focusPx - viewport.clientWidth * 0.35;
+  const target = focusPx - viewport.clientWidth * 0.5;
   const left = Math.max(0, Math.min(maxScroll, target));
 
   if (smooth) {
@@ -103,15 +103,24 @@ export function GardenFlowerStrip({
     const el = viewportRef.current;
     if (!el) return;
 
-    const scroll = () => scrollToDesignFocus(el, scrollFocusX, false);
-    scroll();
-    const raf = requestAnimationFrame(scroll);
-    const t1 = window.setTimeout(() => scrollToDesignFocus(el, scrollFocusX, true), 120);
-    const t2 = window.setTimeout(() => scrollToDesignFocus(el, scrollFocusX, true), 350);
+    const scrollNow = (smooth: boolean) => scrollToDesignFocus(el, scrollFocusX, smooth);
+    scrollNow(false);
+    const raf = requestAnimationFrame(() => scrollNow(false));
+    const t1 = window.setTimeout(() => scrollNow(true), 120);
+    const t2 = window.setTimeout(() => scrollNow(true), 350);
+    const t3 = window.setTimeout(() => scrollNow(true), 700);
+
+    const ro = new ResizeObserver(() => scrollNow(false));
+    ro.observe(el);
+    const canvas = el.querySelector<HTMLElement>('.garden-canvas');
+    if (canvas) ro.observe(canvas);
+
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      ro.disconnect();
     };
   }, [autoScrollKey, scrollFocusX, freeScroll]);
 
@@ -127,13 +136,13 @@ export function GardenFlowerStrip({
         <>
           <button
             type="button"
-            className="garden-flower-scroll-btn garden-flower-scroll-btn--left"
+            className="garden-flower-scroll-zone garden-flower-scroll-zone--left"
             onClick={() => scrollByPage(-1)}
             aria-label="Scroll garden left"
           />
           <button
             type="button"
-            className="garden-flower-scroll-btn garden-flower-scroll-btn--right"
+            className="garden-flower-scroll-zone garden-flower-scroll-zone--right"
             onClick={() => scrollByPage(1)}
             aria-label="Scroll garden right"
           />

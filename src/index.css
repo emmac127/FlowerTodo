@@ -310,8 +310,72 @@ body {
   width: 100%;
 }
 
-.kawaii-header__actions-row .mute-toggle--actions:only-child {
+.kawaii-header__icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
   margin-left: auto;
+}
+
+.view-garden-toggle {
+  flex-shrink: 0;
+  border: 2px solid var(--card-border);
+  border-radius: 50%;
+  background: var(--card);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.view-garden-toggle:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.view-garden-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.view-garden-toggle--actions {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  border-width: 1.5px;
+}
+
+.view-garden-toggle--actions:hover:not(:disabled),
+.view-garden-toggle--actions:focus-visible:not(:disabled) {
+  opacity: 1;
+}
+
+.view-garden-toggle--actions[aria-pressed='true'] {
+  opacity: 1;
+  border-color: var(--accent);
+  background: #fff5f8;
+}
+
+.view-garden-toggle--actions:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.view-garden-toggle__icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.view-garden-toggle--actions:hover:not(:disabled) .view-garden-toggle__icon,
+.view-garden-toggle--actions:focus-visible:not(:disabled) .view-garden-toggle__icon,
+.view-garden-toggle--actions[aria-pressed='true'] .view-garden-toggle__icon {
+  color: var(--accent);
 }
 
 .mute-toggle--actions {
@@ -1914,7 +1978,8 @@ body {
   outline-offset: 2px;
 }
 
-.garden-flower-scroll-btn {
+/* Invisible edge tap targets — same hit area as the old arrow buttons. */
+.garden-flower-scroll-zone {
   position: absolute;
   bottom: var(--garden-flower-lift);
   z-index: 2;
@@ -1925,66 +1990,24 @@ body {
   min-height: 44px;
   padding: 0;
   border: none;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 238, 245, 0.92) 0%,
-    rgba(255, 238, 245, 0.55) 70%,
-    transparent 100%
-  );
+  background: transparent;
   cursor: pointer;
   pointer-events: auto;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.15s ease;
 }
 
-.garden-flower-scroll-btn--left {
+.garden-flower-scroll-zone--left {
   left: 0;
 }
 
-.garden-flower-scroll-btn--right {
+.garden-flower-scroll-zone--right {
   right: 0;
-  background: linear-gradient(
-    270deg,
-    rgba(255, 238, 245, 0.92) 0%,
-    rgba(255, 238, 245, 0.55) 70%,
-    transparent 100%
-  );
 }
 
-.garden-flower-scroll-btn:disabled {
-  opacity: 0.25;
+.garden-flower-scroll-zone:disabled {
   cursor: default;
   pointer-events: none;
-}
-
-@supports (-webkit-touch-callout: none) {
-  .garden-flower-scroll-btn:not(:disabled):active {
-    opacity: 0.85;
-  }
-}
-
-.garden-flower-scroll-btn::before {
-  content: '';
-  display: block;
-  width: 0;
-  height: 0;
-  border-top: 11px solid transparent;
-  border-bottom: 11px solid transparent;
-  filter: drop-shadow(0 1px 2px rgba(255, 143, 171, 0.35));
-}
-
-.garden-flower-scroll-btn--left::before {
-  border-right: 14px solid #ff8fab;
-  margin-left: -2px;
-}
-
-.garden-flower-scroll-btn--right::before {
-  border-left: 14px solid #ff8fab;
-  margin-right: -2px;
 }
 
 /* Garden reveal — venetian blinds lift tasks to show bottom flowers */
@@ -2021,9 +2044,27 @@ body {
 }
 
 .task-list--garden-reveal-exit .task-row--garden-reveal-slat,
-.app-body--garden-reveal-exit .garden-reveal-slat {
+.task-list-wrap--garden-reveal-exit .task-list-footer.garden-reveal-slat,
+.app-body--garden-reveal-exit .garden-reveal-slat,
+.sticky-kawaii-header--garden-reveal-exit.garden-reveal-slat {
   animation: venetianBlindLift 0.55s cubic-bezier(0.4, 0, 0.2, 1) reverse forwards;
   animation-delay: calc(var(--blind-index, 0) * 42ms);
+}
+
+.sticky-kawaii-header--garden-reveal.garden-reveal-slat {
+  transform-origin: center bottom;
+  pointer-events: none;
+}
+
+.sticky-kawaii-header--garden-reveal-exit.garden-reveal-slat {
+  transform-origin: center bottom;
+  pointer-events: none;
+}
+
+.task-list-footer--garden-reveal.garden-reveal-slat,
+.task-list-footer--garden-reveal-exit.garden-reveal-slat {
+  transform-origin: center bottom;
+  pointer-events: none;
 }
 
 @keyframes venetianBlindLift {
@@ -2041,13 +2082,14 @@ body {
   position: fixed;
   z-index: 11;
   left: 50%;
-  bottom: calc(var(--garden-band-height) + 0.65rem + env(safe-area-inset-bottom, 0px));
+  top: max(0.65rem, calc(env(safe-area-inset-top, 0px) + 0.35rem));
+  bottom: auto;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.5rem 1rem 0.55rem;
+  gap: 0.3rem;
+  padding: 0.45rem 1.1rem 0.5rem;
   border: 2px solid var(--card-border);
   border-radius: 999px;
   background: linear-gradient(180deg, #fff 0%, #fff5f8 100%);
@@ -2080,6 +2122,7 @@ body {
   border-right: 11px solid transparent;
   border-bottom: 13px solid var(--accent);
   filter: drop-shadow(0 1px 2px rgba(255, 143, 171, 0.35));
+  transform: rotate(180deg);
 }
 
 .garden-sakura-tree,
@@ -2569,6 +2612,10 @@ body {
   .growing-seed--wisteria-mature .growing-seed__wisteria-leaf--b,
   .garden-reveal-slat,
   .task-row--garden-reveal-slat,
+  .sticky-kawaii-header--garden-reveal.garden-reveal-slat,
+  .sticky-kawaii-header--garden-reveal-exit.garden-reveal-slat,
+  .task-list-footer--garden-reveal.garden-reveal-slat,
+  .task-list-footer--garden-reveal-exit.garden-reveal-slat,
   .app-main--garden-reveal,
   .app-main--garden-reveal-exit,
   .garden-flower-scroll__viewport,

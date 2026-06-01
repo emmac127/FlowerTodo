@@ -33,26 +33,13 @@ export function GardenScene({
   const stage = Math.min(getSceneMilestoneCount(completedCount), 12);
   const activeLevel = getGardenLevel(completedCount);
 
-  const gameplayElements = useMemo(
+  const gameplayScene = useMemo(
     () => buildGardenSceneInstances(completedCount),
     [completedCount],
   );
-  const elements = elementsOverride ?? gameplayElements;
-
-  const newestId = useMemo(() => {
-    if (editable || gameplayElements.length === 0) return null;
-    return gameplayElements[gameplayElements.length - 1]!.id;
-  }, [editable, gameplayElements]);
-
-  /** Horizontal scroll target: the newest / active element (not the far right of the canvas). */
-  const scrollFocusX = useMemo(() => {
-    if (editable || gameplayElements.length === 0) return 0;
-    const focus =
-      (newestId != null
-        ? gameplayElements.find((el) => el.id === newestId)
-        : null) ?? gameplayElements[gameplayElements.length - 1];
-    return focus?.x ?? 0;
-  }, [editable, gameplayElements, newestId]);
+  const elements = elementsOverride ?? gameplayScene.elements;
+  const newestId = editable ? null : gameplayScene.newestId;
+  const scrollFocusX = editable ? 0 : gameplayScene.scrollFocusX;
 
   const showGrass = layers.grass || activeLevel >= 1 || editable;
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { Task } from '../hooks/useTasks';
 import { getCombinedDragScrollDelta, getScrollSafeZone } from '../lib/dragAutoScroll';
 import {
@@ -428,7 +429,20 @@ export function TaskList({
         })}
       </ul>
       {hasCompleted && !moveModeTaskId && (
-        <footer className="task-list-footer">
+        <footer
+          className={[
+            'task-list-footer',
+            gardenRevealActive ? 'task-list-footer--garden-reveal garden-reveal-slat' : '',
+            gardenRevealPhase === 'exit' ? 'task-list-footer--garden-reveal-exit' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          style={
+            gardenRevealActive
+              ? ({ '--blind-index': visibleTasks.length + blindOffset } as CSSProperties)
+              : undefined
+          }
+        >
           <button type="button" className="clear-completed" onClick={onClearCompleted}>
             Clear completed
           </button>

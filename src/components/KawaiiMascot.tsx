@@ -3,6 +3,7 @@ import headerTitleSrc from '../assets/header-title.png';
 import { GardenProgressMeter } from './GardenProgressMeter';
 import { MascotImage } from './MascotImage';
 import { MuteToggleButton } from './MuteToggleButton';
+import { ViewGardenButton } from './ViewGardenButton';
 
 interface KawaiiMascotProps {
   message: string | null;
@@ -13,6 +14,8 @@ interface KawaiiMascotProps {
   gardenCycleMax: number;
   muted: boolean;
   onToggleMute: () => void;
+  onViewGarden?: () => void;
+  gardenViewOpen?: boolean;
   onPickRandom?: () => void;
   pickDisabled?: boolean;
 }
@@ -28,6 +31,8 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
       gardenCycleMax,
       muted,
       onToggleMute,
+      onViewGarden,
+      gardenViewOpen = false,
       onPickRandom,
       pickDisabled = false,
     },
@@ -94,7 +99,16 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
                 I&apos;ll pick your next task!
               </button>
             )}
-            <MuteToggleButton muted={muted} onClick={onToggleMute} />
+            <div className="kawaii-header__icon-actions">
+              {onViewGarden && (
+                <ViewGardenButton
+                  onClick={onViewGarden}
+                  disabled={gardenViewOpen}
+                  active={gardenViewOpen}
+                />
+              )}
+              <MuteToggleButton muted={muted} onClick={onToggleMute} />
+            </div>
           </div>
         </div>
       </div>
