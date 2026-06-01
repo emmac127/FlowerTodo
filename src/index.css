@@ -2911,6 +2911,18 @@ body {
   cursor: pointer;
 }
 
+.garden-editor__item-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.garden-editor__item-meta {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  color: #8a78a8;
+  font-variant-numeric: tabular-nums;
+}
+
 .garden-editor__item--selected .garden-editor__item-btn {
   background: #f6ecff;
   font-weight: 700;
@@ -2936,6 +2948,72 @@ body {
   border: 1px solid #c4a8e6;
   border-radius: 8px;
   font-family: inherit;
+}
+
+.garden-editor__props {
+  flex-shrink: 0;
+  padding: 0.65rem 0.5rem;
+  border-top: 1px solid #ead9fb;
+  background: #faf5ff;
+}
+
+.garden-editor__props-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #4b2580;
+}
+
+.garden-editor__prop-row {
+  margin-bottom: 0.55rem;
+}
+
+.garden-editor__prop-row:last-child {
+  margin-bottom: 0;
+}
+
+.garden-editor__prop-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.72rem;
+  color: #5a4a72;
+}
+
+.garden-editor__prop-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.garden-editor__prop-btn {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid #c4a8e6;
+  border-radius: 8px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 0.68rem;
+  color: #4b2580;
+  cursor: pointer;
+}
+
+.garden-editor__prop-btn:hover,
+.garden-editor__prop-btn:focus-visible {
+  background: #f3e8ff;
+}
+
+.garden-editor__prop-input {
+  width: 4.5rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #c4a8e6;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.garden-editor__prop-input--wide {
+  width: 100%;
 }
 
 .garden-editor__actions {

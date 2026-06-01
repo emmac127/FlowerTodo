@@ -110,15 +110,17 @@ export function GardenSceneCanvas({
       onPointerCancel={editable ? endDrag : undefined}
     >
       <div className="garden-canvas__stage" style={stageStyle}>
-        {elements.map((el) => {
+        {[...elements]
+          .sort((a, b) => a.zIndex - b.zIndex)
+          .map((el) => {
           const isSelected = editable && el.id === selectedId;
           const isNew = !editable && el.id === newestId;
           const dimmed = editable && selectedId != null && !isSelected;
           const elStyle: CSSProperties = {
             left: `${el.x * DESIGN_WIDTH}px`,
             bottom: `${(1 - el.y) * DESIGN_HEIGHT}px`,
-            height: `${el.heightDesign}px`,
-            zIndex: isSelected ? 200 : el.level * 10 + (el.slotIndex ?? el.stageIndex ?? 0),
+            height: `${el.heightDesign * el.scale}px`,
+            zIndex: isSelected ? el.zIndex + 10000 : el.zIndex,
             opacity: dimmed ? 0.35 : 1,
           };
           const classes = [

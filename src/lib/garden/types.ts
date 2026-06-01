@@ -43,6 +43,13 @@ export interface PositionEntry {
   x: number;
   y: number;
   anchor?: string;
+  /**
+   * Draw order (higher = in front). Defaults to level × 10 + slot/stage index.
+   * Use a lower value (e.g. 5) to draw behind flowers on later levels.
+   */
+  zIndex?: number;
+  /** Size multiplier applied to the element's design height (1 = default). */
+  scale?: number;
 }
 
 export interface LayoutLevelConfig {
@@ -77,8 +84,12 @@ export interface PlacedElement {
   x: number;
   y: number;
   anchor: string;
-  /** Height of the element in design-canvas pixels. */
+  /** Base height in design-canvas pixels (before {@link scale}). */
   heightDesign: number;
+  /** Size multiplier for width and height (default 1). */
+  scale: number;
+  /** Draw order (higher = in front). */
+  zIndex: number;
   /** False when the position came from auto-placement (no layout entry). */
   hasLayout: boolean;
 }

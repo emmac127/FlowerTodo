@@ -1,4 +1,5 @@
 import { stringify } from 'yaml';
+import { defaultZIndex } from './buildScene';
 import { layoutConfig } from './loadConfig';
 import type {
   LayoutConfig,
@@ -58,6 +59,85 @@ function ensureLevel(layout: LayoutConfig, level: number): LayoutLevelConfig {
   return layout.levels[key]!;
 }
 
+function getLayoutEntry(
+  layout: LayoutConfig,
+  parsed: ParsedId,
+  stage: number,
+): PositionEntry | undefined {
+  const levelCfg = layout.levels?.[String(parsed.level)];
+  if (parsed.kind === 'multiStage') {
+    return (
+      levelCfg?.multiStage?.stages?.[stage] ??
+      levelCfg?.multiStage?.stages?.[String(stage)]
+    );
+  }
+  if (parsed.kind === 'scatter') return levelCfg?.scatter?.[parsed.index];
+  if (parsed.kind === 'planterBase') return levelCfg?.planter?.base;
+  if (parsed.kind === 'planterFill') return levelCfg?.planter?.fills?.[parsed.index];
+  return undefined;
+}
+
+function writeLayoutEntry(
+  levelCfg: LayoutLevelConfig,
+  parsed: ParsedId,
+  stage: number,
+  entry: PositionEntry,
+): void {
+  if (parsed.kind === 'multiStage') {
+    if (!levelCfg.multiStage) levelCfg.multiStage = { stages: {} };
+    if (!levelCfg.multiStage.stages) levelCfg.multiStage.stages = {};
+    levelCfg.multiStage.stages[String(stage)] = entry;
+  } else if (parsed.kind === 'scatter') {
+    levelCfg.scatter = writeArrayIndex(levelCfg.scatter, parsed.index, entry);
+  } else if (parsed.kind === 'planterBase') {
+    if (!levelCfg.planter) levelCfg.planter = {};
+    levelCfg.planter.base = entry;
+  } else if (parsed.kind === 'planterFill') {
+    if (!levelCfg.planter) levelCfg.planter = {};
+    levelCfg.planter.fills = writeArrayIndex(
+      levelCfg.planter.fills,
+      parsed.index,
+      entry,
+    );
+  }
+}
+
+function mergeEntry(
+  layout: LayoutConfig,
+  id: string,
+  stage: number,
+  patch: Partial<PositionEntry>,
+  fallbackX: number,
+  fallbackY: number,
+): LayoutConfig {
+  const parsed = parseElementId(id);
+  if (!parsed) return layout;
+
+  const next = cloneLayout(layout);
+  const levelCfg = ensureLevel(next, parsed.level);
+  const existing = getLayoutEntry(next, parsed, stage);
+  const index =
+    parsed.kind === 'multiStage' ? stage : parsed.index;
+
+  const entry: PositionEntry = {
+    x: round(patch.x ?? existing?.x ?? fallbackX),
+    y: round(patch.y ?? existing?.y ?? fallbackY),
+    anchor: existing?.anchor,
+    zIndex:
+      patch.zIndex ??
+      existing?.zIndex ??
+      defaultZIndex(parsed.level, index),
+    scale:
+      patch.scale ??
+      (typeof existing?.scale === 'number' && existing.scale > 0
+        ? existing.scale
+        : 1),
+  };
+
+  writeLayoutEntry(levelCfg, parsed, stage, entry);
+  return next;
+}
+
 /**
  * Return a new layout with the given element's position updated. For
  * multiStage elements, `stage` selects which stage slot to write.
@@ -69,32 +149,46 @@ export function setLayoutPosition(
   x: number,
   y: number,
 ): LayoutConfig {
+  return mergeEntry(layout, id, stage, { x, y }, x, y);
+}
+
+export function setLayoutZIndex(
+  layout: LayoutConfig,
+  id: string,
+  stage: number,
+  zIndex: number,
+): LayoutConfig {
   const parsed = parseElementId(id);
   if (!parsed) return layout;
+  const existing = getLayoutEntry(layout, parsed, stage);
+  return mergeEntry(
+    layout,
+    id,
+    stage,
+    { zIndex: Math.round(zIndex) },
+    existing?.x ?? 0.5,
+    existing?.y ?? 1,
+  );
+}
 
-  const next = cloneLayout(layout);
-  const levelCfg = ensureLevel(next, parsed.level);
-  const pos: PositionEntry = { x: round(x), y: round(y) };
-
-  if (parsed.kind === 'multiStage') {
-    if (!levelCfg.multiStage) levelCfg.multiStage = { stages: {} };
-    if (!levelCfg.multiStage.stages) levelCfg.multiStage.stages = {};
-    levelCfg.multiStage.stages[String(stage)] = pos;
-  } else if (parsed.kind === 'scatter') {
-    levelCfg.scatter = writeArrayIndex(levelCfg.scatter, parsed.index, pos);
-  } else if (parsed.kind === 'planterBase') {
-    if (!levelCfg.planter) levelCfg.planter = {};
-    levelCfg.planter.base = pos;
-  } else if (parsed.kind === 'planterFill') {
-    if (!levelCfg.planter) levelCfg.planter = {};
-    levelCfg.planter.fills = writeArrayIndex(
-      levelCfg.planter.fills,
-      parsed.index,
-      pos,
-    );
-  }
-
-  return next;
+export function setLayoutScale(
+  layout: LayoutConfig,
+  id: string,
+  stage: number,
+  scale: number,
+): LayoutConfig {
+  const parsed = parseElementId(id);
+  if (!parsed) return layout;
+  const existing = getLayoutEntry(layout, parsed, stage);
+  const safe = Math.max(0.05, Math.min(10, scale));
+  return mergeEntry(
+    layout,
+    id,
+    stage,
+    { scale: round(safe) },
+    existing?.x ?? 0.5,
+    existing?.y ?? 1,
+  );
 }
 
 /** Stage index for a placed element (multiStage stage or scatter/planter slot). */
@@ -105,8 +199,7 @@ export function layoutIndexForElement(el: PlacedElement): number {
 }
 
 /**
- * Merge every placed element's current x/y into a layout config so the
- * downloaded YAML matches what you see in the editor (all modes and slots).
+ * Merge every placed element's layout fields into a config for YAML export.
  */
 export function layoutFromPlacedElements(
   base: LayoutConfig,
@@ -114,20 +207,21 @@ export function layoutFromPlacedElements(
 ): LayoutConfig {
   let layout = cloneLayout(base);
   for (const el of elements) {
-    layout = setLayoutPosition(
-      layout,
-      el.id,
-      layoutIndexForElement(el),
-      el.x,
-      el.y,
-    );
+    const stage = layoutIndexForElement(el);
+    layout = mergeEntry(layout, el.id, stage, {
+      x: el.x,
+      y: el.y,
+      zIndex: el.zIndex,
+      scale: el.scale,
+    }, el.x, el.y);
   }
   return layout;
 }
 
-const LAYOUT_HEADER = `# Garden layout positions (generated by the Garden Editor).
-# Paste this over src/garden/layout.yaml to apply the new positions.
-# Coordinates are normalized: x 0..1 (left..right), y 0..1 (top..ground).
+const LAYOUT_HEADER = `# Garden layout (generated by the Garden Editor).
+# Paste this over src/garden/layout.yaml and reload.
+# Coordinates: x/y are normalized 0..1 (y=1 is the ground line).
+# Optional per slot: zIndex (higher = in front), scale (size multiplier, default 1).
 `;
 
 /** Serialize a layout to YAML text. */

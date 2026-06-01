@@ -33,6 +33,11 @@ definitions:
     mode: scatterPerCompletion
     asset: /garden/assets/Tulip.png
 
+  fenceposts:
+    name: Fence posts
+    mode: scatterPerCompletion
+    asset: /garden/assets/Fencepost.png
+
   # Placeholder planter: a base image plus fill flowers per completion.
   catgrass_planter:
     name: Flower planter
@@ -50,10 +55,10 @@ levels:
   "3":
     use: tulip_scatter
   "4":
-    use: catgrass_planter
+    use: fenceposts
   "5":
-    use: toastflower
+    use: fenceposts
   "6":
-    use: toastflower
+    use: tulip_scatter
   "7":
     use: toastflower

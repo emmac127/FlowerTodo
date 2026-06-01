@@ -513,7 +513,11 @@ export default function App() {
             <GardenEditor
               entries={editor.entries}
               selectedId={editor.selectedId}
+              selectedElement={editor.selectedElement}
               onSelect={editor.setSelectedId}
+              onZIndexChange={editor.setZIndex}
+              onNudgeZIndex={editor.nudgeZIndex}
+              onScaleChange={editor.setScale}
               onDownload={editor.download}
               onClose={editor.toggle}
             />

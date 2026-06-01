@@ -6,6 +6,8 @@ import {
   layoutFromPlacedElements,
   parseElementId,
   setLayoutPosition,
+  setLayoutScale,
+  setLayoutZIndex,
 } from '../lib/garden/editorLayout';
 import type { LayoutConfig } from '../lib/garden/types';
 
@@ -22,11 +24,48 @@ export function useGardenEditor() {
     [workingLayout],
   );
 
-  const handleDrag = useCallback((id: string, x: number, y: number) => {
+  const selectedElement = useMemo(
+    () => elements.find((el) => el.id === selectedId) ?? null,
+    [elements, selectedId],
+  );
+
+  const stageForId = useCallback((id: string) => {
     const parsed = parseElementId(id);
-    const stage = parsed?.kind === 'multiStage' ? parsed.index : 0;
-    setWorkingLayout((prev) => setLayoutPosition(prev, id, stage, x, y));
+    return parsed?.kind === 'multiStage' ? parsed.index : 0;
   }, []);
+
+  const handleDrag = useCallback((id: string, x: number, y: number) => {
+    setWorkingLayout((prev) =>
+      setLayoutPosition(prev, id, stageForId(id), x, y),
+    );
+  }, [stageForId]);
+
+  const setZIndex = useCallback(
+    (id: string, zIndex: number) => {
+      setWorkingLayout((prev) =>
+        setLayoutZIndex(prev, id, stageForId(id), zIndex),
+      );
+    },
+    [stageForId],
+  );
+
+  const setScale = useCallback(
+    (id: string, scale: number) => {
+      setWorkingLayout((prev) =>
+        setLayoutScale(prev, id, stageForId(id), scale),
+      );
+    },
+    [stageForId],
+  );
+
+  const nudgeZIndex = useCallback(
+    (id: string, delta: number) => {
+      const el = elements.find((e) => e.id === id);
+      if (!el) return;
+      setZIndex(id, el.zIndex + delta);
+    },
+    [elements, setZIndex],
+  );
 
   const download = useCallback(() => {
     const layout = layoutFromPlacedElements(workingLayout, elements);
@@ -43,9 +82,13 @@ export function useGardenEditor() {
     toggle,
     selectedId,
     setSelectedId,
+    selectedElement,
     entries,
     elements,
     handleDrag,
+    setZIndex,
+    setScale,
+    nudgeZIndex,
     download,
   };
 }

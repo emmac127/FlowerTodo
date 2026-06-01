@@ -14,6 +14,7 @@ import type {
   GardenDefinition,
   LayoutConfig,
   PlacedElement,
+  PositionEntry,
 } from './types';
 
 /** Design-pixel heights per element kind (multiStage scales by stage). */
@@ -44,10 +45,17 @@ function definitionName(def: GardenDefinition, level: number): string {
   return def.name ?? `Level ${level}`;
 }
 
-interface ResolvedPosition {
+/** Default draw order when layout.yaml omits zIndex. */
+export function defaultZIndex(level: number, index: number): number {
+  return level * 10 + index;
+}
+
+interface ResolvedSlot {
   x: number;
   y: number;
   anchor: string;
+  zIndex: number;
+  scale: number;
   hasLayout: boolean;
 }
 
@@ -56,7 +64,7 @@ function autoPlace(
   kind: ElementKind,
   index: number,
   slotCount: number,
-): ResolvedPosition {
+): Omit<ResolvedSlot, 'zIndex' | 'scale'> {
   const bandStart = (level - 1) / AUTO_COLUMNS;
   const bandWidth = 1 / AUTO_COLUMNS;
   const center = bandStart + bandWidth / 2;
@@ -86,36 +94,50 @@ function autoPlace(
   };
 }
 
-function resolvePosition(
+function readLayoutEntry(
+  layout: LayoutConfig,
+  level: number,
+  kind: ElementKind,
+  index: number,
+): PositionEntry | undefined {
+  const levelLayout = layout.levels?.[String(level)];
+  if (kind === 'multiStage') {
+    return (
+      levelLayout?.multiStage?.stages?.[index] ??
+      levelLayout?.multiStage?.stages?.[String(index)]
+    );
+  }
+  if (kind === 'scatter') return levelLayout?.scatter?.[index];
+  if (kind === 'planterBase') return levelLayout?.planter?.base;
+  if (kind === 'planterFill') return levelLayout?.planter?.fills?.[index];
+  return undefined;
+}
+
+function resolveSlot(
   layout: LayoutConfig,
   level: number,
   kind: ElementKind,
   index: number,
   slotCount: number,
-): ResolvedPosition {
-  const levelLayout = layout.levels?.[String(level)];
-  let entry: { x: number; y: number; anchor?: string } | undefined;
+): ResolvedSlot {
+  const entry = readLayoutEntry(layout, level, kind, index);
+  const auto = autoPlace(level, kind, index, slotCount);
+  const hasCoords =
+    entry != null &&
+    typeof entry.x === 'number' &&
+    typeof entry.y === 'number';
 
-  if (kind === 'multiStage') {
-    entry = levelLayout?.multiStage?.stages?.[index] ?? levelLayout?.multiStage?.stages?.[String(index)];
-  } else if (kind === 'scatter') {
-    entry = levelLayout?.scatter?.[index];
-  } else if (kind === 'planterBase') {
-    entry = levelLayout?.planter?.base;
-  } else if (kind === 'planterFill') {
-    entry = levelLayout?.planter?.fills?.[index];
-  }
-
-  if (entry && typeof entry.x === 'number' && typeof entry.y === 'number') {
-    return {
-      x: entry.x,
-      y: entry.y,
-      anchor: entry.anchor ?? 'bottomCenter',
-      hasLayout: true,
-    };
-  }
-
-  return autoPlace(level, kind, index, slotCount);
+  return {
+    x: hasCoords ? entry.x : auto.x,
+    y: hasCoords ? entry.y : auto.y,
+    anchor: entry?.anchor ?? auto.anchor,
+    zIndex:
+      typeof entry?.zIndex === 'number'
+        ? entry.zIndex
+        : defaultZIndex(level, index),
+    scale: typeof entry?.scale === 'number' && entry.scale > 0 ? entry.scale : 1,
+    hasLayout: hasCoords,
+  };
 }
 
 interface ElementSpec {
@@ -134,7 +156,7 @@ function makeElement(layout: LayoutConfig, spec: ElementSpec): PlacedElement {
     spec.kind === 'scatter' || spec.kind === 'planterFill'
       ? getTasksForGardenLevel(spec.level)
       : 1;
-  const pos = resolvePosition(layout, spec.level, spec.kind, index, slotCount);
+  const slot = resolveSlot(layout, spec.level, spec.kind, index, slotCount);
 
   const idSuffix =
     spec.kind === 'multiStage'
@@ -153,11 +175,13 @@ function makeElement(layout: LayoutConfig, spec: ElementSpec): PlacedElement {
     src: spec.src,
     stageIndex: spec.stageIndex,
     slotIndex: spec.slotIndex,
-    x: pos.x,
-    y: pos.y,
-    anchor: pos.anchor,
+    x: slot.x,
+    y: slot.y,
+    anchor: slot.anchor,
     heightDesign: spec.heightDesign,
-    hasLayout: pos.hasLayout,
+    scale: slot.scale,
+    zIndex: slot.zIndex,
+    hasLayout: slot.hasLayout,
   };
 }
 
@@ -248,6 +272,7 @@ export function buildGardenSceneInstances(
     }
   }
 
+  elements.sort((a, b) => a.zIndex - b.zIndex);
   return elements;
 }
 
@@ -262,6 +287,8 @@ export interface EditorEntry {
   stageCount: number;
   /** Currently displayed stage for multiStage entries. */
   currentStage?: number;
+  zIndex: number;
+  scale: number;
 }
 
 function multiStageStageCount(def: GardenDefinition, level: number): number {
@@ -274,6 +301,19 @@ function multiStageStageCount(def: GardenDefinition, level: number): number {
  * levels (one entry per scatter/planter slot; one entry per multiStage plant
  * one list row per growth stage so each can be dragged independently.
  */
+function editorEntryFromElement(el: PlacedElement, listName: string): EditorEntry {
+  return {
+    id: el.id,
+    level: el.level,
+    kind: el.kind,
+    name: listName,
+    stageCount: 1,
+    currentStage: el.stageIndex,
+    zIndex: el.zIndex,
+    scale: el.scale,
+  };
+}
+
 export function buildEditorScene(
   layout: LayoutConfig,
 ): { entries: EditorEntry[]; elements: PlacedElement[] } {
@@ -299,14 +339,9 @@ export function buildEditorScene(
           heightDesign: multiStageHeight(s),
         });
         elements.push(el);
-        entries.push({
-          id: el.id,
-          level,
-          kind: 'multiStage',
-          name: `Level ${level} — ${name} (stage ${s})`,
-          stageCount: 1,
-          currentStage: s,
-        });
+        entries.push(
+          editorEntryFromElement(el, `Level ${level} — ${name} (stage ${s})`),
+        );
       }
     } else if (def.mode === 'scatterPerCompletion' && def.asset) {
       for (let slot = 0; slot < tasks; slot++) {
@@ -319,13 +354,9 @@ export function buildEditorScene(
           heightDesign: HEIGHT_SCATTER,
         });
         elements.push(el);
-        entries.push({
-          id: el.id,
-          level,
-          kind: 'scatter',
-          name: `Level ${level} — ${name} #${slot + 1}`,
-          stageCount: 1,
-        });
+        entries.push(
+          editorEntryFromElement(el, `Level ${level} — ${name} #${slot + 1}`),
+        );
       }
     } else if (def.mode === 'planter') {
       if (def.onLevelStart) {
@@ -337,13 +368,9 @@ export function buildEditorScene(
           heightDesign: HEIGHT_PLANTER_BASE,
         });
         elements.push(el);
-        entries.push({
-          id: el.id,
-          level,
-          kind: 'planterBase',
-          name: `Level ${level} — ${name} planter`,
-          stageCount: 1,
-        });
+        entries.push(
+          editorEntryFromElement(el, `Level ${level} — ${name} planter`),
+        );
       }
       if (def.perCompletion) {
         const maxFills = planterFillCount(def, level);
@@ -357,18 +384,18 @@ export function buildEditorScene(
             heightDesign: HEIGHT_PLANTER_FILL,
           });
           elements.push(el);
-          entries.push({
-            id: el.id,
-            level,
-            kind: 'planterFill',
-            name: `Level ${level} — ${name} flower #${i + 1}`,
-            stageCount: 1,
-          });
+          entries.push(
+            editorEntryFromElement(
+              el,
+              `Level ${level} — ${name} flower #${i + 1}`,
+            ),
+          );
         }
       }
     }
   }
 
+  elements.sort((a, b) => a.zIndex - b.zIndex);
   return { entries, elements };
 }
 
