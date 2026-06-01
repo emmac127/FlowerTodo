@@ -1,0 +1,81 @@
+# Garden layout positions
+#
+# Edit these with the in-app Garden Editor (DEV build), then download and paste
+# the result here. Coordinates are NORMALIZED to the design canvas:
+#   x: 0 = left edge, 1 = right edge of the (scrollable) design canvas
+#   y: 0 = top, 1 = ground line (bottom). Assets are anchored bottom-center.
+#
+# Any slot without an entry is auto-placed until you position it in the editor.
+
+scene:
+  designWidth: 2400
+  designHeight: 320
+
+levels:
+  "1":
+    multiStage:
+      stages:
+        0: { x: 0.06, y: 1.0 }
+        1: { x: 0.06, y: 1.0 }
+        2: { x: 0.06, y: 1.0 }
+        3: { x: 0.06, y: 1.0 }
+        4: { x: 0.06, y: 1.0 }
+        5: { x: 0.06, y: 1.0 }
+
+  "2":
+    multiStage:
+      stages:
+        0: { x: 0.20, y: 1.0 }
+        1: { x: 0.20, y: 1.0 }
+        2: { x: 0.20, y: 1.0 }
+        3: { x: 0.20, y: 1.0 }
+        4: { x: 0.20, y: 1.0 }
+        5: { x: 0.20, y: 1.0 }
+
+  "3":
+    scatter:
+      - { x: 0.31, y: 0.96 }
+      - { x: 0.35, y: 0.90 }
+      - { x: 0.39, y: 0.97 }
+      - { x: 0.34, y: 0.86 }
+      - { x: 0.42, y: 0.92 }
+
+  "4":
+    planter:
+      base: { x: 0.55, y: 1.0 }
+      fills:
+        - { x: 0.51, y: 0.92 }
+        - { x: 0.55, y: 0.90 }
+        - { x: 0.59, y: 0.92 }
+        - { x: 0.53, y: 0.87 }
+        - { x: 0.57, y: 0.87 }
+
+  "5":
+    multiStage:
+      stages:
+        0: { x: 0.68, y: 1.0 }
+        1: { x: 0.68, y: 1.0 }
+        2: { x: 0.68, y: 1.0 }
+        3: { x: 0.68, y: 1.0 }
+        4: { x: 0.68, y: 1.0 }
+        5: { x: 0.68, y: 1.0 }
+
+  "6":
+    multiStage:
+      stages:
+        0: { x: 0.81, y: 1.0 }
+        1: { x: 0.81, y: 1.0 }
+        2: { x: 0.81, y: 1.0 }
+        3: { x: 0.81, y: 1.0 }
+        4: { x: 0.81, y: 1.0 }
+        5: { x: 0.81, y: 1.0 }
+
+  "7":
+    multiStage:
+      stages:
+        0: { x: 0.93, y: 1.0 }
+        1: { x: 0.93, y: 1.0 }
+        2: { x: 0.93, y: 1.0 }
+        3: { x: 0.93, y: 1.0 }
+        4: { x: 0.93, y: 1.0 }
+        5: { x: 0.93, y: 1.0 }

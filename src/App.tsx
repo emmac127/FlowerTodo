@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FallingSakuraPetals } from './components/FallingSakuraPetals';
 import { GardenRevealReturnButton } from './components/GardenRevealReturnButton';
 import { GardenScene } from './components/GardenScene';
@@ -7,13 +7,7 @@ import { SpiralCelebration } from './components/SpiralCelebration';
 import { StarBurst } from './components/StarBurst';
 import { TaskList } from './components/TaskList';
 import { useTasks } from './hooks/useTasks';
-import { useLevel2Seed } from './hooks/useLevel2Seed';
-import { useLevel3Seed } from './hooks/useLevel3Seed';
-import { useLevel4Seed } from './hooks/useLevel4Seed';
-import { useLevel5Seed } from './hooks/useLevel5Seed';
-import { useLevel6Seed } from './hooks/useLevel6Seed';
-import { useLevel7Seed } from './hooks/useLevel7Seed';
-import { useStartingSeed } from './hooks/useStartingSeed';
+import { useGardenEditor } from './hooks/useGardenEditor';
 import {
   GARDEN_REVEAL_ANIM_MS,
   getGardenAutoReturnDelayMs,
@@ -21,14 +15,6 @@ import {
   getGardenRevealScrollTop,
   shouldRevealGardenForCompletion,
 } from './lib/gardenReveal';
-import {
-  getLevel6PickerOptions,
-  SEED_DISPLAY_NAMES,
-} from './lib/gardenSeedCatalog';
-import {
-  getPendingSeedPicker,
-  isBackfillSeedPicker,
-} from './lib/gardenSeedPickers';
 import { getGardenCycleProgress, getGardenLevel } from './lib/gardenProgress';
 import { isGardenLevelComplete } from './lib/plantedGarden';
 import {
@@ -36,23 +22,9 @@ import {
   measureScreenCelebrationOrigin,
   type CelebrationOrigin,
 } from './lib/mascotCelebration';
-import { Level2SeedPicker } from './components/Level2SeedPicker';
-import { Level3SeedPicker } from './components/Level3SeedPicker';
-import { Level4SeedPicker } from './components/Level4SeedPicker';
-import { Level5SeedPicker } from './components/Level5SeedPicker';
-import { Level6SeedPicker } from './components/Level6SeedPicker';
-import { Level7SeedPicker } from './components/Level7SeedPicker';
 import { DevPanel } from './components/DevPanel';
-import { StartingSeedPicker } from './components/StartingSeedPicker';
+import { GardenEditor } from './components/GardenEditor';
 import { pickMotivationalPhrase } from './lib/motivationalPhrases';
-import { LEVEL_2_SEED_PROMPT, type Level2Seed } from './lib/level2Seed';
-import { LEVEL_3_SEED_PROMPT, type Level3Seed } from './lib/level3Seed';
-import { LEVEL_4_SEED_PROMPT, type Level4Seed } from './lib/level4Seed';
-import { LEVEL_5_SEED_PROMPT, type Level5Seed } from './lib/level5Seed';
-import { LEVEL_6_SEED_PROMPT } from './lib/level6Seed';
-import { LEVEL_7_SEED_PROMPT, type Level7Seed } from './lib/level7Seed';
-import type { GardenSeed } from './lib/gardenSeed';
-import { STARTING_SEED_PROMPT, type StartingSeed } from './lib/startingSeed';
 import { playAddTaskSound, playCelebrationTune, unlockAudio } from './lib/sounds';
 
 const SPEECH_DURATION_MS = 3200;
@@ -118,97 +90,20 @@ export default function App() {
     setGardenProgressForDev,
   } = useTasks();
 
-  const {
-    startingSeed,
-    hydrated: seedHydrated,
-    chooseStartingSeed,
-    resetStartingSeed,
-  } = useStartingSeed();
-
-  const {
-    level2Seed,
-    hydrated: level2SeedHydrated,
-    chooseLevel2Seed,
-    resetLevel2Seed,
-  } = useLevel2Seed();
-
-  const {
-    level3Seed,
-    hydrated: level3SeedHydrated,
-    chooseLevel3Seed,
-    resetLevel3Seed,
-  } = useLevel3Seed();
-
-  const {
-    level4Seed,
-    hydrated: level4SeedHydrated,
-    chooseLevel4Seed,
-    resetLevel4Seed,
-  } = useLevel4Seed();
-
-  const {
-    level5Seed,
-    hydrated: level5SeedHydrated,
-    chooseLevel5Seed,
-    resetLevel5Seed,
-  } = useLevel5Seed();
-
-  const {
-    level6Seed,
-    hydrated: level6SeedHydrated,
-    chooseLevel6Seed,
-    resetLevel6Seed,
-  } = useLevel6Seed();
-
-  const {
-    level7Seed,
-    hydrated: level7SeedHydrated,
-    chooseLevel7Seed,
-    resetLevel7Seed,
-  } = useLevel7Seed();
-
   const [devPanelOpen, setDevPanelOpen] = useState(false);
   const isDev = import.meta.env.DEV;
-
-  const resetSeedsFromLevel = useCallback(
-    (fromLevel: number) => {
-      if (fromLevel <= 1) resetStartingSeed();
-      if (fromLevel <= 2) resetLevel2Seed();
-      if (fromLevel <= 3) resetLevel3Seed();
-      if (fromLevel <= 4) resetLevel4Seed();
-      if (fromLevel <= 5) resetLevel5Seed();
-      if (fromLevel <= 6) resetLevel6Seed();
-      if (fromLevel <= 7) resetLevel7Seed();
-    },
-    [
-      resetStartingSeed,
-      resetLevel2Seed,
-      resetLevel3Seed,
-      resetLevel4Seed,
-      resetLevel5Seed,
-      resetLevel6Seed,
-      resetLevel7Seed,
-    ],
-  );
+  const editor = useGardenEditor();
 
   const handleDevApply = useCallback(
-    ({
-      completedCount,
-      clearSeedsFromLevel,
-    }: {
-      completedCount: number;
-      clearSeedsFromLevel: number;
-    }) => {
+    ({ completedCount }: { completedCount: number }) => {
       setGardenProgressForDev(completedCount);
-      resetSeedsFromLevel(clearSeedsFromLevel);
     },
-    [setGardenProgressForDev, resetSeedsFromLevel],
+    [setGardenProgressForDev],
   );
 
   const handleDevResetEverything = useCallback(() => {
     setGardenProgressForDev(0);
-    resetSeedsFromLevel(1);
-  }, [setGardenProgressForDev, resetSeedsFromLevel]);
+  }, [setGardenProgressForDev]);
 
   const gardenLevel = getGardenLevel(gardenProgressCount);
   const gardenCycleProgress = getGardenCycleProgress(gardenProgressCount);
@@ -218,57 +113,6 @@ export default function App() {
     gardenRevealHeldCount != null
       ? gardenRevealHeldCount
       : gardenProgressCount;
-  const seedsHydrated =
-    hydrated &&
-    seedHydrated &&
-    level2SeedHydrated &&
-    level3SeedHydrated &&
-    level4SeedHydrated &&
-    level5SeedHydrated &&
-    level6SeedHydrated &&
-    level7SeedHydrated;
-  const seedChoices = useMemo(
-    () => ({
-      starting: startingSeed,
-      level2: level2Seed,
-      level3: level3Seed,
-      level4: level4Seed,
-      level5: level5Seed,
-      level6: level6Seed,
-      level7: level7Seed,
-    }),
-    [
-      startingSeed,
-      level2Seed,
-      level3Seed,
-      level4Seed,
-      level5Seed,
-      level6Seed,
-      level7Seed,
-    ],
-  );
-  const level6PickerOptions = useMemo(
-    () => getLevel6PickerOptions(seedChoices),
-    [seedChoices],
-  );
-  const pendingSeedPicker = seedsHydrated
-    ? getPendingSeedPicker(gardenProgressCount, seedChoices)
-    : null;
-  const showSeedPicker = pendingSeedPicker === 'starting';
-  const showLevel2SeedPicker = pendingSeedPicker === 'level2';
-  const showLevel3SeedPicker = pendingSeedPicker === 'level3';
-  const showLevel4SeedPicker = pendingSeedPicker === 'level4';
-  const showLevel5SeedPicker = pendingSeedPicker === 'level5';
-  const showLevel6SeedPicker =
-    pendingSeedPicker === 'level6' && level6PickerOptions != null;
-  const showLevel7SeedPicker = pendingSeedPicker === 'level7';
-  const showLevelSeedPicker =
-    showLevel2SeedPicker ||
-    showLevel3SeedPicker ||
-    showLevel4SeedPicker ||
-    showLevel5SeedPicker ||
-    showLevel6SeedPicker ||
-    showLevel7SeedPicker;
 
   const showMascotCheer = useCallback((phrase?: string) => {
     const text = phrase ?? pickMotivationalPhrase(lastPhraseRef.current);
@@ -321,7 +165,7 @@ export default function App() {
 
       setMascotDancing(true);
       const tuneMs = await playCelebrationTune(muted);
-    const waitMs = Math.max(tuneMs, HOP_DURATION_MS);
+      const waitMs = Math.max(tuneMs, HOP_DURATION_MS);
 
       if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
       celebrationTimerRef.current = setTimeout(() => {
@@ -448,10 +292,7 @@ export default function App() {
       const previousGardenCount = gardenProgressCount;
       completeTask(id, completionIndex);
 
-      if (
-        startingSeed &&
-        shouldRevealGardenForCompletion(completionIndex, previousGardenCount)
-      ) {
+      if (shouldRevealGardenForCompletion(completionIndex, previousGardenCount)) {
         setGardenRevealHeldCount(previousGardenCount);
         setGardenRevealGrowthUnlocked(false);
         beginGardenReveal();
@@ -476,7 +317,6 @@ export default function App() {
       runNormalCelebration,
       runPickedCelebration,
       showMascotCheer,
-      startingSeed,
     ],
   );
 
@@ -506,188 +346,6 @@ export default function App() {
       clearGardenRevealGrowthTimer();
     };
   }, [clearGardenRevealAutoReturn, clearGardenRevealGrowthTimer]);
-
-  useEffect(() => {
-    if (!showSeedPicker) return;
-    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
-    setMascotMessage(
-      isBackfillSeedPicker('starting', gardenProgressCount)
-        ? 'Welcome back!\nChoose your level 1 flower to restore your garden! 🌸'
-        : STARTING_SEED_PROMPT,
-    );
-    setSpeechVisible(true);
-  }, [gardenProgressCount, showSeedPicker]);
-
-  useEffect(() => {
-    if (!showLevel2SeedPicker) return;
-    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
-    setMascotMessage(
-      isBackfillSeedPicker('level2', gardenProgressCount)
-        ? 'Pick your level 2 flower so your garden can bloom again! ⭐'
-        : LEVEL_2_SEED_PROMPT,
-    );
-    setSpeechVisible(true);
-  }, [gardenProgressCount, showLevel2SeedPicker]);
-
-  useEffect(() => {
-    if (!showLevel3SeedPicker) return;
-    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
-    setMascotMessage(
-      isBackfillSeedPicker('level3', gardenProgressCount)
-        ? 'Pick your level 3 flower to fill in your garden! 🌷'
-        : LEVEL_3_SEED_PROMPT,
-    );
-    setSpeechVisible(true);
-  }, [gardenProgressCount, showLevel3SeedPicker]);
-
-  useEffect(() => {
-    if (!showLevel4SeedPicker) return;
-    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
-    setMascotMessage(
-      isBackfillSeedPicker('level4', gardenProgressCount)
-        ? 'Pick your level 4 flower to complete your garden row! 💜'
-        : LEVEL_4_SEED_PROMPT,
-    );
-    setSpeechVisible(true);
-  }, [gardenProgressCount, showLevel4SeedPicker]);
-
-  useEffect(() => {
-    if (!showLevel5SeedPicker) return;
-    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
-    setMascotMessage(
-      isBackfillSeedPicker('level5', gardenProgressCount)
-        ? 'Pick your level 5 flower to grow the next garden spot! 🌸'
-        : LEVEL_5_SEED_PROMPT,
-    );
-    setSpeechVisible(true);
-  }, [gardenProgressCount, showLevel5SeedPicker]);
-
-  useEffect(() => {
-    if (!showLevel6SeedPicker || !level6PickerOptions) return;
-    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
-    const [a, b] = level6PickerOptions;
-    setMascotMessage(
-      isBackfillSeedPicker('level6', gardenProgressCount)
-        ? `Pick ${SEED_DISPLAY_NAMES[a]} or ${SEED_DISPLAY_NAMES[b]} for level 6! 🌸`
-        : LEVEL_6_SEED_PROMPT,
-    );
-    setSpeechVisible(true);
-  }, [gardenProgressCount, level6PickerOptions, showLevel6SeedPicker]);
-
-  useEffect(() => {
-    if (!showLevel7SeedPicker) return;
-    if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
-    setMascotMessage(
-      isBackfillSeedPicker('level7', gardenProgressCount)
-        ? 'Pick Toast flower or Jam flower for level 7! 🌸'
-        : LEVEL_7_SEED_PROMPT,
-    );
-    setSpeechVisible(true);
-  }, [gardenProgressCount, showLevel7SeedPicker]);
-
-  const handleStartingSeedSelect = useCallback(
-    (seed: StartingSeed) => {
-      chooseStartingSeed(seed);
-      const cheer = isBackfillSeedPicker('starting', gardenProgressCount)
-        ? 'Lovely choice!\nYour garden flowers are back! 🌱'
-        : 'Lovely choice!\nComplete a task to help it grow! 🌱';
-      showMascotCheer(cheer);
-    },
-    [chooseStartingSeed, gardenProgressCount, showMascotCheer],
-  );
-
-  const handleLevel2SeedSelect = useCallback(
-    (seed: Level2Seed) => {
-      chooseLevel2Seed(seed);
-      const cheer = isBackfillSeedPicker('level2', gardenProgressCount)
-        ? 'Wonderful pick!\nYour level 2 flower is ready to grow! ✨'
-        : 'Wonderful pick!\nComplete a task to help it grow! ✨';
-      showMascotCheer(cheer);
-    },
-    [chooseLevel2Seed, gardenProgressCount, showMascotCheer],
-  );
-
-  const handleLevel3SeedSelect = useCallback(
-    (seed: Level3Seed) => {
-      chooseLevel3Seed(seed);
-      const backfill = isBackfillSeedPicker('level3', gardenProgressCount);
-      const cheer =
-        seed === 'catgrass'
-          ? backfill
-            ? 'Cat grass!\nYour level 3 sprout is in the garden! 🐱🌿'
-            : 'Cat grass!\nIt might meow as it grows! 🐱🌿'
-          : backfill
-            ? 'A cheerful tulip!\nYour level 3 sprout is in the garden! 🌷'
-            : 'A cheerful tulip!\nComplete a task to help it bloom! 🌷';
-      showMascotCheer(cheer);
-    },
-    [chooseLevel3Seed, gardenProgressCount, showMascotCheer],
-  );
-
-  const handleLevel4SeedSelect = useCallback(
-    (seed: Level4Seed) => {
-      chooseLevel4Seed(seed);
-      const backfill = isBackfillSeedPicker('level4', gardenProgressCount);
-      const cheer =
-        seed === 'puppypoppy'
-          ? backfill
-            ? 'Puppy poppy!\nYour level 4 sprout is in the garden! 🐶🌺'
-            : 'Puppy poppy!\nA puppy with its tongue out awaits! 🐶🌺'
-          : backfill
-            ? 'Wiggle wisteria!\nYour level 4 sprout is in the garden! 💜'
-            : 'Wiggle wisteria!\nWatch the stem and leaves dance! 💜';
-      showMascotCheer(cheer);
-    },
-    [chooseLevel4Seed, gardenProgressCount, showMascotCheer],
-  );
-
-  const handleLevel5SeedSelect = useCallback(
-    (seed: Level5Seed) => {
-      chooseLevel5Seed(seed);
-      const backfill = isBackfillSeedPicker('level5', gardenProgressCount);
-      const cheer =
-        seed === 'pinwheelflower'
-          ? backfill
-            ? 'Pinwheel flower!\nYour spinning blooms are in the garden! 🎡'
-            : 'Pinwheel flower!\nA new bloom spins in for every task! 🎡'
-          : backfill
-            ? 'Fire flower!\nYour fiery sprout is in the garden! 🔥'
-            : 'Fire flower!\nWatch the flames dance as it grows! 🔥';
-      showMascotCheer(cheer);
-    },
-    [chooseLevel5Seed, gardenProgressCount, showMascotCheer],
-  );
-
-  const handleLevel6SeedSelect = useCallback(
-    (seed: GardenSeed) => {
-      chooseLevel6Seed(seed);
-      const name = SEED_DISPLAY_NAMES[seed];
-      const backfill = isBackfillSeedPicker('level6', gardenProgressCount);
-      showMascotCheer(
-        backfill
-          ? `${name}!\nYour level 6 sprout is in the garden! 🌸`
-          : `${name}!\nA flower you skipped before — let's grow it! 🌱`,
-      );
-    },
-    [chooseLevel6Seed, gardenProgressCount, showMascotCheer],
-  );
-
-  const handleLevel7SeedSelect = useCallback(
-    (seed: Level7Seed) => {
-      chooseLevel7Seed(seed);
-      const backfill = isBackfillSeedPicker('level7', gardenProgressCount);
-      const cheer =
-        seed === 'toastflower'
-          ? backfill
-            ? 'Toast flower!\nYour breakfast bloom is in the garden! 🍞'
-            : 'Toast flower!\nWatch your toast sprout petal by petal! 🍞'
-          : backfill
-            ? 'Jam flower!\nYour jam jars are in the garden! 🫙'
-            : 'Jam flower!\nEach task adds another colorful jar! 🫙';
-      showMascotCheer(cheer);
-    },
-    [chooseLevel7Seed, gardenProgressCount, showMascotCheer],
-  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -780,16 +438,15 @@ export default function App() {
               onReorderToIndex={reorderTaskToIndex}
             />
           </main>
-
         </div>
 
-        {gardenRevealPhase === 'active' && !showLevelSeedPicker && (
+        {gardenRevealPhase === 'active' && (
           <GardenRevealReturnButton onReturn={endGardenReveal} />
         )}
 
         <div className="app-celebrations-layer" aria-hidden>
           <SpiralCelebration
-            key={spiralBurstId}
+            key={`spiral-${spiralBurstId}`}
             active={spiralActive}
             burstId={spiralBurstId}
             originX={celebrationOrigin.x}
@@ -800,7 +457,7 @@ export default function App() {
           />
 
           <StarBurst
-            key={starsBurstId}
+            key={`star-${starsBurstId}`}
             active={starsActive}
             burstId={starsBurstId}
             originX={celebrationOrigin.x}
@@ -814,39 +471,36 @@ export default function App() {
 
       <GardenScene
         completedCount={gardenDisplayCount}
-        startingSeed={startingSeed}
-        level2Seed={level2Seed}
-        level3Seed={level3Seed}
-        level4Seed={level4Seed}
-        level5Seed={level5Seed}
-        level6Seed={level6Seed}
-        level7Seed={level7Seed}
-        muted={muted}
+        elementsOverride={editor.enabled ? editor.elements : null}
+        editable={editor.enabled}
+        selectedId={editor.selectedId}
+        onSelectElement={editor.setSelectedId}
+        onElementDrag={editor.handleDrag}
       />
-
-      {showSeedPicker && <StartingSeedPicker onSelect={handleStartingSeedSelect} />}
-      {showLevel2SeedPicker && <Level2SeedPicker onSelect={handleLevel2SeedSelect} />}
-      {showLevel3SeedPicker && <Level3SeedPicker onSelect={handleLevel3SeedSelect} />}
-      {showLevel4SeedPicker && <Level4SeedPicker onSelect={handleLevel4SeedSelect} />}
-      {showLevel5SeedPicker && <Level5SeedPicker onSelect={handleLevel5SeedSelect} />}
-      {showLevel6SeedPicker && level6PickerOptions && (
-        <Level6SeedPicker options={level6PickerOptions} onSelect={handleLevel6SeedSelect} />
-      )}
-      {showLevel7SeedPicker && (
-        <Level7SeedPicker onSelect={handleLevel7SeedSelect} />
-      )}
 
       {isDev && (
         <>
-          <button
-            type="button"
-            className="dev-toggle-btn"
-            onClick={() => setDevPanelOpen(true)}
-            aria-label="Open dev tools"
-            title="Dev tools"
-          >
-            DEV
-          </button>
+          <div className="dev-toolbar">
+            <button
+              type="button"
+              className="dev-toggle-btn"
+              onClick={() => setDevPanelOpen(true)}
+              aria-label="Open dev tools"
+              title="Dev tools"
+            >
+              DEV
+            </button>
+            <button
+              type="button"
+              className={`dev-toggle-btn${editor.enabled ? ' dev-toggle-btn--active' : ''}`}
+              onClick={editor.toggle}
+              aria-label="Toggle garden editor"
+              title="Garden editor"
+            >
+              EDIT
+            </button>
+          </div>
+
           <DevPanel
             open={devPanelOpen}
             currentGardenProgressCount={gardenProgressCount}
@@ -854,6 +508,16 @@ export default function App() {
             onApply={handleDevApply}
             onResetEverything={handleDevResetEverything}
           />
+
+          {editor.enabled && (
+            <GardenEditor
+              entries={editor.entries}
+              selectedId={editor.selectedId}
+              onSelect={editor.setSelectedId}
+              onDownload={editor.download}
+              onClose={editor.toggle}
+            />
+          )}
         </>
       )}
     </div>

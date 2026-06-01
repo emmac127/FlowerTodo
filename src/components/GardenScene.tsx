@@ -1,215 +1,88 @@
-import { useMemo } from 'react';
-import { GardenFlowerStrip, type GardenFlowerItem } from './GardenFlowerStrip';
-import { getSeedForGardenLevel, type GardenSeedChoices } from '../lib/gardenSeed';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { GardenFlowerStrip } from './GardenFlowerStrip';
+import { GardenSceneCanvas } from './GardenSceneCanvas';
+import { buildGardenSceneInstances } from '../lib/garden/buildScene';
 import { getGardenLayers, getSceneMilestoneCount } from '../lib/gardenProgress';
-import {
-  getCompletedGardenLevels,
-  getMaxGrowthStageForLevel,
-  moonSunHasFullPetalBloom,
-  shouldShowActiveLevelGrower,
-} from '../lib/gardenLevels';
-import type { Level2Seed } from '../lib/level2Seed';
-import type { Level3Seed } from '../lib/level3Seed';
-import type { Level4Seed } from '../lib/level4Seed';
-import type { GardenSeed } from '../lib/gardenSeed';
-import type { Level5Seed } from '../lib/level5Seed';
-import type { Level7Seed } from '../lib/level7Seed';
-import { getGardenCycleProgress, getGardenLevel } from '../lib/plantedGarden';
-import { getSeedGrowthStage } from '../lib/seedGrowth';
-import type { StartingSeed } from '../lib/startingSeed';
+import { getGardenLevel } from '../lib/plantedGarden';
+import type { PlacedElement } from '../lib/garden/types';
 
 interface GardenSceneProps {
   completedCount: number;
-  startingSeed?: StartingSeed | null;
-  level2Seed?: Level2Seed | null;
-  level3Seed?: Level3Seed | null;
-  level4Seed?: Level4Seed | null;
-  level5Seed?: Level5Seed | null;
-  level6Seed?: GardenSeed | null;
-  level7Seed?: Level7Seed | null;
-  muted?: boolean;
+  /** Editor: render this element list instead of the gameplay scene. */
+  elementsOverride?: PlacedElement[] | null;
+  /** Editor: enable selection + dragging on the canvas. */
+  editable?: boolean;
+  selectedId?: string | null;
+  onSelectElement?: (id: string) => void;
+  onElementDrag?: (id: string, x: number, y: number) => void;
 }
 
 export function GardenScene({
   completedCount,
-  startingSeed = null,
-  level2Seed = null,
-  level3Seed = null,
-  level4Seed = null,
-  level5Seed = null,
-  level6Seed = null,
-  level7Seed = null,
-  muted = false,
+  elementsOverride = null,
+  editable = false,
+  selectedId = null,
+  onSelectElement,
+  onElementDrag,
 }: GardenSceneProps) {
-  const seedChoices: GardenSeedChoices = useMemo(
-    () => ({
-      starting: startingSeed,
-      level2: level2Seed,
-      level3: level3Seed,
-      level4: level4Seed,
-      level5: level5Seed,
-      level6: level6Seed,
-      level7: level7Seed,
-    }),
-    [
-      startingSeed,
-      level2Seed,
-      level3Seed,
-      level4Seed,
-      level5Seed,
-      level6Seed,
-      level7Seed,
-    ],
-  );
+  const bandRef = useRef<HTMLDivElement>(null);
+  const [bandHeight, setBandHeight] = useState(280);
+
   const layers = useMemo(() => getGardenLayers(completedCount), [completedCount]);
   const stage = Math.min(getSceneMilestoneCount(completedCount), 12);
-  const completedLevels = useMemo(
-    () => getCompletedGardenLevels(completedCount),
+  const activeLevel = getGardenLevel(completedCount);
+
+  const gameplayElements = useMemo(
+    () => buildGardenSceneInstances(completedCount),
     [completedCount],
   );
-  const activeLevel = getGardenLevel(completedCount);
-  const activeSeed = getSeedForGardenLevel(activeLevel, seedChoices);
-  const showActiveGrower =
-    activeSeed != null &&
-    shouldShowActiveLevelGrower(completedCount, true);
-  const activeGrowthStage = getSeedGrowthStage(completedCount);
-  const cycleProgress = getGardenCycleProgress(completedCount);
-  const showGrass = layers.grass || startingSeed != null;
+  const elements = elementsOverride ?? gameplayElements;
 
-  const flowers = useMemo(() => {
-    const items: GardenFlowerItem[] = [];
-    for (const level of completedLevels) {
-      const seed = getSeedForGardenLevel(level, seedChoices);
-      if (!seed) continue;
-      items.push({
-        key: `level-${level}`,
-        seed,
-        growthStage: getMaxGrowthStageForLevel(level),
-        className: 'growing-seed--planted',
-        fullPetalBloom: moonSunHasFullPetalBloom(seed, getMaxGrowthStageForLevel(level), {
-          planted: true,
-          gardenLevel: level,
-        }),
-      });
-    }
-    if (showActiveGrower && activeSeed) {
-      items.push({
-        key: 'active-level',
-        seed: activeSeed,
-        growthStage: activeGrowthStage,
-        className: 'growing-seed--active',
-        fullPetalBloom: moonSunHasFullPetalBloom(activeSeed, activeGrowthStage, {
-          planted: false,
-          gardenLevel: activeLevel,
-        }),
-      });
-    }
-    return items;
-  }, [
-    activeGrowthStage,
-    activeSeed,
-    completedLevels,
-    seedChoices,
-    showActiveGrower,
-  ]);
+  const newestId = useMemo(() => {
+    if (editable || gameplayElements.length === 0) return null;
+    return gameplayElements[gameplayElements.length - 1]!.id;
+  }, [editable, gameplayElements]);
+
+  const showGrass = layers.grass || activeLevel >= 1 || editable;
+
+  useEffect(() => {
+    const el = bandRef.current;
+    if (!el) return;
+    const update = () => setBandHeight(el.clientHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
-    <div className="garden-scene" aria-hidden>
+    <div
+      className={`garden-scene${editable ? ' garden-scene--editable' : ''}`}
+      aria-hidden={!editable}
+    >
       <div className="garden-scene__sky" />
 
       {showGrass && (
         <div className={`garden-layer garden-layer--grass stage-${stage}`} />
       )}
 
-      <GardenFlowerStrip
-        flowers={flowers}
-        completedCount={completedCount}
-        muted={muted}
-      />
+      <div className="garden-scene__band" ref={bandRef}>
+        <GardenFlowerStrip autoScrollKey={completedCount} freeScroll={editable}>
+          <GardenSceneCanvas
+            elements={elements}
+            bandHeight={bandHeight}
+            newestId={newestId}
+            editable={editable}
+            selectedId={selectedId}
+            onSelectElement={onSelectElement}
+            onElementDrag={onElementDrag}
+          />
+        </GardenFlowerStrip>
+      </div>
 
-      {!startingSeed && (
+      {!editable && elements.length === 0 && (
         <p className="garden-scene__hint">Complete tasks to plant your garden…</p>
       )}
-
-      {startingSeed && !level2Seed && activeLevel >= 2 && cycleProgress.planted === 0 && (
-        <p className="garden-scene__hint garden-scene__hint--seed">
-          Choose your level 2 flower seed…
-        </p>
-      )}
-
-      {startingSeed &&
-        level2Seed &&
-        !level3Seed &&
-        activeLevel >= 3 &&
-        cycleProgress.planted === 0 && (
-          <p className="garden-scene__hint garden-scene__hint--seed">
-            Choose your level 3 flower seed…
-          </p>
-        )}
-
-      {startingSeed &&
-        level2Seed &&
-        level3Seed &&
-        !level4Seed &&
-        activeLevel >= 4 &&
-        cycleProgress.planted === 0 && (
-          <p className="garden-scene__hint garden-scene__hint--seed">
-            Choose your level 4 flower seed…
-          </p>
-        )}
-
-      {startingSeed &&
-        level2Seed &&
-        level3Seed &&
-        level4Seed &&
-        !level5Seed &&
-        activeLevel >= 5 &&
-        cycleProgress.planted === 0 && (
-          <p className="garden-scene__hint garden-scene__hint--seed">
-            Choose your level 5 flower seed…
-          </p>
-        )}
-
-      {startingSeed &&
-        level2Seed &&
-        level3Seed &&
-        level4Seed &&
-        level5Seed &&
-        !level6Seed &&
-        activeLevel >= 6 &&
-        cycleProgress.planted === 0 && (
-          <p className="garden-scene__hint garden-scene__hint--seed">
-            Choose your level 6 flower seed…
-          </p>
-        )}
-
-      {startingSeed &&
-        level2Seed &&
-        level3Seed &&
-        level4Seed &&
-        level5Seed &&
-        level6Seed &&
-        !level7Seed &&
-        activeLevel >= 7 &&
-        cycleProgress.planted === 0 && (
-          <p className="garden-scene__hint garden-scene__hint--seed">
-            Choose your level 7 flower seed…
-          </p>
-        )}
-
-      {startingSeed &&
-        level2Seed &&
-        level3Seed &&
-        level4Seed &&
-        level5Seed &&
-        level6Seed &&
-        level7Seed &&
-        cycleProgress.planted === 0 &&
-        completedLevels.length <= 6 && (
-          <p className="garden-scene__hint garden-scene__hint--seed">
-            Complete tasks to help your seed grow…
-          </p>
-        )}
     </div>
   );
 }

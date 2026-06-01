@@ -1,0 +1,59 @@
+# Garden level definitions
+#
+# This file decides WHAT appears in the garden as the player completes tasks.
+# Positions live in layout.yaml (edit them with the in-app Garden Editor).
+#
+# Assets are served from /public, so paths start at the site root, e.g.
+#   /garden/assets/Toast1.svg  ->  public/garden/assets/Toast1.svg
+#
+# Modes:
+#   multiStage          One plant per level. The level's in-level score (0..max)
+#                       picks stages[score]. `replace: true` swaps the image on
+#                       the same spot as it grows.
+#   scatterPerCompletion  Each completion within the level adds one new flower,
+#                       placed at layout.levels."N".scatter[slot].
+#   planter             Score 0 places `onLevelStart`; each later completion adds
+#                       one `perCompletion` fill flower (up to `max`).
+
+definitions:
+  toastflower:
+    name: Toast flower
+    mode: multiStage
+    stages:
+      - { src: /garden/assets/toast-sprout.svg, replace: true }
+      - { src: /garden/assets/Toast1.svg, replace: true }
+      - { src: /garden/assets/Toast2.svg, replace: true }
+      - { src: /garden/assets/Toast3.svg, replace: true }
+      - { src: /garden/assets/Toast4.svg, replace: true }
+      - { src: /garden/assets/Toast4.svg, replace: true }
+
+  # Placeholder until dedicated single-flower art is added.
+  tulip_scatter:
+    name: Scattered tulips
+    mode: scatterPerCompletion
+    asset: /garden/assets/Toast1.svg
+
+  # Placeholder planter: a base image plus fill flowers per completion.
+  catgrass_planter:
+    name: Flower planter
+    mode: planter
+    onLevelStart: { src: /garden/assets/Toast4.svg, replace: false }
+    perCompletion: { src: /garden/assets/Toast1.svg, replace: false, max: 5 }
+
+# One entry per garden level. `use:` references a definition above.
+# (You can also inline `mode:` + its fields directly under a level.)
+levels:
+  "1":
+    use: toastflower
+  "2":
+    use: toastflower
+  "3":
+    use: tulip_scatter
+  "4":
+    use: catgrass_planter
+  "5":
+    use: toastflower
+  "6":
+    use: toastflower
+  "7":
+    use: toastflower

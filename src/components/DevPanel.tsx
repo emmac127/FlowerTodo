@@ -10,14 +10,8 @@ interface DevPanelProps {
   open: boolean;
   currentGardenProgressCount: number;
   onClose: () => void;
-  /**
-   * Apply the dev reset. Implementations should set the garden progress count
-   * and clear any seed choices for `clearSeedsFromLevel` and above.
-   */
-  onApply: (args: {
-    completedCount: number;
-    clearSeedsFromLevel: number;
-  }) => void;
+  /** Set the garden progress count (level × score). */
+  onApply: (args: { completedCount: number }) => void;
   onResetEverything: () => void;
 }
 
@@ -47,8 +41,7 @@ export function DevPanel({
   };
 
   const handleScoreChange = (next: number) => {
-    const clamped = Math.max(0, Math.min(next, maxScore));
-    setScore(clamped);
+    setScore(Math.max(0, Math.min(next, maxScore)));
   };
 
   const targetCount = getCompletionsBeforeLevel(level) + score;
@@ -94,9 +87,7 @@ export function DevPanel({
         </div>
 
         <div className="dev-panel__field">
-          <label htmlFor="dev-score">
-            Score within level (0–{maxScore})
-          </label>
+          <label htmlFor="dev-score">Score within level (0–{maxScore})</label>
           <input
             id="dev-score"
             type="number"
@@ -108,9 +99,7 @@ export function DevPanel({
         </div>
 
         <p className="dev-panel__preview">
-          Will set total completions to <strong>{targetCount}</strong> and clear
-          seed choices for level <strong>{level}</strong> and above so you can
-          pick a different flower.
+          Will set total completions to <strong>{targetCount}</strong>.
         </p>
 
         <div className="dev-panel__actions">
@@ -118,20 +107,13 @@ export function DevPanel({
             type="button"
             className="dev-panel__btn dev-panel__btn--primary"
             onClick={() => {
-              onApply({
-                completedCount: targetCount,
-                clearSeedsFromLevel: level,
-              });
+              onApply({ completedCount: targetCount });
               onClose();
             }}
           >
             Apply
           </button>
-          <button
-            type="button"
-            className="dev-panel__btn"
-            onClick={onClose}
-          >
+          <button type="button" className="dev-panel__btn" onClick={onClose}>
             Cancel
           </button>
         </div>
@@ -144,16 +126,14 @@ export function DevPanel({
             className="dev-panel__btn dev-panel__btn--danger"
             onClick={() => {
               if (
-                window.confirm(
-                  'Reset ALL progress and seed choices? This cannot be undone.',
-                )
+                window.confirm('Reset ALL progress? This cannot be undone.')
               ) {
                 onResetEverything();
                 onClose();
               }
             }}
           >
-            Reset everything (all levels)
+            Reset everything
           </button>
         </div>
       </div>

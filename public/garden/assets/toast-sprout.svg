@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- Stage 0 sprout: small silver square with two green leaves -->
+  <ellipse cx="46" cy="78" rx="18" ry="9" fill="#6abf69" transform="rotate(-32 46 78)"/>
+  <ellipse cx="74" cy="74" rx="18" ry="9" fill="#8ed98e" transform="rotate(32 74 74)"/>
+  <rect x="42" y="44" width="36" height="36" rx="5" fill="#d4d8dd" stroke="#a8b0b8" stroke-width="2.5"/>
+  <rect x="48" y="50" width="11" height="6" rx="2" fill="#eef0f2" opacity="0.85"/>
+</svg>
