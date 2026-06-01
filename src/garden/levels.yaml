@@ -31,7 +31,7 @@ definitions:
   tulip_scatter:
     name: Scattered tulips
     mode: scatterPerCompletion
-    asset: /garden/assets/Toast1.svg
+    asset: /garden/assets/Tulip.png
 
   # Placeholder planter: a base image plus fill flowers per completion.
   catgrass_planter:

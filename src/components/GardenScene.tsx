@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { GardenFlowerStrip } from './GardenFlowerStrip';
-import { GardenSceneCanvas } from './GardenSceneCanvas';
+import { GardenSceneCanvas, gardenHeadroomPx } from './GardenSceneCanvas';
 import { buildGardenSceneInstances } from '../lib/garden/buildScene';
 import { getGardenLayers, getSceneMilestoneCount } from '../lib/gardenProgress';
 import { getGardenLevel } from '../lib/plantedGarden';
@@ -43,6 +44,16 @@ export function GardenScene({
     return gameplayElements[gameplayElements.length - 1]!.id;
   }, [editable, gameplayElements]);
 
+  /** Horizontal scroll target: the newest / active element (not the far right of the canvas). */
+  const scrollFocusX = useMemo(() => {
+    if (editable || gameplayElements.length === 0) return 0;
+    const focus =
+      (newestId != null
+        ? gameplayElements.find((el) => el.id === newestId)
+        : null) ?? gameplayElements[gameplayElements.length - 1];
+    return focus?.x ?? 0;
+  }, [editable, gameplayElements, newestId]);
+
   const showGrass = layers.grass || activeLevel >= 1 || editable;
 
   useEffect(() => {
@@ -55,9 +66,14 @@ export function GardenScene({
     return () => ro.disconnect();
   }, []);
 
+  const sceneStyle = {
+    '--garden-headroom-px': `${gardenHeadroomPx(bandHeight)}px`,
+  } as CSSProperties;
+
   return (
     <div
       className={`garden-scene${editable ? ' garden-scene--editable' : ''}`}
+      style={sceneStyle}
       aria-hidden={!editable}
     >
       <div className="garden-scene__sky" />
@@ -67,7 +83,11 @@ export function GardenScene({
       )}
 
       <div className="garden-scene__band" ref={bandRef}>
-        <GardenFlowerStrip autoScrollKey={completedCount} freeScroll={editable}>
+        <GardenFlowerStrip
+          autoScrollKey={completedCount}
+          scrollFocusX={scrollFocusX}
+          freeScroll={editable}
+        >
           <GardenSceneCanvas
             elements={elements}
             bandHeight={bandHeight}

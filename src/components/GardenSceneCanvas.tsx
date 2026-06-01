@@ -1,6 +1,11 @@
 import { useCallback, useRef } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
-import { DESIGN_HEIGHT, DESIGN_WIDTH } from '../lib/garden/loadConfig';
+import {
+  DESIGN_HEIGHT,
+  DESIGN_WIDTH,
+  GARDEN_HEADROOM_TOP,
+  STAGE_HEIGHT,
+} from '../lib/garden/loadConfig';
 import type { PlacedElement } from '../lib/garden/types';
 
 interface GardenSceneCanvasProps {
@@ -34,12 +39,7 @@ export function GardenSceneCanvas({
   const draggingIdRef = useRef<string | null>(null);
 
   const scale = bandHeight > 0 ? bandHeight / DESIGN_HEIGHT : 1;
-  const stageWidth = DESIGN_WIDTH * scale;
-  const maxXNorm = elements.length
-    ? Math.max(...elements.map((el) => el.x))
-    : 0;
-  const contentRight = editable ? 1 : Math.min(1, maxXNorm + 0.05);
-  const innerWidth = stageWidth * contentRight;
+  const innerWidth = DESIGN_WIDTH * scale;
 
   const pointerToNorm = useCallback((clientX: number, clientY: number) => {
     const el = canvasRef.current;
@@ -94,9 +94,9 @@ export function GardenSceneCanvas({
 
   const stageStyle: CSSProperties = {
     width: `${DESIGN_WIDTH}px`,
-    height: `${DESIGN_HEIGHT}px`,
+    height: `${STAGE_HEIGHT}px`,
     transform: `scale(${scale})`,
-    transformOrigin: 'top left',
+    transformOrigin: 'bottom left',
   };
 
   return (
@@ -147,4 +147,9 @@ export function GardenSceneCanvas({
       </div>
     </div>
   );
+}
+
+/** Scaled headroom in CSS px (space above the grass band for tall blooms). */
+export function gardenHeadroomPx(bandHeight: number): number {
+  return bandHeight > 0 ? (GARDEN_HEADROOM_TOP / DESIGN_HEIGHT) * bandHeight : 0;
 }

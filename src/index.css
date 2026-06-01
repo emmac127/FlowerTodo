@@ -16,6 +16,8 @@
   /* Garden + seed picker band (dvh preferred for iOS Safari dynamic toolbar) */
   --garden-band-height: clamp(200px, 44vh, 320px);
   --garden-band-height: clamp(200px, 44dvh, 320px);
+  /* Set on .garden-scene from JS — room above the grass for tall blooms */
+  --garden-headroom-px: 280px;
   --garden-flower-lift: 0.85rem;
   --seed-picker-clearance: 0.75rem;
   --seed-picker-bottom: calc(
@@ -120,7 +122,8 @@ body {
   max-width: 560px;
   width: 100%;
   margin: 0 auto;
-  padding: 1.25rem 1.25rem calc(var(--garden-band-height) + 5rem);
+  padding: 1.25rem 1.25rem
+    calc(var(--garden-band-height) + var(--garden-headroom-px) + 5rem);
   /* Let garden scroll controls receive taps in bottom padding (full-width app on narrow screens). */
   pointer-events: none;
 }
@@ -1685,10 +1688,10 @@ body {
   right: 0;
   bottom: 0;
   z-index: 1;
-  height: var(--garden-band-height);
+  height: calc(var(--garden-band-height) + var(--garden-headroom-px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .garden-scene--editable {
@@ -1726,7 +1729,7 @@ body {
 }
 
 .garden-layer--grass {
-  height: 55%;
+  height: calc(var(--garden-band-height) * 0.55);
   background: linear-gradient(#b8e8a8 0%, #8ed98e 55%, #6bc96b 100%);
 }
 
@@ -1788,11 +1791,15 @@ body {
   bottom: 4%;
 }
 
-/* Garden band wrapper — fills the fixed garden-scene so we can measure it. */
+/* Garden band wrapper — grass-height strip at the bottom of the scene. */
 .garden-scene__band {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--garden-band-height);
   z-index: 4;
+  overflow: visible;
 }
 
 /* Scroll shell: owns horizontal scrolling; the scene canvas is its child. */
@@ -1804,9 +1811,9 @@ body {
   display: flex;
   align-items: flex-end;
   width: 100%;
-  height: 100%;
+  height: calc(var(--garden-band-height) + var(--garden-headroom-px));
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .garden-flower-strip--scrollable {
@@ -1825,14 +1832,14 @@ body {
   position: relative;
   z-index: 0;
   flex: 1 1 auto;
-  align-self: stretch;
+  align-self: flex-end;
   align-items: flex-end;
   min-width: 0;
   height: 100%;
   box-sizing: border-box;
   display: flex;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   overscroll-behavior-x: contain;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
@@ -1850,8 +1857,8 @@ body {
   position: relative;
   flex: 0 0 auto;
   align-self: flex-end;
-  margin: 0 auto;
-  overflow: hidden;
+  margin: 0;
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -1862,9 +1869,9 @@ body {
 
 .garden-canvas__stage {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
-  transform-origin: top left;
+  transform-origin: bottom left;
 }
 
 .garden-canvas__el {

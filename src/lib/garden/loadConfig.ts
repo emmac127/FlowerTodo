@@ -56,3 +56,9 @@ export function getConfiguredLevels(): number[] {
 
 export const DESIGN_WIDTH = layoutConfig.scene?.designWidth ?? 2400;
 export const DESIGN_HEIGHT = layoutConfig.scene?.designHeight ?? 320;
+
+/** Extra design space above the ground line so tall blooms are not clipped at y≈0. */
+export const GARDEN_HEADROOM_TOP = 300;
+
+/** Full stage height in design pixels (headroom + ground band). */
+export const STAGE_HEIGHT = DESIGN_HEIGHT + GARDEN_HEADROOM_TOP;

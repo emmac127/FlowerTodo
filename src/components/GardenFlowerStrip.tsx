@@ -4,16 +4,46 @@ import type { ReactNode } from 'react';
 interface GardenFlowerStripProps {
   children: ReactNode;
   /**
-   * Changing this value scrolls the strip to the far right (newest element).
-   * Pass the live completion count during gameplay; omit in the editor.
+   * Changing this value scrolls the strip to keep the focused element in view.
+   * Pass the live completion count during gameplay.
    */
   autoScrollKey?: number;
-  /** Disable auto-scroll-to-end (used by the editor for free panning). */
+  /**
+   * Normalized horizontal position (0–1) on the design canvas for the element
+   * to keep in view — usually the newest or active garden element.
+   */
+  scrollFocusX?: number;
+  /** Disable auto-scroll (used by the editor for free panning). */
   freeScroll?: boolean;
 }
 
 function getMaxScrollLeft(viewport: HTMLElement): number {
   return Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+}
+
+/** Scroll so `focusXNorm` (0–1 across the canvas) sits in the left-center of the viewport. */
+function scrollToDesignFocus(
+  viewport: HTMLElement,
+  focusXNorm: number,
+  smooth: boolean,
+): void {
+  const canvas = viewport.querySelector<HTMLElement>('.garden-canvas');
+  if (!canvas || canvas.offsetWidth <= 0) return;
+
+  const focusPx = focusXNorm * canvas.offsetWidth;
+  const maxScroll = getMaxScrollLeft(viewport);
+  const target = focusPx - viewport.clientWidth * 0.35;
+  const left = Math.max(0, Math.min(maxScroll, target));
+
+  if (smooth) {
+    try {
+      viewport.scrollTo({ left, behavior: 'smooth' });
+    } catch {
+      viewport.scrollLeft = left;
+    }
+  } else {
+    viewport.scrollLeft = left;
+  }
 }
 
 /**
@@ -23,6 +53,7 @@ function getMaxScrollLeft(viewport: HTMLElement): number {
 export function GardenFlowerStrip({
   children,
   autoScrollKey = 0,
+  scrollFocusX = 0,
   freeScroll = false,
 }: GardenFlowerStripProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -71,17 +102,18 @@ export function GardenFlowerStrip({
     if (freeScroll) return;
     const el = viewportRef.current;
     if (!el) return;
-    const scroll = () => scrollViewportTo(getMaxScrollLeft(el), true);
+
+    const scroll = () => scrollToDesignFocus(el, scrollFocusX, false);
     scroll();
     const raf = requestAnimationFrame(scroll);
-    const t1 = window.setTimeout(scroll, 120);
-    const t2 = window.setTimeout(scroll, 350);
+    const t1 = window.setTimeout(() => scrollToDesignFocus(el, scrollFocusX, true), 120);
+    const t2 = window.setTimeout(() => scrollToDesignFocus(el, scrollFocusX, true), 350);
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
-  }, [autoScrollKey, freeScroll, scrollViewportTo]);
+  }, [autoScrollKey, scrollFocusX, freeScroll]);
 
   return (
     <div
