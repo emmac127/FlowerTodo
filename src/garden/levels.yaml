@@ -10,6 +10,8 @@
 #   multiStage          One plant per level. The level's in-level score (0..max)
 #                       picks stages[score]. `replace: true` swaps the image on
 #                       the same spot as it grows.
+#                       `scaleWithStage: true` (default) grows taller each stage;
+#                       set `false` to keep a constant size (e.g. dragon_flower).
 #   scatterPerCompletion  Each completion within the level adds one new flower,
 #                       placed at layout.levels."N".scatter[slot].
 #   planter             Score 0 places `onLevelStart`; each later completion adds
@@ -26,6 +28,16 @@ definitions:
       - { src: /garden/assets/Toast3.svg, replace: true }
       - { src: /garden/assets/Toast4.svg, replace: true }
       - { src: /garden/assets/Toast4.svg, replace: true }
+
+  dragon_flower:
+    name: Dragon Flower
+    mode: multiStage
+    scaleWithStage: false
+    stages:
+      - { src: /garden/assets/Dragonslice/slice1.png, replace: true }
+      - { src: /garden/assets/Dragonslice/slice2.png, replace: true }
+      - { src: /garden/assets/Dragonslice/slice3.png, replace: true }
+      - { src: /garden/assets/Dragonslice/slice4.png, replace: true }
 
   # Placeholder until dedicated single-flower art is added.
   tulip_scatter:
@@ -61,4 +73,4 @@ levels:
   "6":
     use: tulip_scatter
   "7":
-    use: toastflower
+    use: dragon_flower

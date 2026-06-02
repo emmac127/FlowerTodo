@@ -9,7 +9,8 @@ interface GardenEditorProps {
   onZIndexChange: (id: string, zIndex: number) => void;
   onNudgeZIndex: (id: string, delta: number) => void;
   onScaleChange: (id: string, scale: number) => void;
-  onDownload: () => void;
+  onSave: () => void;
+  saving?: boolean;
   onClose: () => void;
 }
 
@@ -21,7 +22,8 @@ export function GardenEditor({
   onZIndexChange,
   onNudgeZIndex,
   onScaleChange,
-  onDownload,
+  onSave,
+  saving = false,
   onClose,
 }: GardenEditorProps) {
   return (
@@ -42,7 +44,8 @@ export function GardenEditor({
         Select an element, drag to move, then adjust layer and size below.
         Lower <strong>zIndex</strong> draws behind other elements (e.g. a fence
         behind flowers). <strong>Scale</strong> multiplies the image size.
-        Download and paste into <code>src/garden/layout.yaml</code>.
+        Save writes directly to <code>src/garden/layout.yaml</code> (dev server
+        only) and reloads the page.
       </p>
 
       <ul className="garden-editor__list">
@@ -129,9 +132,10 @@ export function GardenEditor({
         <button
           type="button"
           className="garden-editor__btn garden-editor__btn--primary"
-          onClick={onDownload}
+          onClick={onSave}
+          disabled={saving}
         >
-          Download layout.yaml
+          {saving ? 'Saving…' : 'Save layout.yaml'}
         </button>
       </div>
     </div>

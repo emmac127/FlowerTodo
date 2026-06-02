@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { buildEditorScene } from '../lib/garden/buildScene';
 import {
   cloneLayout,
-  downloadLayoutYaml,
+  saveLayoutYaml,
   layoutFromPlacedElements,
   parseElementId,
   setLayoutPosition,
@@ -18,6 +18,7 @@ export function useGardenEditor() {
   const [workingLayout, setWorkingLayout] = useState<LayoutConfig>(() =>
     cloneLayout(),
   );
+  const [saving, setSaving] = useState(false);
 
   const { entries, elements } = useMemo(
     () => buildEditorScene(workingLayout),
@@ -67,9 +68,19 @@ export function useGardenEditor() {
     [elements, setZIndex],
   );
 
-  const download = useCallback(() => {
-    const layout = layoutFromPlacedElements(workingLayout, elements);
-    downloadLayoutYaml(layout);
+  const save = useCallback(async () => {
+    setSaving(true);
+    try {
+      const layout = layoutFromPlacedElements(workingLayout, elements);
+      const result = await saveLayoutYaml(layout);
+      if (result.ok) {
+        window.location.reload();
+        return;
+      }
+      window.alert(result.error);
+    } finally {
+      setSaving(false);
+    }
   }, [workingLayout, elements]);
 
   const toggle = useCallback(() => {
@@ -89,6 +100,7 @@ export function useGardenEditor() {
     setZIndex,
     setScale,
     nudgeZIndex,
-    download,
+    save,
+    saving,
   };
 }

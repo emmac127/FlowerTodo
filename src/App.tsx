@@ -533,7 +533,8 @@ export default function App() {
               onZIndexChange={editor.setZIndex}
               onNudgeZIndex={editor.nudgeZIndex}
               onScaleChange={editor.setScale}
-              onDownload={editor.download}
+              onSave={editor.save}
+              saving={editor.saving}
               onClose={editor.toggle}
             />
           )}

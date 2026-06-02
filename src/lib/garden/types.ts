@@ -21,6 +21,11 @@ export interface GardenDefinition {
   mode: GardenMode;
   /** multiStage: one image per growth stage (index = in-level score). */
   stages?: StageImage[];
+  /**
+   * multiStage: when true (default), each stage renders taller via a built-in
+   * growth ramp. Set false to keep the same design height at every stage.
+   */
+  scaleWithStage?: boolean;
   /** scatterPerCompletion: the single-stage asset placed once per completion. */
   asset?: string;
   /** planter: image shown when the level begins (score 0). */

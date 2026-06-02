@@ -13,6 +13,7 @@ import type {
   ElementKind,
   GardenDefinition,
   LayoutConfig,
+  LayoutLevelConfig,
   PlacedElement,
   PositionEntry,
 } from './types';
@@ -26,13 +27,141 @@ const HEIGHT_PLANTER_FILL = 112;
 /** Growth ramp so early multi-stage stages render smaller than the full bloom. */
 const MULTISTAGE_STAGE_SCALE = [0.3, 0.5, 0.68, 0.82, 0.92, 1.0];
 
-/** Number of horizontal "columns" used for auto-placement fallback. */
-const AUTO_COLUMNS = 8;
+/** Last-resort anchor when layout.yaml has no coordinates at all. */
+const AUTO_FALLBACK_X = 0.5;
+const AUTO_FALLBACK_Y = 0.94;
 
-function multiStageHeight(stageIndex: number): number {
-  const scale =
-    MULTISTAGE_STAGE_SCALE[Math.min(stageIndex, MULTISTAGE_STAGE_SCALE.length - 1)]!;
-  return HEIGHT_MULTISTAGE_FULL * scale;
+/** Horizontal spacing between auto-placed scatter / fill slots (normalized). */
+const AUTO_SLOT_SPREAD_X = 0.045;
+
+/** Vertical stagger for auto-placed scatter / fill slots (normalized). */
+const AUTO_SLOT_STAGGER_Y = 0.04;
+
+function isPositionedEntry(
+  entry: PositionEntry | undefined,
+): entry is PositionEntry {
+  return (
+    entry != null && typeof entry.x === 'number' && typeof entry.y === 'number'
+  );
+}
+
+function averagePoint(
+  points: { x: number; y: number }[],
+): { x: number; y: number } | null {
+  if (points.length === 0) return null;
+  let sx = 0;
+  let sy = 0;
+  for (const p of points) {
+    sx += p.x;
+    sy += p.y;
+  }
+  return { x: sx / points.length, y: sy / points.length };
+}
+
+function collectLevelLayoutPoints(
+  levelLayout: LayoutLevelConfig | undefined,
+): { x: number; y: number }[] {
+  if (!levelLayout) return [];
+  const points: { x: number; y: number }[] = [];
+
+  const stages = levelLayout.multiStage?.stages;
+  if (stages) {
+    const list = Array.isArray(stages) ? stages : Object.values(stages);
+    for (const stage of list) {
+      if (isPositionedEntry(stage)) points.push({ x: stage.x, y: stage.y });
+    }
+  }
+
+  for (const slot of levelLayout.scatter ?? []) {
+    if (isPositionedEntry(slot)) points.push({ x: slot.x, y: slot.y });
+  }
+
+  const planter = levelLayout.planter;
+  if (isPositionedEntry(planter?.base)) {
+    points.push({ x: planter.base.x, y: planter.base.y });
+  }
+  for (const fill of planter?.fills ?? []) {
+    if (isPositionedEntry(fill)) points.push({ x: fill.x, y: fill.y });
+  }
+
+  return points;
+}
+
+/** Positions already defined in layout.yaml for the same slot family on this level. */
+function collectKindLayoutPoints(
+  levelLayout: LayoutLevelConfig | undefined,
+  kind: ElementKind,
+): { x: number; y: number }[] {
+  if (!levelLayout) return [];
+  const points: { x: number; y: number }[] = [];
+
+  if (kind === 'multiStage') {
+    const stages = levelLayout.multiStage?.stages;
+    if (stages) {
+      const list = Array.isArray(stages) ? stages : Object.values(stages);
+      for (const stage of list) {
+        if (isPositionedEntry(stage)) points.push({ x: stage.x, y: stage.y });
+      }
+    }
+    return points;
+  }
+
+  if (kind === 'scatter') {
+    for (const slot of levelLayout.scatter ?? []) {
+      if (isPositionedEntry(slot)) points.push({ x: slot.x, y: slot.y });
+    }
+    return points;
+  }
+
+  const planter = levelLayout.planter;
+  if (kind === 'planterBase' && isPositionedEntry(planter?.base)) {
+    points.push({ x: planter.base.x, y: planter.base.y });
+  }
+  for (const fill of planter?.fills ?? []) {
+    if (isPositionedEntry(fill)) points.push({ x: fill.x, y: fill.y });
+  }
+  return points;
+}
+
+function collectAllLayoutPoints(layout: LayoutConfig): { x: number; y: number }[] {
+  const points: { x: number; y: number }[] = [];
+  for (const levelLayout of Object.values(layout.levels ?? {})) {
+    points.push(...collectLevelLayoutPoints(levelLayout));
+  }
+  return points;
+}
+
+/**
+ * Where to place a slot that is missing from layout.yaml: near siblings on the
+ * same level, then near anything on that level, then near the whole garden.
+ */
+function resolveAutoAnchor(
+  layout: LayoutConfig,
+  level: number,
+  kind: ElementKind,
+): { x: number; y: number } {
+  const levelLayout = layout.levels?.[String(level)];
+  return (
+    averagePoint(collectKindLayoutPoints(levelLayout, kind)) ??
+    averagePoint(collectLevelLayoutPoints(levelLayout)) ??
+    averagePoint(collectAllLayoutPoints(layout)) ?? {
+      x: AUTO_FALLBACK_X,
+      y: AUTO_FALLBACK_Y,
+    }
+  );
+}
+
+function multiStageHeight(stageIndex: number, scaleWithStage: boolean): number {
+  const ramp = scaleWithStage
+    ? MULTISTAGE_STAGE_SCALE[
+        Math.min(stageIndex, MULTISTAGE_STAGE_SCALE.length - 1)
+      ]!
+    : 1;
+  return HEIGHT_MULTISTAGE_FULL * ramp;
+}
+
+function definitionScaleWithStage(def: GardenDefinition): boolean {
+  return def.scaleWithStage !== false;
 }
 
 /** In-level score (0..max) for a level given the lifetime completion count. */
@@ -59,36 +188,51 @@ interface ResolvedSlot {
   hasLayout: boolean;
 }
 
+/** Small offsets around the garden center so slots do not stack on one pixel. */
+function autoSlotOffset(index: number, slotCount: number): { x: number; y: number } {
+  const cols = Math.max(1, Math.ceil(Math.sqrt(Math.max(slotCount, index + 1))));
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  const xShift = (col - (cols - 1) / 2) * AUTO_SLOT_SPREAD_X;
+  const yShift = row * AUTO_SLOT_STAGGER_Y;
+  return { x: xShift, y: yShift };
+}
+
 function autoPlace(
+  layout: LayoutConfig,
   level: number,
   kind: ElementKind,
   index: number,
   slotCount: number,
 ): Omit<ResolvedSlot, 'zIndex' | 'scale'> {
-  const bandStart = (level - 1) / AUTO_COLUMNS;
-  const bandWidth = 1 / AUTO_COLUMNS;
-  const center = bandStart + bandWidth / 2;
+  const anchor = resolveAutoAnchor(layout, level, kind);
 
   if (kind === 'multiStage' || kind === 'planterBase') {
-    return { x: center, y: 1.0, anchor: 'bottomCenter', hasLayout: false };
-  }
-
-  if (kind === 'scatter') {
-    const frac = slotCount > 0 ? (index + 0.5) / slotCount : 0.5;
     return {
-      x: bandStart + bandWidth * frac,
-      y: 0.94 - (index % 2) * 0.05,
+      x: anchor.x,
+      y: kind === 'planterBase' ? anchor.y : Math.max(anchor.y, 0.85),
       anchor: 'bottomCenter',
       hasLayout: false,
     };
   }
 
-  // planterFill — cluster around the planter center.
+  const { x: xShift, y: yShift } = autoSlotOffset(index, slotCount);
+
+  if (kind === 'scatter') {
+    return {
+      x: anchor.x + xShift,
+      y: anchor.y - yShift,
+      anchor: 'bottomCenter',
+      hasLayout: false,
+    };
+  }
+
+  // planterFill — cluster around the planter anchor.
   const col = (index % 3) - 1;
   const row = Math.floor(index / 3);
   return {
-    x: center + col * bandWidth * 0.3,
-    y: 0.9 - row * 0.05,
+    x: anchor.x + col * AUTO_SLOT_SPREAD_X,
+    y: anchor.y - row * AUTO_SLOT_STAGGER_Y,
     anchor: 'bottomCenter',
     hasLayout: false,
   };
@@ -121,7 +265,7 @@ function resolveSlot(
   slotCount: number,
 ): ResolvedSlot {
   const entry = readLayoutEntry(layout, level, kind, index);
-  const auto = autoPlace(level, kind, index, slotCount);
+  const auto = autoPlace(layout, level, kind, index, slotCount);
   const hasCoords =
     entry != null &&
     typeof entry.x === 'number' &&
@@ -234,7 +378,10 @@ export function buildGardenSceneInstances(
           src: stage.src,
           name: `${name} — stage ${stageIndex}`,
           stageIndex,
-          heightDesign: multiStageHeight(stageIndex),
+          heightDesign: multiStageHeight(
+            stageIndex,
+            definitionScaleWithStage(def),
+          ),
         }),
       );
     } else if (def.mode === 'scatterPerCompletion') {
@@ -351,7 +498,7 @@ export function buildEditorScene(
           src: stages[s]!.src,
           name: `${name} — stage ${s}`,
           stageIndex: s,
-          heightDesign: multiStageHeight(s),
+          heightDesign: multiStageHeight(s, definitionScaleWithStage(def)),
         });
         elements.push(el);
         entries.push(

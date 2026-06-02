@@ -36,6 +36,7 @@ export function getLevelDefinition(level: number): GardenDefinition | null {
       name: entry.name,
       mode: entry.mode,
       stages: entry.stages,
+      scaleWithStage: entry.scaleWithStage,
       asset: entry.asset,
       onLevelStart: entry.onLevelStart,
       perCompletion: entry.perCompletion,
