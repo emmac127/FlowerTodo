@@ -85,7 +85,7 @@ export interface PlacedElement {
   stageIndex?: number;
   /** scatter / planterFill slot index (0-based). */
   slotIndex?: number;
-  /** Normalized design-canvas position (0–1). */
+  /** Normalized design-canvas x (0–1). y uses 1 as ground; may exceed 1 to clip at bottom. */
   x: number;
   y: number;
   anchor: string;

@@ -1755,7 +1755,7 @@ body {
   height: calc(var(--garden-band-height) + var(--garden-headroom-px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
   pointer-events: none;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .garden-scene--editable {
@@ -1936,6 +1936,8 @@ body {
   bottom: 0;
   left: 0;
   transform-origin: bottom left;
+  /* Clip below the ground line only; headroom above stays visible. */
+  clip-path: inset(-100vmax 0 0 0);
 }
 
 .garden-canvas__el {

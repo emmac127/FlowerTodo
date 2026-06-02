@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import {
   getCompletionsBeforeLevel,
-  getTasksForGardenLevel,
+  getMaxInLevelScore,
   getGardenCycleProgress,
   getGardenLevel,
 } from '../lib/plantedGarden';
+import { getConfiguredLevels } from '../lib/garden/loadConfig';
 
 interface DevPanelProps {
   open: boolean;
@@ -15,7 +16,7 @@ interface DevPanelProps {
   onResetEverything: () => void;
 }
 
-const LEVEL_OPTIONS = [1, 2, 3, 4, 5, 6, 7];
+const LEVEL_OPTIONS = getConfiguredLevels();
 
 export function DevPanel({
   open,
@@ -30,13 +31,13 @@ export function DevPanel({
   const [level, setLevel] = useState<number>(Math.max(1, currentLevel || 1));
   const [score, setScore] = useState<number>(currentScore);
 
-  const maxScore = useMemo(() => getTasksForGardenLevel(level), [level]);
+  const maxScore = useMemo(() => getMaxInLevelScore(level), [level]);
 
   if (!open) return null;
 
   const handleLevelChange = (next: number) => {
     setLevel(next);
-    const cap = getTasksForGardenLevel(next);
+    const cap = getMaxInLevelScore(next);
     if (score > cap) setScore(cap);
   };
 

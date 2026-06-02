@@ -7,11 +7,13 @@
 #   /garden/assets/Toast1.svg  ->  public/garden/assets/Toast1.svg
 #
 # Modes:
-#   multiStage          One plant per level. The level's in-level score (0..max)
-#                       picks stages[score]. `replace: true` swaps the image on
-#                       the same spot as it grows.
+#   multiStage          One plant per level. In-level score (0 .. stages-1)
+#                       picks stages[score]. The number of stages is exactly the
+#                       length of the `stages` list below.
 #                       `scaleWithStage: true` (default) grows taller each stage;
 #                       set `false` to keep a constant size (e.g. dragon_flower).
+#                       Level-up happens after (stages - 1) task completions
+#                       (7 stages → 6 completions in that level).
 #   scatterPerCompletion  Each completion within the level adds one new flower,
 #                       placed at layout.levels."N".scatter[slot].
 #   planter             Score 0 places `onLevelStart`; each later completion adds
@@ -29,6 +31,31 @@ definitions:
       - { src: /garden/assets/Toast4.svg, replace: true }
       - { src: /garden/assets/Toast4.svg, replace: true }
 
+  pathway:
+    name: Pathway
+    mode: multiStage
+    scaleWithStage: false
+    stages:
+      - { src: /garden/assets/Path/Path1.png, replace: true }
+      - { src: /garden/assets/Path/Path2.png, replace: true }
+      - { src: /garden/assets/Path/Path3.png, replace: true }
+      - { src: /garden/assets/Path/Path4.png, replace: true }
+      - { src: /garden/assets/Path/Path5.png, replace: true }
+      - { src: /garden/assets/Path/Path6.png, replace: true }
+      - { src: /garden/assets/Path/Path7.png, replace: true }
+
+  statue:
+    name: Statue
+    mode: multiStage
+    scaleWithStage: false
+    stages:
+      - { src: /garden/assets/Statue/Statue1.png, replace: true }
+      - { src: /garden/assets/Statue/Statue2.png, replace: true }
+      - { src: /garden/assets/Statue/Statue3.png, replace: true }
+      - { src: /garden/assets/Statue/Statue4.png, replace: true }
+      - { src: /garden/assets/Statue/Statue5.png, replace: true }
+      - { src: /garden/assets/Statue/Statue6.png, replace: true }
+
   dragon_flower:
     name: Dragon Flower
     mode: multiStage
@@ -44,6 +71,11 @@ definitions:
     name: Scattered tulips
     mode: scatterPerCompletion
     asset: /garden/assets/Tulip.png
+
+  daisy:
+    name: Scattered daisies
+    mode: scatterPerCompletion
+    asset: /garden/assets/Daisy.png
 
   fenceposts:
     name: Fence posts
@@ -74,3 +106,9 @@ levels:
     use: tulip_scatter
   "7":
     use: dragon_flower
+  "8":
+    use: pathway
+  "9":
+    use: daisy
+  "10":
+    use: statue

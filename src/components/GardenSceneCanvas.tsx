@@ -22,8 +22,18 @@ interface GardenSceneCanvasProps {
   onElementDrag?: (id: string, x: number, y: number) => void;
 }
 
-function clamp01(value: number): number {
+/** Normalized x: 0 (left) .. 1 (right). */
+function clampLayoutX(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+/**
+ * Normalized y: 0 (top of grass band) .. 1 (ground line). Values above 1 place
+ * the anchor below the band so art can be clipped at the screen bottom.
+ */
+function clampLayoutY(value: number, editable: boolean): number {
+  const maxY = editable ? 2 : 1;
+  return Math.max(0, Math.min(maxY, value));
 }
 
 export function GardenSceneCanvas({
@@ -41,16 +51,19 @@ export function GardenSceneCanvas({
   const scale = bandHeight > 0 ? bandHeight / DESIGN_HEIGHT : 1;
   const innerWidth = DESIGN_WIDTH * scale;
 
-  const pointerToNorm = useCallback((clientX: number, clientY: number) => {
-    const el = canvasRef.current;
-    if (!el) return null;
-    const rect = el.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return null;
-    return {
-      x: clamp01((clientX - rect.left) / rect.width),
-      y: clamp01((clientY - rect.top) / rect.height),
-    };
-  }, []);
+  const pointerToNorm = useCallback(
+    (clientX: number, clientY: number) => {
+      const el = canvasRef.current;
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return null;
+      return {
+        x: clampLayoutX((clientX - rect.left) / rect.width),
+        y: clampLayoutY((clientY - rect.top) / rect.height, editable),
+      };
+    },
+    [editable],
+  );
 
   const beginDrag = useCallback(
     (id: string, event: ReactPointerEvent) => {
@@ -58,7 +71,7 @@ export function GardenSceneCanvas({
       event.preventDefault();
       draggingIdRef.current = id;
       onSelectElement?.(id);
-      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+      canvasRef.current?.setPointerCapture(event.pointerId);
     },
     [editable, onSelectElement],
   );
@@ -75,7 +88,7 @@ export function GardenSceneCanvas({
 
   const endDrag = useCallback((event: ReactPointerEvent) => {
     if (draggingIdRef.current == null) return;
-    (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    canvasRef.current?.releasePointerCapture(event.pointerId);
     draggingIdRef.current = null;
   }, []);
 

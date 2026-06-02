@@ -20,13 +20,10 @@ export const GARDEN_CORE_COMPLETE_AT = 6;
 /** Max garden level shown in the header. */
 export const GARDEN_MAX_LEVEL = 12;
 
-/** Scene milestone count from garden progress (level 1 = 3 tasks, then 5 per level). */
+/** Scene milestone count from garden progress (sum of per-level budgets in levels.yaml). */
 export function getSceneMilestoneCount(completedCount: number): number {
-  const level = getGardenLevel(completedCount);
-  if (level <= 0) return 0;
-  const { planted } = getGardenCycleProgress(completedCount);
-  const base = level === 1 ? 0 : LEVEL_1_TASKS + (level - 2) * LEVEL_2_PLUS_TASKS;
-  return Math.min(base + planted, GARDEN_MAX_LEVEL);
+  if (completedCount <= 0) return 0;
+  return Math.min(completedCount, GARDEN_MAX_LEVEL);
 }
 
 export interface GardenLayers {

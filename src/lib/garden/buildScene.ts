@@ -1,6 +1,7 @@
 import {
   getCompletionsBeforeLevel,
   getGardenLevel,
+  getMaxInLevelScore,
   getTasksForGardenLevel,
 } from '../plantedGarden';
 import {
@@ -167,7 +168,7 @@ function definitionScaleWithStage(def: GardenDefinition): boolean {
 /** In-level score (0..max) for a level given the lifetime completion count. */
 function scoreInLevel(level: number, completedCount: number): number {
   const raw = completedCount - getCompletionsBeforeLevel(level);
-  return Math.max(0, Math.min(raw, getTasksForGardenLevel(level)));
+  return Math.max(0, Math.min(raw, getMaxInLevelScore(level)));
 }
 
 function definitionName(def: GardenDefinition, level: number): string {
@@ -453,9 +454,8 @@ export interface EditorEntry {
   scale: number;
 }
 
-function multiStageStageCount(def: GardenDefinition, level: number): number {
-  const stages = def.stages ?? [];
-  return Math.min(stages.length, getTasksForGardenLevel(level) + 1);
+function multiStageStageCount(def: GardenDefinition): number {
+  return def.stages?.length ?? 0;
 }
 
 /**
@@ -490,7 +490,7 @@ export function buildEditorScene(
 
     if (def.mode === 'multiStage') {
       const stages = def.stages ?? [];
-      const stageCount = multiStageStageCount(def, level);
+      const stageCount = multiStageStageCount(def);
       for (let s = 0; s < stageCount; s++) {
         const el = makeElement(layout, {
           level,
