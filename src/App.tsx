@@ -390,7 +390,9 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div
+      className={`app-shell${editor.enabled ? ' app-shell--garden-editor' : ''}`}
+    >
       <FallingSakuraPetals reducedMotion={reducedMotion} />
       <div className="app">
         <StickyKawaiiHeader
@@ -534,6 +536,7 @@ export default function App() {
               levelMoveLevel={editor.levelMoveLevel}
               onLevelMoveLevelChange={editor.setLevelMoveLevel}
               onOffsetLevel={editor.offsetLevel}
+              onScaleLevel={editor.scaleLevel}
               onSelect={editor.setSelectedId}
               onZIndexChange={editor.setZIndex}
               onNudgeZIndex={editor.nudgeZIndex}

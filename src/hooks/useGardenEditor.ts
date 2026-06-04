@@ -94,6 +94,24 @@ export function useGardenEditor() {
     });
   }, []);
 
+  const scaleLevel = useCallback((level: number, factor: number) => {
+    if (factor === 1 || !Number.isFinite(factor) || factor <= 0) return;
+    setWorkingLayout((prev) => {
+      const { elements: sceneElements } = buildEditorScene(prev);
+      let next = prev;
+      for (const el of sceneElements.filter((e) => e.level === level)) {
+        const scaled = Math.max(0.05, Math.min(10, el.scale * factor));
+        next = setLayoutScale(
+          next,
+          el.id,
+          layoutIndexForElement(el),
+          scaled,
+        );
+      }
+      return next;
+    });
+  }, []);
+
   const setZIndex = useCallback(
     (id: string, zIndex: number) => {
       setWorkingLayout((prev) =>
@@ -191,6 +209,7 @@ export function useGardenEditor() {
     levelMoveLevel,
     setLevelMoveLevel,
     offsetLevel,
+    scaleLevel,
     configuredLevels,
   };
 }

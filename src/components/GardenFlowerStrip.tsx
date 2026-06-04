@@ -99,6 +99,28 @@ export function GardenFlowerStrip({
   }, [children]);
 
   useEffect(() => {
+    if (!freeScroll) return;
+    const el = viewportRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+
+      const maxScroll = getMaxScrollLeft(el);
+      if (maxScroll <= 0) return;
+
+      const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+      if (delta === 0) return;
+
+      e.preventDefault();
+      scrollViewportTo(el.scrollLeft + delta, false);
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [freeScroll, scrollViewportTo]);
+
+  useEffect(() => {
     if (freeScroll) return;
     const el = viewportRef.current;
     if (!el) return;
@@ -132,7 +154,7 @@ export function GardenFlowerStrip({
         {children}
       </div>
 
-      {needsScroll && (
+      {needsScroll && !freeScroll && (
         <>
           <button
             type="button"
@@ -148,6 +170,7 @@ export function GardenFlowerStrip({
           />
         </>
       )}
+
     </div>
   );
 }

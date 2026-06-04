@@ -25,8 +25,9 @@ interface GardenSceneCanvasProps {
   onElementDrag?: (id: string, x: number, y: number) => void;
 }
 
-/** Normalized x: 0 (left) .. 1 (right). */
-function clampLayoutX(value: number): number {
+/** Normalized x: 0 (left) .. 1 (right) in gameplay; editor allows off-canvas placement. */
+function clampLayoutX(value: number, editable: boolean): number {
+  if (editable) return value;
   return Math.max(0, Math.min(1, value));
 }
 
@@ -35,8 +36,8 @@ function clampLayoutX(value: number): number {
  * the anchor below the band so art can be clipped at the screen bottom.
  */
 function clampLayoutY(value: number, editable: boolean): number {
-  const maxY = editable ? 2 : 1;
-  return Math.max(0, Math.min(maxY, value));
+  if (editable) return value;
+  return Math.max(0, Math.min(1, value));
 }
 
 export function GardenSceneCanvas({
@@ -62,7 +63,7 @@ export function GardenSceneCanvas({
       const rect = el.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return null;
       return {
-        x: clampLayoutX((clientX - rect.left) / rect.width),
+        x: clampLayoutX((clientX - rect.left) / rect.width, editable),
         y: clampLayoutY((clientY - rect.top) / rect.height, editable),
       };
     },
@@ -76,6 +77,7 @@ export function GardenSceneCanvas({
         const level = Number(id.match(/^L(\d+)-/)?.[1]);
         if (level !== levelMoveLevel) return;
       }
+      event.stopPropagation();
       event.preventDefault();
       draggingIdRef.current = id;
       onSelectElement?.(id);
@@ -100,14 +102,6 @@ export function GardenSceneCanvas({
     draggingIdRef.current = null;
   }, []);
 
-  const handleCanvasPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!editable || selectedId == null || levelMoveLevel != null) return;
-      beginDrag(selectedId, event);
-    },
-    [editable, selectedId, levelMoveLevel, beginDrag],
-  );
-
   const canvasStyle: CSSProperties = {
     width: `${innerWidth}px`,
     height: `${bandHeight}px`,
@@ -125,7 +119,6 @@ export function GardenSceneCanvas({
       ref={canvasRef}
       className={`garden-canvas${editable ? ' garden-canvas--editable' : ''}`}
       style={canvasStyle}
-      onPointerDown={editable ? handleCanvasPointerDown : undefined}
       onPointerMove={editable ? moveDrag : undefined}
       onPointerUp={editable ? endDrag : undefined}
       onPointerCancel={editable ? endDrag : undefined}
