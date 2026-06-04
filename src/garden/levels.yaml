@@ -171,7 +171,6 @@ definitions:
       - { src: /garden/assets/Fairies/fairies2.png }
       - { src: /garden/assets/Fairies/fairies3.png }
       - { src: /garden/assets/Fairies/fairies4.png }
-      - { src: /garden/assets/Fairies/fairies3.png }
 
   lemon_planter:
     name: Lemon Planter

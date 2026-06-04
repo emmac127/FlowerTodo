@@ -11,18 +11,18 @@ scene:
 levels:
   "1":
     scatter:
-      - x: 0.1234
-        y: 0.9108
+      - x: 0.1415
+        y: 0.8567
         zIndex: 30
         scale: 0.45
         flipX: true
-      - x: 0.1363
-        y: 0.8996
-        zIndex: 31
-        scale: 0.505
-      - x: 0.11
+      - x: 0.1189
         y: 0.9183
-        zIndex: 32
+        zIndex: 30
+        scale: 0.505
+      - x: 0.1318
+        y: 0.9276
+        zIndex: 30
         scale: 0.6
   "2":
     planter:
@@ -45,9 +45,9 @@ levels:
           y: 0.6832
           zIndex: 23
           scale: 0.6769
-        - x: 0.1537
-          y: 0.8511
-          zIndex: 30
+        - x: 0.1112
+          y: 0.9518
+          zIndex: 40
           scale: 0.7446
   "3":
     planter:
@@ -78,24 +78,24 @@ levels:
           animationLastFrameHold: 4
   "4":
     scatter:
-      - x: 0.1831
-        y: 0.6776
+      - x: 0.1953
+        y: 0.5824
         zIndex: 32
         scale: 0.7
-      - x: 0.1716
-        y: 0.6645
+      - x: 0.1836
+        y: 0.5209
         zIndex: 31
-        scale: 1
-      - x: 0.0378
-        y: 0.5925
+        scale: 0.41
+      - x: 0.0483
+        y: 0.5731
         zIndex: 32
         scale: 0.8
-      - x: 0.0271
-        y: 0.5941
+      - x: 0.0376
+        y: 0.5747
         zIndex: 32
         scale: 0.65
-      - x: 0.0494
-        y: 0.5816
+      - x: 0.0599
+        y: 0.5622
         zIndex: 29
         scale: 1
   "5":
@@ -115,24 +115,24 @@ levels:
         - x: 0.3494
           y: 0.5031
     scatter:
-      - x: 0.1939
-        y: 0.4907
+      - x: 0.019
+        y: 0.4973
         zIndex: 10
         scale: 1
-      - x: 0.213
-        y: 0.4876
+      - x: 0.0381
+        y: 0.4942
         zIndex: 1
         scale: 1
-      - x: 0.2324
-        y: 0.4844
+      - x: 0.0575
+        y: 0.491
         zIndex: 1
         scale: 1
-      - x: 0.2515
-        y: 0.4844
+      - x: 0.0766
+        y: 0.491
         zIndex: 1
         scale: 1
-      - x: 0.2697
-        y: 0.4735
+      - x: 0.0948
+        y: 0.4801
         zIndex: 1
         scale: 1
   "6":
@@ -157,24 +157,24 @@ levels:
           x: 0.68
           y: 1
     scatter:
-      - x: 0.3283
-        y: 0.464
+      - x: 0.2249
+        y: 0.4975
         zIndex: 1
         scale: 1
-      - x: 0.3476
-        y: 0.4563
+      - x: 0.2442
+        y: 0.4898
         zIndex: 1
         scale: 1
-      - x: 0.3671
-        y: 0.4594
+      - x: 0.2637
+        y: 0.4929
         zIndex: 1
         scale: 1
-      - x: 0.4408
-        y: 0.4688
+      - x: 0.2831
+        y: 0.4892
         zIndex: 1
         scale: 1
-      - x: 0.3096
-        y: 0.4719
+      - x: 0.2062
+        y: 0.5054
         zIndex: 1
         scale: 1
   "7":
@@ -199,47 +199,47 @@ levels:
           x: 0.81
           y: 1
     scatter:
-      - x: 0.4235
-        y: 0.7094
-        zIndex: 30
-        scale: 1
-      - x: 0.3241
-        y: 0.6501
-        zIndex: 34
-        scale: 0.8
-      - x: 0.3186
-        y: 0.5529
-        zIndex: 33
-        scale: 0.75
-      - x: 0.3317
-        y: 0.7329
-        zIndex: 35
-        scale: 0.95
-      - x: 0.3447
-        y: 0.7657
+      - x: 0.0993
+        y: 0.9052
         zIndex: 31
-        scale: 0.8
+        scale: 0.7
+      - x: 0.0883
+        y: 0.9351
+        zIndex: 32
+        scale: 0.7
+      - x: 0.1072
+        y: 0.8903
+        zIndex: 33
+        scale: 0.5
+      - x: 0.0985
+        y: 0.9295
+        zIndex: 34
+        scale: 0.5
+      - x: 0.091
+        y: 0.9556
+        zIndex: 37
+        scale: 0.5
   "8":
     multiStage:
       stages:
         "0":
-          x: 0.5039
-          y: 0.8163
+          x: 0.0471
+          y: 0.5287
           zIndex: 20
           scale: 0.7
         "1":
-          x: 0.5039
-          y: 0.8179
+          x: 0.0471
+          y: 0.5303
           zIndex: 20
           scale: 0.7
         "2":
-          x: 0.5032
-          y: 0.8179
+          x: 0.0464
+          y: 0.5303
           zIndex: 20
           scale: 0.7
         "3":
-          x: 0.5038
-          y: 0.8234
+          x: 0.047
+          y: 0.5358
           zIndex: 20
           scale: 0.7
         "4":
@@ -256,52 +256,52 @@ levels:
     multiStage:
       stages:
         "0":
-          x: 0.4938
-          y: 0.9469
+          x: 0.2187
+          y: 0.9929
           zIndex: 19
-          scale: 0.55
+          scale: 0.4751
         "1":
-          x: 0.4938
-          y: 0.9469
+          x: 0.2187
+          y: 0.9929
           zIndex: 19
-          scale: 0.55
+          scale: 0.4751
         "2":
-          x: 0.4938
-          y: 0.9469
+          x: 0.2187
+          y: 0.9929
           zIndex: 19
-          scale: 0.55
+          scale: 0.4751
         "3":
-          x: 0.4938
-          y: 0.9469
+          x: 0.2187
+          y: 0.9929
           zIndex: 19
-          scale: 0.55
+          scale: 0.4751
         "4":
-          x: 0.4938
-          y: 0.9469
+          x: 0.2187
+          y: 0.9929
           zIndex: 19
-          scale: 0.55
+          scale: 0.4751
         "5":
-          x: 0.4938
-          y: 0.9469
+          x: 0.2187
+          y: 0.9929
           zIndex: 19
-          scale: 0.55
+          scale: 0.4751
         "6":
-          x: 0.4938
-          y: 0.9469
+          x: 0.2187
+          y: 0.9929
           zIndex: 19
-          scale: 0.55
+          scale: 0.4751
   "10":
     scatter:
       - x: 0.0443
         y: 0.8791
         zIndex: 23
         scale: 0.25
-      - x: 0.0935
-        y: 0.9183
+      - x: 0.0423
+        y: 0.9425
         zIndex: 23
         scale: 0.25
-      - x: 0.0816
-        y: 0.9668
+      - x: 0.0515
+        y: 0.978
         zIndex: 23
         scale: 0.3
       - x: 0.0642
@@ -317,54 +317,54 @@ levels:
     multiStage:
       stages:
         "0":
-          x: 0.242
-          y: 1.0246
-          zIndex: 50
-          scale: 1.5
+          x: 0.148
+          y: 0.6235
+          zIndex: 5
+          scale: 1.2341
         "1":
-          x: 0.242
-          y: 1.0246
-          zIndex: 50
-          scale: 1.5
+          x: 0.148
+          y: 0.6235
+          zIndex: 5
+          scale: 1.2341
         "2":
-          x: 0.242
-          y: 1.0246
-          zIndex: 50
-          scale: 1.5
+          x: 0.148
+          y: 0.6235
+          zIndex: 5
+          scale: 1.2341
         "3":
-          x: 0.242
-          y: 1.0246
-          zIndex: 50
-          scale: 1.5
+          x: 0.148
+          y: 0.6235
+          zIndex: 5
+          scale: 1.2341
         "4":
-          x: 0.242
-          y: 1.0246
-          zIndex: 50
-          scale: 1.5
+          x: 0.148
+          y: 0.6235
+          zIndex: 5
+          scale: 1.2341
         "5":
-          x: 0.242
-          y: 1.0246
-          zIndex: 50
-          scale: 1.5
+          x: 0.1485
+          y: 0.6235
+          zIndex: 5
+          scale: 1.2341
   "12":
     scatter:
-      - x: 0.0119
-        y: 0.8604
+      - x: 0.0134
+        y: 0.575
         zIndex: 120
         scale: 1
-      - x: 0.2339
-        y: 0.8809
+      - x: 0.1696
+        y: 0.506
         zIndex: 121
-        scale: 1
-      - x: 0.2789
-        y: 0.8809
+        scale: 0.6
+      - x: 0.0226
+        y: 0.59
         zIndex: 122
-        scale: 1
-      - x: 0.1889
-        y: 0.8409
+        scale: 0.7
+      - x: 0.1619
+        y: 0.5694
         zIndex: 123
         scale: 1
-      - x: 0.2339
-        y: 0.8409
-        zIndex: 124
-        scale: 1
+      - x: 0.151
+        y: 0.5732
+        zIndex: 22
+        scale: 0.81
