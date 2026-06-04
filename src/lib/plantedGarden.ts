@@ -28,6 +28,9 @@ export function getLevelCompletionBudget(level: number): number {
   if (def?.mode === 'planter') {
     return def.perCompletion?.max ?? getTasksForGardenLevel(level);
   }
+  if (def?.mode === 'planterSequence') {
+    return def.fills?.length ?? getTasksForGardenLevel(level);
+  }
   return getTasksForGardenLevel(level);
 }
 
@@ -80,6 +83,9 @@ export function getMaxInLevelScore(level: number): number {
   }
   if (def?.mode === 'planter') {
     return def.perCompletion?.max ?? getTasksForGardenLevel(level);
+  }
+  if (def?.mode === 'planterSequence') {
+    return def.fills?.length ?? getTasksForGardenLevel(level);
   }
   return getTasksForGardenLevel(level);
 }

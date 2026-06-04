@@ -38,8 +38,10 @@ export function getLevelDefinition(level: number): GardenDefinition | null {
       stages: entry.stages,
       scaleWithStage: entry.scaleWithStage,
       asset: entry.asset,
+      scatterAssets: entry.scatterAssets,
       onLevelStart: entry.onLevelStart,
       perCompletion: entry.perCompletion,
+      fills: entry.fills,
     };
   }
 

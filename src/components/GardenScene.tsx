@@ -14,6 +14,7 @@ interface GardenSceneProps {
   /** Editor: enable selection + dragging on the canvas. */
   editable?: boolean;
   selectedId?: string | null;
+  levelMoveLevel?: number | null;
   onSelectElement?: (id: string) => void;
   onElementDrag?: (id: string, x: number, y: number) => void;
 }
@@ -23,6 +24,7 @@ export function GardenScene({
   elementsOverride = null,
   editable = false,
   selectedId = null,
+  levelMoveLevel = null,
   onSelectElement,
   onElementDrag,
 }: GardenSceneProps) {
@@ -81,6 +83,7 @@ export function GardenScene({
             newestId={newestId}
             editable={editable}
             selectedId={selectedId}
+            levelMoveLevel={levelMoveLevel}
             onSelectElement={onSelectElement}
             onElementDrag={onElementDrag}
           />

@@ -1,0 +1,9 @@
+## Edit Mode
+I need a way to view the layout of all the garden elements at various stages of growth. In order to do this I want to create a "developer mode" of the application that has several options for me to use in order to change what I'm seeing:
+1. A button to show / hide a window that lists each possible garden element that could appear in the garden, such as a statue or even an individual tulip. This list should show the element's name as well as it's growth stage. Each element in the list should be selectable by clicking on it. That selected element should have a visible drop-shadow or halo effect in the garden while selected so it's clear which one it is. Once selected I should be able to:
+	1. Move the element around on the screen
+	2. Have a dropdown appear which allows me to select a different growth stage for that element
+	3. Store the position I have moved it to on the screen and continue to display it there if I select a different element from the list
+2. A button to download a yaml configuration file that saves the new relative positions of each garden element I have moved. 
+# YAML file usage
+This is VERY IMPORTANT! The yaml file I created during the dev mode needs to have a space in the project I can put it where the project will parse it and then will correctly adjust each garden element to be positioned exactly where I moved it to in the developer mode. When things such as window size change, the most important thing is that garden elements do not move off of the screen except when the horizontal scroll we've created allows them. The second most important thing is that each garden element stays in the same position relative to each other. It should work as if we've rendered a single image from the combination of all of our garden elements(though it may be animated if flowers move) and different screen/ window sizes just crop or scale the image but allow scrolling to view different parts of it fully. 

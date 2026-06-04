@@ -1,16 +1,34 @@
 // Types for the YAML-driven garden scene.
 
-export type GardenMode = 'multiStage' | 'scatterPerCompletion' | 'planter';
+export type GardenMode =
+  | 'multiStage'
+  | 'scatterPerCompletion'
+  | 'planter'
+  | 'planterSequence';
 
-export interface StageImage {
-  src: string;
-  /** Whether this image replaces the previous stage on the same spot. */
-  replace?: boolean;
+/** Frame sequence defined in levels.yaml for a single drawable asset. */
+export interface AssetAnimationDef {
+  /** PNG (or image) paths in playback order. */
+  frames: string[];
+  /** Seconds each frame is shown (default 0.15). */
+  frameDuration?: number;
 }
 
-export interface PerCompletionImage {
-  src: string;
+/** Asset entry in levels.yaml — static `src` and/or looping `animation`. */
+export interface GardenAssetRef {
+  src?: string;
+  /** Whether this image replaces the previous stage on the same spot. */
   replace?: boolean;
+  animation?: AssetAnimationDef;
+}
+
+export interface StageImage extends GardenAssetRef {
+  /** Static image, or first frame when `animation.frames` is set. */
+  src?: string;
+}
+
+export interface PerCompletionImage extends GardenAssetRef {
+  src?: string;
   /** Maximum number of fill flowers added across the level. */
   max?: number;
 }
@@ -26,12 +44,25 @@ export interface GardenDefinition {
    * growth ramp. Set false to keep the same design height at every stage.
    */
   scaleWithStage?: boolean;
-  /** scatterPerCompletion: the single-stage asset placed once per completion. */
-  asset?: string;
+  /**
+   * scatterPerCompletion: one asset for every scattered flower (path or object
+   * with optional animation).
+   */
+  asset?: string | GardenAssetRef;
+  /**
+   * scatterPerCompletion: per-slot assets (slot 0, 1, …). When set, overrides
+   * `asset`. Use for different art or animations per placement.
+   */
+  scatterAssets?: (string | GardenAssetRef)[];
   /** planter: image shown when the level begins (score 0). */
   onLevelStart?: StageImage;
   /** planter: image added for each completion after the planter appears. */
   perCompletion?: PerCompletionImage;
+  /**
+   * planterSequence: one image per fill slot, in completion order. Repeats are
+   * allowed. Level length equals this list's length (capped by tasks per level).
+   */
+  fills?: StageImage[];
 }
 
 /** A `levels:` entry — either references a definition or inlines one. */
@@ -55,6 +86,20 @@ export interface PositionEntry {
   zIndex?: number;
   /** Size multiplier applied to the element's design height (1 = default). */
   scale?: number;
+  /** Mirror the asset horizontally (flip over the vertical axis). */
+  flipX?: boolean;
+  /**
+   * Extra seconds to hold the last animation frame before looping (layout only).
+   * Requires animation frames defined in levels.yaml for this slot.
+   */
+  animationLastFrameHold?: number;
+}
+
+/** Resolved looping animation passed to the garden canvas. */
+export interface PlacedElementAnimation {
+  frames: string[];
+  frameDuration: number;
+  lastFrameHold: number;
 }
 
 export interface LayoutLevelConfig {
@@ -93,8 +138,12 @@ export interface PlacedElement {
   heightDesign: number;
   /** Size multiplier for width and height (default 1). */
   scale: number;
+  /** When true, mirror the asset horizontally (flip over the vertical axis). */
+  flipX: boolean;
   /** Draw order (higher = in front). */
   zIndex: number;
   /** False when the position came from auto-placement (no layout entry). */
   hasLayout: boolean;
+  /** When set, the canvas cycles through frames (from levels.yaml). */
+  animation?: PlacedElementAnimation;
 }

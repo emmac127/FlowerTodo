@@ -103,7 +103,6 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
               {onViewGarden && (
                 <ViewGardenButton
                   onClick={onViewGarden}
-                  disabled={gardenViewOpen}
                   active={gardenViewOpen}
                 />
               )}

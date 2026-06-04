@@ -1,6 +1,5 @@
 interface ViewGardenButtonProps {
   onClick: () => void;
-  disabled?: boolean;
   active?: boolean;
 }
 
@@ -30,7 +29,6 @@ function EyeIcon() {
 
 export function ViewGardenButton({
   onClick,
-  disabled = false,
   active = false,
 }: ViewGardenButtonProps) {
   return (
@@ -38,10 +36,9 @@ export function ViewGardenButton({
       type="button"
       className="view-garden-toggle view-garden-toggle--actions"
       onClick={onClick}
-      disabled={disabled}
       aria-pressed={active}
-      aria-label={active ? 'Garden view is open' : 'View garden'}
-      title="View garden"
+      aria-label={active ? 'Back to my list' : 'View garden'}
+      title={active ? 'Back to my list' : 'View garden'}
     >
       <svg className="view-garden-toggle__icon" viewBox="0 0 24 24" aria-hidden>
         <EyeIcon />

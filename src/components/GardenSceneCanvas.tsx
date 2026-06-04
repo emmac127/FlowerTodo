@@ -7,6 +7,7 @@ import {
   STAGE_HEIGHT,
 } from '../lib/garden/loadConfig';
 import type { PlacedElement } from '../lib/garden/types';
+import { GardenCanvasElement } from './GardenCanvasElement';
 
 interface GardenSceneCanvasProps {
   elements: PlacedElement[];
@@ -16,6 +17,8 @@ interface GardenSceneCanvasProps {
   newestId?: string | null;
   /** Editor: id of the currently selected element. */
   selectedId?: string | null;
+  /** Editor: when set, all assets in this level move together and are highlighted. */
+  levelMoveLevel?: number | null;
   /** Editor: enables click-to-select and drag-to-move. */
   editable?: boolean;
   onSelectElement?: (id: string) => void;
@@ -41,6 +44,7 @@ export function GardenSceneCanvas({
   bandHeight,
   newestId = null,
   selectedId = null,
+  levelMoveLevel = null,
   editable = false,
   onSelectElement,
   onElementDrag,
@@ -68,12 +72,16 @@ export function GardenSceneCanvas({
   const beginDrag = useCallback(
     (id: string, event: ReactPointerEvent) => {
       if (!editable) return;
+      if (levelMoveLevel != null) {
+        const level = Number(id.match(/^L(\d+)-/)?.[1]);
+        if (level !== levelMoveLevel) return;
+      }
       event.preventDefault();
       draggingIdRef.current = id;
       onSelectElement?.(id);
       canvasRef.current?.setPointerCapture(event.pointerId);
     },
-    [editable, onSelectElement],
+    [editable, levelMoveLevel, onSelectElement],
   );
 
   const moveDrag = useCallback(
@@ -94,10 +102,10 @@ export function GardenSceneCanvas({
 
   const handleCanvasPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!editable || selectedId == null) return;
+      if (!editable || selectedId == null || levelMoveLevel != null) return;
       beginDrag(selectedId, event);
     },
-    [editable, selectedId, beginDrag],
+    [editable, selectedId, levelMoveLevel, beginDrag],
   );
 
   const canvasStyle: CSSProperties = {
@@ -126,33 +134,40 @@ export function GardenSceneCanvas({
         {[...elements]
           .sort((a, b) => a.zIndex - b.zIndex)
           .map((el) => {
-          const isSelected = editable && el.id === selectedId;
+          const inLevelMove =
+            editable && levelMoveLevel != null && el.level === levelMoveLevel;
+          const isSelected =
+            editable &&
+            (inLevelMove || (levelMoveLevel == null && el.id === selectedId));
           const isNew = !editable && el.id === newestId;
-          const dimmed = editable && selectedId != null && !isSelected;
+          const dimmed =
+            editable &&
+            (levelMoveLevel != null
+              ? !inLevelMove
+              : selectedId != null && el.id !== selectedId);
           const elStyle: CSSProperties = {
             left: `${el.x * DESIGN_WIDTH}px`,
             bottom: `${(1 - el.y) * DESIGN_HEIGHT}px`,
             height: `${el.heightDesign * el.scale}px`,
             zIndex: isSelected ? el.zIndex + 10000 : el.zIndex,
             opacity: dimmed ? 0.35 : 1,
-          };
+            '--garden-el-flip-x': el.flipX ? -1 : 1,
+          } as CSSProperties;
           const classes = [
             'garden-canvas__el',
             isSelected ? 'garden-canvas__el--selected' : '',
+            inLevelMove ? 'garden-canvas__el--level-move' : '',
             isNew ? 'garden-canvas__el--new' : '',
             editable ? 'garden-canvas__el--editable' : '',
           ]
             .filter(Boolean)
             .join(' ');
           return (
-            <img
+            <GardenCanvasElement
               key={el.id}
+              element={el}
               className={classes}
               style={elStyle}
-              src={el.src}
-              alt=""
-              draggable={false}
-              aria-hidden
               onPointerDown={
                 editable ? (e) => beginDrag(el.id, e) : undefined
               }

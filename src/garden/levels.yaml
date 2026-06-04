@@ -14,10 +14,60 @@
 #                       set `false` to keep a constant size (e.g. dragon_flower).
 #                       Level-up happens after (stages - 1) task completions
 #                       (7 stages → 6 completions in that level).
-#   scatterPerCompletion  Each completion within the level adds one new flower,
-#                       placed at layout.levels."N".scatter[slot].
+#   scatterPerCompletion  Each completion adds one flower at scatter[slot].
+#                       Use `asset` (one image for all) or `scatterAssets` (per
+#                       slot). Both support `animation` with a `frames` list.
 #   planter             Score 0 places `onLevelStart`; each later completion adds
 #                       one `perCompletion` fill flower (up to `max`).
+#   planterSequence     Like planter, but each fill slot uses its own asset from
+#                       the `fills` list (in order). Repeats are fine. The level
+#                       length equals the number of `fills` entries.
+#
+# Animated assets (any stage, fill, scatter asset, or planter base):
+#   Add an `animation` block with `frames` (PNG paths in order) and optional
+#   `frameDuration` (seconds per frame, default 0.15). Use `src` for a static
+#   fallback or omit it to use the first frame.
+#
+#   Example — animated final growth stage:
+#     stages:
+#       - { src: /garden/assets/sprout.png, replace: true }
+#       - src: /garden/assets/bloom1.png
+#         replace: true
+#         animation:
+#           frames:
+#             - /garden/assets/bloom1.png
+#             - /garden/assets/bloom2.png
+#             - /garden/assets/bloom3.png
+#           frameDuration: 0.2
+#
+#   Example — animated planter fill:
+#     fills:
+#       - src: /garden/assets/fairyA.png
+#         animation:
+#           frames:
+#             - /garden/assets/fairyA.png
+#             - /garden/assets/fairyB.png
+#
+#   Example — every scattered flower uses the same looping animation:
+#     asset:
+#       src: /garden/assets/Tulip.png
+#       animation:
+#         frames:
+#           - /garden/assets/Tulip.png
+#           - /garden/assets/Tulip2.png
+#         frameDuration: 0.2
+#
+#   Example — different asset (and optional animation) per scatter slot:
+#     scatterAssets:
+#       - /garden/assets/Tulip.png
+#       - src: /garden/assets/Daisy.png
+#         animation:
+#           frames:
+#             - /garden/assets/Daisy.png
+#             - /garden/assets/Daisy2.png
+#
+# In layout.yaml, optional `animationLastFrameHold` (seconds, decimals OK) on a
+# slot pauses on the last frame before the loop restarts (requires animation).
 
 definitions:
   toastflower:
@@ -30,6 +80,24 @@ definitions:
       - { src: /garden/assets/Toast3.svg, replace: true }
       - { src: /garden/assets/Toast4.svg, replace: true }
       - { src: /garden/assets/Toast4.svg, replace: true }
+
+  heartflower:
+    name: Heart flower
+    mode: scatterPerCompletion
+    asset:
+       src: /garden/assets/Shinyheart/heart1.png
+       animation:
+         frames:
+           - /garden/assets/Shinyheart/heart1.png
+           - /garden/assets/Shinyheart/heart2.png
+           - /garden/assets/Shinyheart/heart3.png
+           - /garden/assets/Shinyheart/heart4.png
+           - /garden/assets/Shinyheart/heart5.png
+           - /garden/assets/Shinyheart/heart6.png
+           - /garden/assets/Shinyheart/heart7.png
+           - /garden/assets/Shinyheart/heart8.png
+         frameDuration: 0.2
+         animationLastFrameHold: 1.5
 
   pathway:
     name: Pathway
@@ -82,33 +150,75 @@ definitions:
     mode: scatterPerCompletion
     asset: /garden/assets/Fencepost.png
 
-  # Placeholder planter: a base image plus fill flowers per completion.
+  petunia:
+    name: Petunia
+    mode: scatterPerCompletion
+    asset: /garden/assets/Bluepetunia.png
+
+  # Placeholder planter: a base image plus the same fill flower per completion.
   catgrass_planter:
     name: Flower planter
     mode: planter
     onLevelStart: { src: /garden/assets/Toast4.svg, replace: false }
     perCompletion: { src: /garden/assets/Toast1.svg, replace: false, max: 5 }
 
+  # Planter with a different fill asset per completion (repeats allowed).
+  fairies_planter:
+    name: Fairy Planter
+    mode: planterSequence
+    onLevelStart: { src: /garden/assets/Fairies/fairies1.png, replace: false }
+    fills:
+      - { src: /garden/assets/Fairies/fairies2.png }
+      - { src: /garden/assets/Fairies/fairies3.png }
+      - { src: /garden/assets/Fairies/fairies4.png }
+      - { src: /garden/assets/Fairies/fairies3.png }
+
+  lemon_planter:
+    name: Lemon Planter
+    mode: planterSequence
+    onLevelStart: { src: /garden/assets/Lemonyplanter/l1.png, replace: false }
+    fills:
+      - { src: /garden/assets/Lemonyplanter/normf.png }
+      - src: /garden/assets/Lemonyplanter/l2.png.png
+        animation:
+          frames:
+            - /garden/assets/Lemonyplanter/l2.png.png
+            - /garden/assets/Lemonyplanter/l3.png.png
+            - /garden/assets/Lemonyplanter/l4.png.png
+            - /garden/assets/Lemonyplanter/l3.png.png
+      - { src: /garden/assets/Lemonyplanter/l4.png.png }
+      - src: /garden/assets/Lemonyplanter/l2.png.png
+        animation:
+          frames:
+            - /garden/assets/Lemonyplanter/l2.png.png
+            - /garden/assets/Lemonyplanter/l3.png.png
+            - /garden/assets/Lemonyplanter/l4.png.png
+            - /garden/assets/Lemonyplanter/l3.png.png
+
 # One entry per garden level. `use:` references a definition above.
 # (You can also inline `mode:` + its fields directly under a level.)
 levels:
   "1":
-    use: toastflower
+    use: petunia
   "2":
-    use: toastflower
+    use: fairies_planter
   "3":
-    use: tulip_scatter
+    use: lemon_planter
   "4":
-    use: fenceposts
+    use: tulip_scatter
   "5":
     use: fenceposts
   "6":
-    use: tulip_scatter
+    use: fenceposts
   "7":
-    use: dragon_flower
+    use: tulip_scatter
   "8":
-    use: pathway
+    use: dragon_flower
   "9":
-    use: daisy
+    use: pathway
   "10":
+    use: daisy
+  "11":
     use: statue
+  "12":
+    use: heartflower

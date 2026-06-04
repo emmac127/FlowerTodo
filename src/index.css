@@ -129,8 +129,7 @@ body {
 }
 
 .sticky-kawaii-header,
-.app-body,
-.garden-reveal-return {
+.app-body {
   pointer-events: auto;
 }
 
@@ -358,11 +357,7 @@ body {
   opacity: 1;
   border-color: var(--accent);
   background: #fff5f8;
-}
-
-.view-garden-toggle--actions:disabled {
-  cursor: default;
-  opacity: 0.55;
+  cursor: pointer;
 }
 
 .view-garden-toggle__icon {
@@ -1943,7 +1938,8 @@ body {
 .garden-canvas__el {
   position: absolute;
   width: auto;
-  transform: translateX(-50%);
+  --garden-el-flip-x: 1;
+  transform: translateX(-50%) scaleX(var(--garden-el-flip-x));
   transform-origin: center bottom;
   user-select: none;
   -webkit-user-drag: none;
@@ -1956,11 +1952,12 @@ body {
 @keyframes gardenElPop {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(8px) scale(0.85);
+    transform: translateX(-50%) translateY(8px)
+      scaleX(calc(0.85 * var(--garden-el-flip-x, 1))) scaleY(0.85);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scaleX(var(--garden-el-flip-x, 1));
   }
 }
 
@@ -1978,6 +1975,17 @@ body {
     drop-shadow(0 0 12px rgba(255, 143, 171, 0.8));
   outline: 2px dashed rgba(255, 143, 171, 0.9);
   outline-offset: 2px;
+}
+
+.garden-canvas__el--level-move {
+  filter: drop-shadow(0 0 0 #7ec8e3) drop-shadow(0 0 6px #7ec8e3)
+    drop-shadow(0 0 10px rgba(126, 200, 227, 0.75));
+}
+
+.garden-canvas__el--level-move.garden-canvas__el--selected {
+  filter: drop-shadow(0 0 0 #ff8fab) drop-shadow(0 0 6px #ff8fab)
+    drop-shadow(0 0 12px rgba(255, 143, 171, 0.8))
+    drop-shadow(0 0 0 #7ec8e3) drop-shadow(0 0 8px rgba(126, 200, 227, 0.8));
 }
 
 /* Invisible edge tap targets — same hit area as the old arrow buttons. */
@@ -2078,53 +2086,6 @@ body {
     transform: translateY(calc(-1 * var(--garden-reveal-lift) + 20px)) rotateX(-14deg);
     opacity: 0.12;
   }
-}
-
-.garden-reveal-return {
-  position: fixed;
-  z-index: 11;
-  left: 50%;
-  top: max(0.65rem, calc(env(safe-area-inset-top, 0px) + 0.35rem));
-  bottom: auto;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.45rem 1.1rem 0.5rem;
-  border: 2px solid var(--card-border);
-  border-radius: 999px;
-  background: linear-gradient(180deg, #fff 0%, #fff5f8 100%);
-  box-shadow: 0 6px 22px rgba(255, 143, 171, 0.35);
-  cursor: pointer;
-  font-family: inherit;
-  pointer-events: auto;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.garden-reveal-return:hover {
-  transform: translateX(-50%) translateY(-2px);
-  box-shadow: 0 10px 28px rgba(255, 143, 171, 0.42);
-}
-
-.garden-reveal-return__label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.02em;
-}
-
-.garden-reveal-return__arrow {
-  display: block;
-  width: 0;
-  height: 0;
-  border-left: 11px solid transparent;
-  border-right: 11px solid transparent;
-  border-bottom: 13px solid var(--accent);
-  filter: drop-shadow(0 1px 2px rgba(255, 143, 171, 0.35));
-  transform: rotate(180deg);
 }
 
 .garden-sakura-tree,
@@ -2929,6 +2890,80 @@ body {
   background: #f3e8ff;
   padding: 0 0.25rem;
   border-radius: 4px;
+}
+
+.garden-editor__level-move {
+  flex-shrink: 0;
+  margin-bottom: 0.65rem;
+  padding: 0.55rem 0.5rem;
+  border: 1px solid #ead9fb;
+  border-radius: 10px;
+  background: #faf5ff;
+}
+
+.garden-editor__level-move-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #4b2580;
+}
+
+.garden-editor__mode-toggle {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.garden-editor__mode-btn {
+  flex: 1 1 50%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #c4a8e6;
+  border-radius: 8px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #4b2580;
+  cursor: pointer;
+}
+
+.garden-editor__mode-btn--active {
+  background: #6b3aa0;
+  border-color: #6b3aa0;
+  color: #fff;
+}
+
+.garden-editor__mode-btn--compact {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.garden-editor__level-move-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.72rem;
+  color: #5a4a72;
+}
+
+.garden-editor__level-move-select {
+  width: 100%;
+  margin-bottom: 0.45rem;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid #c4a8e6;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+
+.garden-editor__level-move-hint {
+  margin: 0 0 0.45rem;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #5a4a72;
+}
+
+.garden-editor__level-move .garden-editor__prop-row:last-child {
+  margin-bottom: 0;
 }
 
 .garden-editor__list {

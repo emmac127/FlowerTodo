@@ -1,12 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
 import { buildEditorScene } from '../lib/garden/buildScene';
+import { getConfiguredLevels } from '../lib/garden/loadConfig';
 import {
   cloneLayout,
   saveLayoutYaml,
   layoutFromPlacedElements,
+  layoutIndexForElement,
   parseElementId,
   setLayoutPosition,
   setLayoutScale,
+  setLayoutAnimationLastFrameHold,
+  setLayoutFlipX,
   setLayoutZIndex,
 } from '../lib/garden/editorLayout';
 import type { LayoutConfig } from '../lib/garden/types';
@@ -19,6 +23,8 @@ export function useGardenEditor() {
     cloneLayout(),
   );
   const [saving, setSaving] = useState(false);
+  /** When set, dragging any asset in this level moves every asset in the level. */
+  const [levelMoveLevel, setLevelMoveLevel] = useState<number | null>(null);
 
   const { entries, elements } = useMemo(
     () => buildEditorScene(workingLayout),
@@ -35,11 +41,58 @@ export function useGardenEditor() {
     return parsed?.kind === 'multiStage' ? parsed.index : 0;
   }, []);
 
-  const handleDrag = useCallback((id: string, x: number, y: number) => {
-    setWorkingLayout((prev) =>
-      setLayoutPosition(prev, id, stageForId(id), x, y),
-    );
-  }, [stageForId]);
+  const handleDrag = useCallback(
+    (id: string, x: number, y: number) => {
+      setWorkingLayout((prev) => {
+        const { elements: sceneElements } = buildEditorScene(prev);
+        const dragged = sceneElements.find((el) => el.id === id);
+        if (!dragged) return prev;
+
+        const parsed = parseElementId(id);
+        if (
+          levelMoveLevel != null &&
+          parsed?.level === levelMoveLevel
+        ) {
+          const deltaX = x - dragged.x;
+          const deltaY = y - dragged.y;
+          if (deltaX === 0 && deltaY === 0) return prev;
+
+          let next = prev;
+          for (const el of sceneElements.filter((e) => e.level === levelMoveLevel)) {
+            next = setLayoutPosition(
+              next,
+              el.id,
+              layoutIndexForElement(el),
+              el.x + deltaX,
+              el.y + deltaY,
+            );
+          }
+          return next;
+        }
+
+        return setLayoutPosition(prev, id, stageForId(id), x, y);
+      });
+    },
+    [levelMoveLevel, stageForId],
+  );
+
+  const offsetLevel = useCallback((level: number, deltaX: number, deltaY: number) => {
+    if (deltaX === 0 && deltaY === 0) return;
+    setWorkingLayout((prev) => {
+      const { elements: sceneElements } = buildEditorScene(prev);
+      let next = prev;
+      for (const el of sceneElements.filter((e) => e.level === level)) {
+        next = setLayoutPosition(
+          next,
+          el.id,
+          layoutIndexForElement(el),
+          el.x + deltaX,
+          el.y + deltaY,
+        );
+      }
+      return next;
+    });
+  }, []);
 
   const setZIndex = useCallback(
     (id: string, zIndex: number) => {
@@ -54,6 +107,33 @@ export function useGardenEditor() {
     (id: string, scale: number) => {
       setWorkingLayout((prev) =>
         setLayoutScale(prev, id, stageForId(id), scale),
+      );
+    },
+    [stageForId],
+  );
+
+  const setFlipX = useCallback(
+    (id: string, flipX: boolean) => {
+      setWorkingLayout((prev) =>
+        setLayoutFlipX(prev, id, stageForId(id), flipX),
+      );
+    },
+    [stageForId],
+  );
+
+  const toggleFlipX = useCallback(
+    (id: string) => {
+      const el = elements.find((e) => e.id === id);
+      if (!el) return;
+      setFlipX(id, !el.flipX);
+    },
+    [elements, setFlipX],
+  );
+
+  const setAnimationLastFrameHold = useCallback(
+    (id: string, seconds: number) => {
+      setWorkingLayout((prev) =>
+        setLayoutAnimationLastFrameHold(prev, id, stageForId(id), seconds),
       );
     },
     [stageForId],
@@ -86,7 +166,10 @@ export function useGardenEditor() {
   const toggle = useCallback(() => {
     setEnabled((prev) => !prev);
     setSelectedId(null);
+    setLevelMoveLevel(null);
   }, []);
+
+  const configuredLevels = useMemo(() => getConfiguredLevels(), []);
 
   return {
     enabled,
@@ -99,8 +182,15 @@ export function useGardenEditor() {
     handleDrag,
     setZIndex,
     setScale,
+    setFlipX,
+    toggleFlipX,
+    setAnimationLastFrameHold,
     nudgeZIndex,
     save,
     saving,
+    levelMoveLevel,
+    setLevelMoveLevel,
+    offsetLevel,
+    configuredLevels,
   };
 }

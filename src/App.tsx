@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FallingSakuraPetals } from './components/FallingSakuraPetals';
-import { GardenRevealReturnButton } from './components/GardenRevealReturnButton';
 import { GardenScene } from './components/GardenScene';
 import { StickyKawaiiHeader } from './components/StickyKawaiiHeader';
 import { SpiralCelebration } from './components/SpiralCelebration';
@@ -219,13 +218,19 @@ export default function App() {
   }, [clearGardenRevealAutoReturn, clearGardenRevealGrowthTimer, reducedMotion]);
 
   const handleViewGarden = useCallback(() => {
-    if (gardenRevealPhase !== 'idle') return;
+    if (gardenRevealPhase === 'exit') return;
+
+    if (gardenRevealPhase === 'active') {
+      endGardenReveal();
+      return;
+    }
+
     void unlockAudio();
     setGardenRevealManual(true);
     setGardenRevealHeldCount(null);
     setGardenRevealGrowthUnlocked(false);
     beginGardenReveal();
-  }, [gardenRevealPhase, beginGardenReveal]);
+  }, [gardenRevealPhase, beginGardenReveal, endGardenReveal]);
 
   useEffect(() => {
     if (gardenRevealPhase !== 'active') {
@@ -397,7 +402,6 @@ export default function App() {
           gardenCyclePlanted={gardenCycleProgress.planted}
           gardenCycleMax={gardenCycleProgress.max}
           muted={muted}
-          gardenRevealPhase={gardenRevealPhase}
           onToggleMute={() => {
             void unlockAudio();
             setMuted((m) => !m);
@@ -455,10 +459,6 @@ export default function App() {
           </main>
         </div>
 
-        {gardenRevealPhase === 'active' && (
-          <GardenRevealReturnButton onReturn={endGardenReveal} />
-        )}
-
         <div className="app-celebrations-layer" aria-hidden>
           <SpiralCelebration
             key={`spiral-${spiralBurstId}`}
@@ -489,6 +489,7 @@ export default function App() {
         elementsOverride={editor.enabled ? editor.elements : null}
         editable={editor.enabled}
         selectedId={editor.selectedId}
+        levelMoveLevel={editor.levelMoveLevel}
         onSelectElement={editor.setSelectedId}
         onElementDrag={editor.handleDrag}
       />
@@ -529,10 +530,16 @@ export default function App() {
               entries={editor.entries}
               selectedId={editor.selectedId}
               selectedElement={editor.selectedElement}
+              configuredLevels={editor.configuredLevels}
+              levelMoveLevel={editor.levelMoveLevel}
+              onLevelMoveLevelChange={editor.setLevelMoveLevel}
+              onOffsetLevel={editor.offsetLevel}
               onSelect={editor.setSelectedId}
               onZIndexChange={editor.setZIndex}
               onNudgeZIndex={editor.nudgeZIndex}
               onScaleChange={editor.setScale}
+              onFlipXChange={editor.setFlipX}
+              onAnimationLastFrameHoldChange={editor.setAnimationLastFrameHold}
               onSave={editor.save}
               saving={editor.saving}
               onClose={editor.toggle}
