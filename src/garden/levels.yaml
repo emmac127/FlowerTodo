@@ -99,6 +99,22 @@ definitions:
          frameDuration: 0.2
          animationLastFrameHold: 1.5
 
+  iceflower:
+    name: Ice flower
+    mode: scatterPerCompletion
+    asset:
+      src: /garden/assets/Iceflower/i1.png
+      animation:
+        frames:
+          - /garden/assets/Iceflower/i1.png
+          - /garden/assets/Iceflower/i2.png
+          - /garden/assets/Iceflower/i3.png
+          - /garden/assets/Iceflower/i4.png
+          - /garden/assets/Iceflower/i5.png
+          - /garden/assets/Iceflower/i6.png
+          - /garden/assets/Iceflower/i7.png
+        frameDuration: 0.2
+
   pathway:
     name: Pathway
     mode: multiStage
@@ -273,3 +289,5 @@ levels:
     use: heartflower
   "13":
     use: fire_planter
+  "14":
+    use: iceflower

@@ -16,6 +16,8 @@
   /* Garden + seed picker band (dvh preferred for iOS Safari dynamic toolbar) */
   --garden-band-height: clamp(200px, 44vh, 320px);
   --garden-band-height: clamp(200px, 44dvh, 320px);
+  /* Green lawn strip height as a fraction of the garden band (0.55 × 1.5). */
+  --garden-grass-ratio: 0.825;
   /* Set on .garden-scene from JS — room above the grass for tall blooms */
   --garden-headroom-px: 280px;
   --garden-flower-lift: 0.85rem;
@@ -1830,7 +1832,7 @@ body {
 }
 
 .garden-layer--grass {
-  height: calc(var(--garden-band-height) * 0.55);
+  height: calc(var(--garden-band-height) * var(--garden-grass-ratio));
   background: linear-gradient(#b8e8a8 0%, #8ed98e 55%, #6bc96b 100%);
 }
 
