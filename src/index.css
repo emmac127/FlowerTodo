@@ -157,8 +157,9 @@ body {
 /* Sticky mascot + title block (stays visible while scrolling) */
 .sticky-kawaii-header {
   position: sticky;
-  top: 0.5rem;
+  top: 0;
   z-index: 20;
+  margin-top: max(0.5rem, env(safe-area-inset-top, 0px));
   margin-bottom: 0.65rem;
   padding: 0.55rem 0.7rem;
   padding-top: 0.65rem;
@@ -167,6 +168,20 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: visible;
+  isolation: isolate;
+}
+
+/* Block task rows from showing in the gap above the header while scrolling. */
+.sticky-kawaii-header::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 100vh;
+  background: linear-gradient(165deg, var(--bg-top) 0%, var(--bg-bottom) 50%, #fff9fc 100%);
+  pointer-events: none;
 }
 
 .sticky-kawaii-header .kawaii-header {

@@ -194,6 +194,56 @@ definitions:
             - /garden/assets/Lemonyplanter/l4.png.png
             - /garden/assets/Lemonyplanter/l3.png.png
 
+  fire_planter:
+    name: Fire Planter
+    mode: planterSequence
+    onLevelStart: { src: /garden/assets/fireflar/planter.png, replace: false }
+    fills:
+      - src: /garden/assets/fireflar/f1.png
+        animation:
+          frames:
+            - /garden/assets/fireflar/f1.png
+            - /garden/assets/fireflar/f2.png
+            - /garden/assets/fireflar/f3.png
+            - /garden/assets/fireflar/f4.png
+            - /garden/assets/fireflar/f5.png
+            - /garden/assets/fireflar/f6.png
+            - /garden/assets/fireflar/f7.png
+          animationLastFrameHold: 1.5
+      - src: /garden/assets/fireflar/f1.png
+        animation:
+          frames:
+            - /garden/assets/fireflar/f1.png
+            - /garden/assets/fireflar/f2.png
+            - /garden/assets/fireflar/f3.png
+            - /garden/assets/fireflar/f4.png
+            - /garden/assets/fireflar/f5.png
+            - /garden/assets/fireflar/f6.png
+            - /garden/assets/fireflar/f7.png
+          animationLastFrameHold: 1.5
+      - src: /garden/assets/fireflar/f1.png
+        animation:
+          frames:
+            - /garden/assets/fireflar/f1.png
+            - /garden/assets/fireflar/f2.png
+            - /garden/assets/fireflar/f3.png
+            - /garden/assets/fireflar/f4.png
+            - /garden/assets/fireflar/f5.png
+            - /garden/assets/fireflar/f6.png
+            - /garden/assets/fireflar/f7.png
+          animationLastFrameHold: 1.5
+      - src: /garden/assets/fireflar/f1.png
+        animation:
+          frames:
+            - /garden/assets/fireflar/f1.png
+            - /garden/assets/fireflar/f2.png
+            - /garden/assets/fireflar/f3.png
+            - /garden/assets/fireflar/f4.png
+            - /garden/assets/fireflar/f5.png
+            - /garden/assets/fireflar/f6.png
+            - /garden/assets/fireflar/f7.png
+          animationLastFrameHold: 1.5
+
 # One entry per garden level. `use:` references a definition above.
 # (You can also inline `mode:` + its fields directly under a level.)
 levels:
@@ -221,3 +271,5 @@ levels:
     use: statue
   "12":
     use: heartflower
+  "13":
+    use: fire_planter
