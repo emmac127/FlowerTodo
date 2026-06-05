@@ -29,7 +29,7 @@ export function getGardenRevealScrollTop(): number {
 export const GARDEN_REVEAL_ANIM_MS = 680;
 export const GARDEN_REVEAL_STAGGER_MS = 58;
 /** Pause after the garden is visible before auto-returning to the task list. */
-export const GARDEN_REVEAL_AUTO_RETURN_MS = 1000;
+export const GARDEN_REVEAL_AUTO_RETURN_MS = 2000;
 /** Matches `.growing-seed__*` transition in index.css. */
 export const GARDEN_SEED_GROW_TRANSITION_MS = 600;
 /** Pause after venetian lift before the bottom garden growth animation begins. */
@@ -55,7 +55,7 @@ export function getGardenRevealGrowthStartDelayMs(
   );
 }
 
-/** Delay from reveal start until auto "back to tasks" (lift, growth, then 1s). */
+/** Delay from reveal start until auto "back to tasks" (lift, growth, then 2s). */
 export function getGardenAutoReturnDelayMs(
   blindSlatCount: number,
   reducedMotion: boolean,

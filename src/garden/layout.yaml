@@ -11,38 +11,38 @@ scene:
 levels:
   "1":
     scatter:
-      - x: 0.1321
-        y: 1.0022
+      - x: 0.0995
+        y: 0.6253
         zIndex: 30
         scale: 0.45
         flipX: true
-      - x: 0.1189
-        y: 0.9183
-        zIndex: 30
+      - x: 0.1065
+        y: 0.6962
+        zIndex: 31
         scale: 0.505
-      - x: 0.1318
-        y: 0.9276
+      - x: 0.1144
+        y: 0.6515
         zIndex: 30
         scale: 0.6
   "2":
     planter:
       base:
-        x: 0.124
-        y: 0.8391
+        x: 0.1619
+        y: 0.991
         zIndex: 20
         scale: 0.4399
       fills:
-        - x: 0.1244
-          y: 0.6421
-          zIndex: 21
+        - x: 0.1623
+          y: 0.794
+          zIndex: 40
           scale: 0.8461
-        - x: 0.108
-          y: 0.7056
+        - x: 0.1459
+          y: 0.8575
           zIndex: 22
           scale: 0.7783
           flipX: true
-        - x: 0.142
-          y: 0.6832
+        - x: 0.1799
+          y: 0.8351
           zIndex: 23
           scale: 0.6769
         - x: 0.1112
@@ -199,24 +199,24 @@ levels:
           x: 0.81
           y: 1
     scatter:
-      - x: 0.0993
-        y: 0.9052
+      - x: 0.0923
+        y: 0.9313
         zIndex: 31
         scale: 0.7
-      - x: 0.0883
-        y: 0.9351
+      - x: 0.0813
+        y: 0.9612
         zIndex: 32
         scale: 0.7
-      - x: 0.1072
-        y: 0.8903
+      - x: 0.1002
+        y: 0.9164
         zIndex: 33
         scale: 0.5
-      - x: 0.0985
-        y: 0.9295
+      - x: 0.0915
+        y: 0.9556
         zIndex: 34
         scale: 0.5
-      - x: 0.091
-        y: 0.9556
+      - x: 0.084
+        y: 0.9817
         zIndex: 37
         scale: 0.5
   "8":
@@ -352,19 +352,19 @@ levels:
         y: 0.575
         zIndex: 120
         scale: 1
-      - x: 0.1696
-        y: 0.506
+      - x: 0.1231
+        y: 0.5582
         zIndex: 121
         scale: 0.6
       - x: 0.0226
         y: 0.59
         zIndex: 122
         scale: 0.7
-      - x: 0.1619
-        y: 0.5694
+      - x: 0.1072
+        y: 0.5601
         zIndex: 123
         scale: 1
-      - x: 0.151
-        y: 0.5732
+      - x: 0.093
+        y: 0.575
         zIndex: 22
         scale: 0.81
