@@ -88,6 +88,7 @@ export default function App() {
     reorderTask,
     reorderTaskToIndex,
     setGardenProgressForDev,
+    resetGardenLevel,
   } = useTasks();
 
   const [devPanelOpen, setDevPanelOpen] = useState(false);
@@ -104,6 +105,30 @@ export default function App() {
   const handleDevResetEverything = useCallback(() => {
     setGardenProgressForDev(0);
   }, [setGardenProgressForDev]);
+
+  const handleResetGarden = useCallback(() => {
+    if (gardenProgressCount <= 0) return;
+    if (
+      !window.confirm(
+        'Reset your garden to level 0? All tasks stay on your list (including completed ones), but your garden will start fresh.',
+      )
+    ) {
+      return;
+    }
+    resetGardenLevel();
+    setGardenRevealPhase('idle');
+    setGardenRevealHeldCount(null);
+    setGardenRevealGrowthUnlocked(false);
+    setGardenRevealManual(false);
+    if (gardenRevealAutoReturnRef.current) {
+      clearTimeout(gardenRevealAutoReturnRef.current);
+      gardenRevealAutoReturnRef.current = null;
+    }
+    if (gardenRevealGrowthTimerRef.current) {
+      clearTimeout(gardenRevealGrowthTimerRef.current);
+      gardenRevealGrowthTimerRef.current = null;
+    }
+  }, [gardenProgressCount, resetGardenLevel]);
 
   const gardenLevel = getGardenLevel(gardenProgressCount);
   const gardenCycleProgress = getGardenCycleProgress(gardenProgressCount);
@@ -412,6 +437,8 @@ export default function App() {
           gardenViewOpen={gardenRevealPhase !== 'idle'}
           onPickRandom={tasks.length > 0 ? handlePickRandom : undefined}
           pickDisabled={tasks.filter((t) => !t.completed).length === 0}
+          onResetGarden={handleResetGarden}
+          resetGardenDisabled={gardenProgressCount <= 0}
         />
 
         <div

@@ -18,6 +18,8 @@ interface KawaiiMascotProps {
   gardenViewOpen?: boolean;
   onPickRandom?: () => void;
   pickDisabled?: boolean;
+  onResetGarden?: () => void;
+  resetGardenDisabled?: boolean;
 }
 
 export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
@@ -35,6 +37,8 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
       gardenViewOpen = false,
       onPickRandom,
       pickDisabled = false,
+      onResetGarden,
+      resetGardenDisabled = false,
     },
     ref,
   ) {
@@ -85,6 +89,17 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
                 planted={gardenCyclePlanted}
                 max={gardenCycleMax}
               />
+              {onResetGarden && (
+                <button
+                  type="button"
+                  className="reset-garden-btn"
+                  onClick={onResetGarden}
+                  disabled={resetGardenDisabled}
+                  title="Start your garden over at level 0; tasks stay on your list"
+                >
+                  Reset garden
+                </button>
+              )}
             </div>
           </div>
 

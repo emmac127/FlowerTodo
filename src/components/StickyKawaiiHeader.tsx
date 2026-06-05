@@ -14,6 +14,8 @@ interface StickyKawaiiHeaderProps {
   gardenViewOpen?: boolean;
   onPickRandom?: () => void;
   pickDisabled?: boolean;
+  onResetGarden?: () => void;
+  resetGardenDisabled?: boolean;
 }
 
 export const StickyKawaiiHeader = forwardRef<HTMLDivElement, StickyKawaiiHeaderProps>(
@@ -31,6 +33,8 @@ export const StickyKawaiiHeader = forwardRef<HTMLDivElement, StickyKawaiiHeaderP
       gardenViewOpen,
       onPickRandom,
       pickDisabled,
+      onResetGarden,
+      resetGardenDisabled,
     },
     ref,
   ) {
@@ -50,6 +54,8 @@ export const StickyKawaiiHeader = forwardRef<HTMLDivElement, StickyKawaiiHeaderP
           gardenViewOpen={gardenViewOpen}
           onPickRandom={onPickRandom}
           pickDisabled={pickDisabled}
+          onResetGarden={onResetGarden}
+          resetGardenDisabled={resetGardenDisabled}
         />
       </header>
     );

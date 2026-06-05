@@ -258,6 +258,28 @@ export function useTasks() {
    * new count). Existing tasks are kept but reset to "not completed" when the
    * progress count moves backwards, so the picker / planting flow can replay.
    */
+  /**
+   * Reset garden to level 0 while keeping every task (including completed ones).
+   * Clears garden linkage on tasks so progress does not re-infer from old indices.
+   */
+  const resetGardenLevel = useCallback(() => {
+    setGardenProgressCount(0);
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.completed
+          ? {
+              ...t,
+              completionIndex: undefined,
+              plantSlot: undefined,
+              plantX: undefined,
+              gardenRevealed: undefined,
+              releaseToBottomAt: undefined,
+            }
+          : t,
+      ),
+    );
+  }, []);
+
   const setGardenProgressForDev = useCallback((target: number) => {
     const safe = Math.max(0, Math.floor(target));
     setGardenProgressCount(safe);
@@ -299,5 +321,6 @@ export function useTasks() {
     reorderTask,
     reorderTaskToIndex,
     setGardenProgressForDev,
+    resetGardenLevel,
   };
 }
