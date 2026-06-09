@@ -15,6 +15,8 @@ interface GardenFlowerStripProps {
   scrollFocusX?: number;
   /** Disable auto-scroll (used by the editor for free panning). */
   freeScroll?: boolean;
+  /** Editor: list-selected flower — show crosshair and allow click-to-place. */
+  placeMode?: boolean;
 }
 
 function getMaxScrollLeft(viewport: HTMLElement): number {
@@ -55,6 +57,7 @@ export function GardenFlowerStrip({
   autoScrollKey = 0,
   scrollFocusX = 0,
   freeScroll = false,
+  placeMode = false,
 }: GardenFlowerStripProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [needsScroll, setNeedsScroll] = useState(false);
@@ -148,7 +151,7 @@ export function GardenFlowerStrip({
 
   return (
     <div
-      className={`garden-flower-strip${needsScroll ? ' garden-flower-strip--scrollable' : ''}${freeScroll ? ' garden-flower-strip--editing' : ''}`}
+      className={`garden-flower-strip${needsScroll ? ' garden-flower-strip--scrollable' : ''}${freeScroll ? ' garden-flower-strip--editing' : ''}${placeMode ? ' garden-flower-strip--place-mode' : ''}`}
     >
       <div ref={viewportRef} className="garden-flower-scroll__viewport">
         {children}

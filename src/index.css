@@ -1927,6 +1927,10 @@ body {
   pointer-events: auto;
 }
 
+.garden-flower-strip--place-mode .garden-flower-scroll__viewport {
+  cursor: crosshair;
+}
+
 .garden-flower-strip--editing .garden-flower-scroll__viewport {
   touch-action: none;
   padding-bottom: 0.35rem;
@@ -1981,6 +1985,15 @@ body {
 .garden-canvas--editable {
   pointer-events: auto;
   cursor: default;
+}
+
+.garden-canvas--editable .garden-canvas__stage {
+  /* Let background clicks reach the canvas for click-to-place. */
+  pointer-events: none;
+}
+
+.garden-canvas--place-mode {
+  cursor: crosshair;
 }
 
 .garden-canvas__stage {

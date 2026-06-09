@@ -99,6 +99,14 @@ definitions:
          frameDuration: 0.2
          animationLastFrameHold: 1.5
 
+  poppyflower:
+    name: Poppy flower
+    mode: scatterPerCompletion
+    scatterAssets:
+       - /garden/assets/Poppy/p1.png
+       - /garden/assets/Poppy/p2.png
+
+       
   iceflower:
     name: Ice flower
     mode: scatterPerCompletion
@@ -291,3 +299,5 @@ levels:
     use: fire_planter
   "14":
     use: iceflower
+  "15":
+    use: poppyflower

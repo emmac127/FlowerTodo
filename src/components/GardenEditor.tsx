@@ -14,7 +14,7 @@ interface GardenEditorProps {
   onLevelMoveLevelChange: (level: number | null) => void;
   onOffsetLevel: (level: number, deltaX: number, deltaY: number) => void;
   onScaleLevel: (level: number, factor: number) => void;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
   onZIndexChange: (id: string, zIndex: number) => void;
   onNudgeZIndex: (id: string, delta: number) => void;
   onScaleChange: (id: string, scale: number) => void;
@@ -101,7 +101,7 @@ export function GardenEditor({
               <button
                 type="button"
                 className="garden-editor__item-btn"
-                onClick={() => onSelect(entry.id)}
+                onClick={() => onSelect(selected ? null : entry.id)}
               >
                 <span className="garden-editor__item-label">{entry.name}</span>
                 <span className="garden-editor__item-meta">

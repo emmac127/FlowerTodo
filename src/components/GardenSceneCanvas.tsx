@@ -102,6 +102,23 @@ export function GardenSceneCanvas({
     draggingIdRef.current = null;
   }, []);
 
+  const placeMode =
+    editable && selectedId != null && levelMoveLevel == null;
+
+  /** Individual mode: place the list-selected flower at the click point. */
+  const handleCanvasPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!placeMode) return;
+      const target = event.target as HTMLElement;
+      if (target.closest('.garden-canvas__el')) return;
+      const norm = pointerToNorm(event.clientX, event.clientY);
+      if (!norm) return;
+      event.preventDefault();
+      onElementDrag?.(selectedId!, norm.x, norm.y);
+    },
+    [placeMode, selectedId, pointerToNorm, onElementDrag],
+  );
+
   const canvasStyle: CSSProperties = {
     width: `${innerWidth}px`,
     height: `${bandHeight}px`,
@@ -117,8 +134,9 @@ export function GardenSceneCanvas({
   return (
     <div
       ref={canvasRef}
-      className={`garden-canvas${editable ? ' garden-canvas--editable' : ''}`}
+      className={`garden-canvas${editable ? ' garden-canvas--editable' : ''}${placeMode ? ' garden-canvas--place-mode' : ''}`}
       style={canvasStyle}
+      onPointerDown={editable ? handleCanvasPointerDown : undefined}
       onPointerMove={editable ? moveDrag : undefined}
       onPointerUp={editable ? endDrag : undefined}
       onPointerCancel={editable ? endDrag : undefined}

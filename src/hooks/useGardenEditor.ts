@@ -1,6 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { buildEditorScene } from '../lib/garden/buildScene';
-import { getConfiguredLevels } from '../lib/garden/loadConfig';
+import {
+  DESIGN_HEIGHT,
+  DESIGN_WIDTH,
+  getConfiguredLevels,
+} from '../lib/garden/loadConfig';
 import {
   cloneLayout,
   saveLayoutYaml,
@@ -188,6 +192,77 @@ export function useGardenEditor() {
   }, []);
 
   const configuredLevels = useMemo(() => getConfiguredLevels(), []);
+
+  const nudgeSelectedByPixels = useCallback(
+    (deltaXPx: number, deltaYPx: number) => {
+      if (deltaXPx === 0 && deltaYPx === 0) return;
+      const deltaX = deltaXPx / DESIGN_WIDTH;
+      const deltaY = deltaYPx / DESIGN_HEIGHT;
+
+      if (levelMoveLevel != null) {
+        offsetLevel(levelMoveLevel, deltaX, deltaY);
+        return;
+      }
+
+      if (!selectedId) return;
+      const el = elements.find((e) => e.id === selectedId);
+      if (!el) return;
+
+      setWorkingLayout((prev) =>
+        setLayoutPosition(
+          prev,
+          selectedId,
+          stageForId(selectedId),
+          el.x + deltaX,
+          el.y + deltaY,
+        ),
+      );
+    },
+    [elements, levelMoveLevel, offsetLevel, selectedId, stageForId],
+  );
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (levelMoveLevel == null && !selectedId) return;
+
+      let deltaXPx = 0;
+      let deltaYPx = 0;
+      switch (event.key) {
+        case 'ArrowLeft':
+          deltaXPx = -1;
+          break;
+        case 'ArrowRight':
+          deltaXPx = 1;
+          break;
+        case 'ArrowUp':
+          deltaYPx = -1;
+          break;
+        case 'ArrowDown':
+          deltaYPx = 1;
+          break;
+        default:
+          return;
+      }
+
+      event.preventDefault();
+      nudgeSelectedByPixels(deltaXPx, deltaYPx);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [enabled, levelMoveLevel, nudgeSelectedByPixels, selectedId]);
 
   return {
     enabled,

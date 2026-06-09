@@ -76,6 +76,9 @@ export function GardenScene({
           autoScrollKey={completedCount}
           scrollFocusX={scrollFocusX}
           freeScroll={editable}
+          placeMode={
+            editable && selectedId != null && levelMoveLevel == null
+          }
         >
           <GardenSceneCanvas
             elements={elements}
