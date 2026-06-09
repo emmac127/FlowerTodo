@@ -17,6 +17,18 @@ export function getTasksForGardenLevel(level: number): number {
 }
 
 /**
+ * Scatter levels: when `scatterAssets` has more entries than the default task
+ * count, the level lasts long enough to place every listed asset.
+ */
+export function getScatterSlotCount(level: number): number {
+  const def = getLevelDefinition(level);
+  const defaultTasks = getTasksForGardenLevel(level);
+  if (def?.mode !== 'scatterPerCompletion') return defaultTasks;
+  const scatterCount = def.scatterAssets?.length ?? 0;
+  return scatterCount > defaultTasks ? scatterCount : defaultTasks;
+}
+
+/**
  * Task completions required to finish a garden level and advance to the next.
  * multiStage: one completion per stage after the first (7 stages → 6 completions).
  */
@@ -24,6 +36,9 @@ export function getLevelCompletionBudget(level: number): number {
   const def = getLevelDefinition(level);
   if (def?.mode === 'multiStage') {
     return Math.max(1, getMaxInLevelScore(level));
+  }
+  if (def?.mode === 'scatterPerCompletion') {
+    return getScatterSlotCount(level);
   }
   if (def?.mode === 'planter') {
     return def.perCompletion?.max ?? getTasksForGardenLevel(level);
@@ -86,6 +101,9 @@ export function getMaxInLevelScore(level: number): number {
   }
   if (def?.mode === 'planterSequence') {
     return def.fills?.length ?? getTasksForGardenLevel(level);
+  }
+  if (def?.mode === 'scatterPerCompletion') {
+    return getScatterSlotCount(level);
   }
   return getTasksForGardenLevel(level);
 }

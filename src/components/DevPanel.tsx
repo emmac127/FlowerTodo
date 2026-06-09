@@ -17,6 +17,8 @@ interface DevPanelProps {
 }
 
 const LEVEL_OPTIONS = getConfiguredLevels();
+const MIN_LEVEL = LEVEL_OPTIONS[0] ?? 1;
+const MAX_LEVEL = LEVEL_OPTIONS[LEVEL_OPTIONS.length - 1] ?? MIN_LEVEL;
 
 export function DevPanel({
   open,
@@ -36,8 +38,12 @@ export function DevPanel({
   if (!open) return null;
 
   const handleLevelChange = (next: number) => {
-    setLevel(next);
-    const cap = getMaxInLevelScore(next);
+    const clamped = Math.max(
+      MIN_LEVEL,
+      Math.min(MAX_LEVEL, Math.round(next) || MIN_LEVEL),
+    );
+    setLevel(clamped);
+    const cap = getMaxInLevelScore(clamped);
     if (score > cap) setScore(cap);
   };
 
@@ -73,18 +79,38 @@ export function DevPanel({
         </div>
 
         <div className="dev-panel__field">
-          <label htmlFor="dev-level">Garden level</label>
-          <select
-            id="dev-level"
-            value={level}
-            onChange={(e) => handleLevelChange(Number(e.target.value))}
-          >
-            {LEVEL_OPTIONS.map((lvl) => (
-              <option key={lvl} value={lvl}>
-                Level {lvl}
-              </option>
-            ))}
-          </select>
+          <label htmlFor="dev-level">
+            Garden level ({MIN_LEVEL}–{MAX_LEVEL})
+          </label>
+          <div className="dev-panel__level-controls">
+            <button
+              type="button"
+              className="dev-panel__step-btn"
+              onClick={() => handleLevelChange(level - 1)}
+              disabled={level <= MIN_LEVEL}
+              aria-label="Previous level"
+            >
+              −
+            </button>
+            <input
+              id="dev-level"
+              type="number"
+              min={MIN_LEVEL}
+              max={MAX_LEVEL}
+              step={1}
+              value={level}
+              onChange={(e) => handleLevelChange(Number(e.target.value))}
+            />
+            <button
+              type="button"
+              className="dev-panel__step-btn"
+              onClick={() => handleLevelChange(level + 1)}
+              disabled={level >= MAX_LEVEL}
+              aria-label="Next level"
+            >
+              +
+            </button>
+          </div>
         </div>
 
         <div className="dev-panel__field">

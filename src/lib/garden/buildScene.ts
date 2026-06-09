@@ -2,6 +2,7 @@ import {
   getCompletionsBeforeLevel,
   getGardenLevel,
   getMaxInLevelScore,
+  getScatterSlotCount,
   getTasksForGardenLevel,
 } from '../plantedGarden';
 import {
@@ -327,9 +328,11 @@ interface ElementSpec {
 function makeElement(layout: LayoutConfig, spec: ElementSpec): PlacedElement {
   const index = spec.stageIndex ?? spec.slotIndex ?? 0;
   const slotCount =
-    spec.kind === 'scatter' || spec.kind === 'planterFill'
-      ? getTasksForGardenLevel(spec.level)
-      : 1;
+    spec.kind === 'scatter'
+      ? getScatterSlotCount(spec.level)
+      : spec.kind === 'planterFill'
+        ? getTasksForGardenLevel(spec.level)
+        : 1;
   const slot = resolveSlot(layout, spec.level, spec.kind, index, slotCount);
 
   const idSuffix =
@@ -623,8 +626,6 @@ export function buildEditorScene(
     const def = getLevelDefinition(level);
     if (!def) continue;
     const name = definitionName(def, level);
-    const tasks = getTasksForGardenLevel(level);
-
     if (def.mode === 'multiStage') {
       const stages = def.stages ?? [];
       const stageCount = multiStageStageCount(def);
@@ -646,7 +647,8 @@ export function buildEditorScene(
       }
     } else if (def.mode === 'scatterPerCompletion') {
       if (!def.asset && !(def.scatterAssets?.length)) continue;
-      for (let slot = 0; slot < tasks; slot++) {
+      const scatterSlots = getScatterSlotCount(level);
+      for (let slot = 0; slot < scatterSlots; slot++) {
         const asset = scatterAssetForSlot(def, slot);
         if (!asset) continue;
         const el = makeElement(layout, {

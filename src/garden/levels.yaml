@@ -99,14 +99,34 @@ definitions:
          frameDuration: 0.2
          animationLastFrameHold: 1.5
 
+  tallflower:
+    name: Tall flower
+    mode: scatterPerCompletion
+    asset:
+       src: /garden/assets/Tallone/t1.png
+       animation:
+         frames:
+           - /garden/assets/Tallone/t1.png
+           - /garden/assets/Tallone/t2.png
+           - /garden/assets/Tallone/t3.png
+           - /garden/assets/Tallone/t2.png
+           - /garden/assets/Tallone/t1.png
+         frameDuration: 0.2
+         animationLastFrameHold: 1.5
+
+
   poppyflower:
     name: Poppy flower
     mode: scatterPerCompletion
     scatterAssets:
        - /garden/assets/Poppy/p1.png
        - /garden/assets/Poppy/p2.png
+       - /garden/assets/Poppy/p1.png
+       - /garden/assets/Poppy/p2.png
+       - /garden/assets/Poppy/p1.png
+       - /garden/assets/Poppy/p2.png
 
-       
+
   iceflower:
     name: Ice flower
     mode: scatterPerCompletion
@@ -301,3 +321,5 @@ levels:
     use: iceflower
   "15":
     use: poppyflower
+  "16":
+    use: tallflower

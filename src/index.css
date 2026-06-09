@@ -2806,6 +2806,45 @@ body {
   color: #4b2580;
 }
 
+.dev-panel__level-controls {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.dev-panel__step-btn {
+  flex: 0 0 auto;
+  min-width: 2.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1.5px solid #c4a8e6;
+  border-radius: 8px;
+  background: #faf5ff;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #4b2580;
+  cursor: pointer;
+}
+
+.dev-panel__step-btn:hover:not(:disabled),
+.dev-panel__step-btn:focus-visible:not(:disabled) {
+  background: #f0e4ff;
+  border-color: #9b6fd4;
+}
+
+.dev-panel__step-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dev-panel__level-controls input {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .dev-panel__field select,
 .dev-panel__field input {
   padding: 0.5rem 0.7rem;
