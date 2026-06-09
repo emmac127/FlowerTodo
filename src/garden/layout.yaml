@@ -78,24 +78,24 @@ levels:
           animationLastFrameHold: 4
   "4":
     scatter:
-      - x: 0.0781
-        y: 0.3094
+      - x: 0.0778
+        y: 0.3337
         zIndex: 32
         scale: 0.7
-      - x: 0.0719
-        y: 0.3621
+      - x: 0.0716
+        y: 0.3864
         zIndex: 31
         scale: 0.41
-      - x: 0.0492
-        y: 0.4291
+      - x: 0.0489
+        y: 0.4534
         zIndex: 32
         scale: 0.8
-      - x: 0.0863
-        y: 0.3317
+      - x: 0.086
+        y: 0.356
         zIndex: 32
         scale: 0.65
-      - x: 0.0625
-        y: 0.3824
+      - x: 0.0622
+        y: 0.4067
         zIndex: 29
         scale: 1
   "5":
@@ -106,7 +106,7 @@ levels:
         scale: 1
       - x: 0.0381
         y: 0.2363
-        zIndex: 1
+        zIndex: 2
         scale: 1
       - x: 0.0575
         y: 0.2363
@@ -122,26 +122,26 @@ levels:
         scale: 1
   "6":
     scatter:
-      - x: 0.2249
-        y: 0.4975
+      - x: 0.1131
+        y: 0.2
         zIndex: 1
-        scale: 1
-      - x: 0.2442
-        y: 0.4898
+        scale: 0.7835
+      - x: 0.1283
+        y: 0.2
         zIndex: 1
-        scale: 1
-      - x: 0.2637
-        y: 0.4929
+        scale: 0.7835
+      - x: 0.144
+        y: 0.2
         zIndex: 1
-        scale: 1
-      - x: 0.2831
-        y: 0.4892
+        scale: 0.7835
+      - x: 0.1442
+        y: 0.2
         zIndex: 1
-        scale: 1
-      - x: 0.2062
-        y: 0.5054
+        scale: 0.7835
+      - x: 0.0035
+        y: 0.2383
         zIndex: 1
-        scale: 1
+        scale: 0.87
   "7":
     multiStage:
       stages:
@@ -282,33 +282,33 @@ levels:
     multiStage:
       stages:
         "0":
-          x: 0.148
-          y: 0.6235
+          x: 0.1478
+          y: 0.5772
           zIndex: 5
           scale: 1.2341
         "1":
-          x: 0.148
-          y: 0.6235
+          x: 0.1478
+          y: 0.5772
           zIndex: 5
           scale: 1.2341
         "2":
-          x: 0.148
-          y: 0.6235
+          x: 0.1478
+          y: 0.5772
           zIndex: 5
           scale: 1.2341
         "3":
-          x: 0.148
-          y: 0.6235
+          x: 0.1478
+          y: 0.5772
           zIndex: 5
           scale: 1.2341
         "4":
-          x: 0.148
-          y: 0.6235
+          x: 0.1478
+          y: 0.5772
           zIndex: 5
           scale: 1.2341
         "5":
-          x: 0.1485
-          y: 0.6235
+          x: 0.1483
+          y: 0.5772
           zIndex: 5
           scale: 1.2341
   "12":
