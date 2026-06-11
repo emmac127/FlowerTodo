@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { GardenFlowerStrip } from './GardenFlowerStrip';
 import { GardenSceneCanvas, gardenHeadroomPx } from './GardenSceneCanvas';
@@ -29,7 +29,11 @@ export function GardenScene({
   onElementDrag,
 }: GardenSceneProps) {
   const bandRef = useRef<HTMLDivElement>(null);
-  const [bandHeight, setBandHeight] = useState(280);
+  const [bandHeight, setBandHeight] = useState(0);
+  const [bandReady, setBandReady] = useState(false);
+  /** Completion count through which scroll has been synced (hides newest until caught up). */
+  const [scrollSyncedForCount, setScrollSyncedForCount] =
+    useState(completedCount);
 
   const layers = useMemo(() => getGardenLayers(completedCount), [completedCount]);
   const stage = Math.min(getSceneMilestoneCount(completedCount), 12);
@@ -40,20 +44,47 @@ export function GardenScene({
     [completedCount],
   );
   const elements = elementsOverride ?? gameplayScene.elements;
-  const newestId = editable ? null : gameplayScene.newestId;
+  const gameplayNewestId = gameplayScene.newestId;
+  const awaitingNewestReveal =
+    !editable && completedCount > scrollSyncedForCount;
+  const newestId =
+    editable || awaitingNewestReveal ? null : gameplayNewestId;
   const scrollFocusX = editable ? 0 : gameplayScene.scrollFocusX;
 
   const showGrass = layers.grass || activeLevel >= 1 || editable;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = bandRef.current;
     if (!el) return;
-    const update = () => setBandHeight(el.clientHeight);
+    const update = () => {
+      const h = el.clientHeight;
+      if (h > 0) {
+        setBandHeight(h);
+        setBandReady(true);
+      }
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (completedCount < scrollSyncedForCount) {
+      setScrollSyncedForCount(completedCount);
+      return;
+    }
+    if (editable || completedCount <= scrollSyncedForCount) return;
+    const id = requestAnimationFrame(() => {
+      setScrollSyncedForCount(completedCount);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [completedCount, scrollSyncedForCount, editable]);
+
+  const handleFocusScrollReady = useCallback(() => {
+    if (editable) return;
+    setScrollSyncedForCount(completedCount);
+  }, [editable, completedCount]);
 
   const sceneStyle = {
     '--garden-headroom-px': `${gardenHeadroomPx(bandHeight)}px`,
@@ -79,11 +110,15 @@ export function GardenScene({
           placeMode={
             editable && selectedId != null && levelMoveLevel == null
           }
+          onFocusScrollReady={handleFocusScrollReady}
         >
           <GardenSceneCanvas
             elements={elements}
             bandHeight={bandHeight}
+            bandReady={bandReady}
             newestId={newestId}
+            awaitingNewestReveal={awaitingNewestReveal}
+            gameplayNewestId={editable ? null : gameplayNewestId}
             editable={editable}
             selectedId={selectedId}
             levelMoveLevel={levelMoveLevel}

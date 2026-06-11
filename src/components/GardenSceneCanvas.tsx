@@ -13,8 +13,13 @@ interface GardenSceneCanvasProps {
   elements: PlacedElement[];
   /** Height of the garden band in CSS pixels. */
   bandHeight: number;
+  /** False until the garden band has been measured (avoids scale jump). */
+  bandReady?: boolean;
   /** Id of the element with the newest reveal (for a small pop-in). */
   newestId?: string | null;
+  /** Hide the newest flower until scroll is synced to its layout position. */
+  awaitingNewestReveal?: boolean;
+  gameplayNewestId?: string | null;
   /** Editor: id of the currently selected element. */
   selectedId?: string | null;
   /** Editor: when set, all assets in this level move together and are highlighted. */
@@ -43,7 +48,10 @@ function clampLayoutY(value: number, editable: boolean): number {
 export function GardenSceneCanvas({
   elements,
   bandHeight,
+  bandReady = true,
   newestId = null,
+  awaitingNewestReveal = false,
+  gameplayNewestId = null,
   selectedId = null,
   levelMoveLevel = null,
   editable = false,
@@ -53,8 +61,10 @@ export function GardenSceneCanvas({
   const canvasRef = useRef<HTMLDivElement>(null);
   const draggingIdRef = useRef<string | null>(null);
 
-  const scale = bandHeight > 0 ? bandHeight / DESIGN_HEIGHT : 1;
+  const scale =
+    bandReady && bandHeight > 0 ? bandHeight / DESIGN_HEIGHT : 0;
   const innerWidth = DESIGN_WIDTH * scale;
+  const showElements = editable || (bandReady && scale > 0);
 
   const pointerToNorm = useCallback(
     (clientX: number, clientY: number) => {
@@ -142,14 +152,18 @@ export function GardenSceneCanvas({
       onPointerCancel={editable ? endDrag : undefined}
     >
       <div className="garden-canvas__stage" style={stageStyle}>
-        {[...elements]
-          .sort((a, b) => a.zIndex - b.zIndex)
-          .map((el) => {
+        {showElements &&
+          [...elements]
+            .filter((el) => editable || el.hasLayout)
+            .sort((a, b) => a.zIndex - b.zIndex)
+            .map((el) => {
           const inLevelMove =
             editable && levelMoveLevel != null && el.level === levelMoveLevel;
           const isSelected =
             editable &&
             (inLevelMove || (levelMoveLevel == null && el.id === selectedId));
+          const isPendingNewest =
+            awaitingNewestReveal && el.id === gameplayNewestId;
           const isNew = !editable && el.id === newestId;
           const dimmed =
             editable &&
@@ -161,7 +175,8 @@ export function GardenSceneCanvas({
             bottom: `${(1 - el.y) * DESIGN_HEIGHT}px`,
             height: `${el.heightDesign * el.scale}px`,
             zIndex: isSelected ? el.zIndex + 10000 : el.zIndex,
-            opacity: dimmed ? 0.35 : 1,
+            opacity: dimmed ? 0.35 : isPendingNewest ? 0 : 1,
+            visibility: isPendingNewest ? 'hidden' : 'visible',
             '--garden-el-flip-x': el.flipX ? -1 : 1,
           } as CSSProperties;
           const classes = [

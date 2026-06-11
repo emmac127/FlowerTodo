@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 interface GardenFlowerStripProps {
@@ -17,6 +17,8 @@ interface GardenFlowerStripProps {
   freeScroll?: boolean;
   /** Editor: list-selected flower — show crosshair and allow click-to-place. */
   placeMode?: boolean;
+  /** Fired after the viewport is synced to scrollFocusX (before paint). */
+  onFocusScrollReady?: () => void;
 }
 
 function getMaxScrollLeft(viewport: HTMLElement): number {
@@ -58,6 +60,7 @@ export function GardenFlowerStrip({
   scrollFocusX = 0,
   freeScroll = false,
   placeMode = false,
+  onFocusScrollReady,
 }: GardenFlowerStripProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [needsScroll, setNeedsScroll] = useState(false);
@@ -123,30 +126,28 @@ export function GardenFlowerStrip({
     return () => el.removeEventListener('wheel', onWheel);
   }, [freeScroll, scrollViewportTo]);
 
+  /** Snap scroll before paint when focus changes so new flowers are not shown mid-pan. */
+  useLayoutEffect(() => {
+    if (freeScroll) return;
+    const el = viewportRef.current;
+    if (!el) return;
+    scrollToDesignFocus(el, scrollFocusX, false);
+    onFocusScrollReady?.();
+  }, [autoScrollKey, scrollFocusX, freeScroll, onFocusScrollReady]);
+
   useEffect(() => {
     if (freeScroll) return;
     const el = viewportRef.current;
     if (!el) return;
 
-    const scrollNow = (smooth: boolean) => scrollToDesignFocus(el, scrollFocusX, smooth);
-    scrollNow(false);
-    const raf = requestAnimationFrame(() => scrollNow(false));
-    const t1 = window.setTimeout(() => scrollNow(true), 120);
-    const t2 = window.setTimeout(() => scrollNow(true), 350);
-    const t3 = window.setTimeout(() => scrollNow(true), 700);
+    const scrollNow = () => scrollToDesignFocus(el, scrollFocusX, false);
 
-    const ro = new ResizeObserver(() => scrollNow(false));
+    const ro = new ResizeObserver(scrollNow);
     ro.observe(el);
     const canvas = el.querySelector<HTMLElement>('.garden-canvas');
     if (canvas) ro.observe(canvas);
 
-    return () => {
-      cancelAnimationFrame(raf);
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-      ro.disconnect();
-    };
+    return () => ro.disconnect();
   }, [autoScrollKey, scrollFocusX, freeScroll]);
 
   return (

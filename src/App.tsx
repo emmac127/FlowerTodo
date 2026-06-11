@@ -332,13 +332,18 @@ export default function App() {
 
       const wasPicked = id === pickedTaskId;
       const previousGardenCount = gardenProgressCount;
-      completeTask(id, completionIndex);
+      const revealGarden = shouldRevealGardenForCompletion(
+        completionIndex,
+        previousGardenCount,
+      );
 
-      if (shouldRevealGardenForCompletion(completionIndex, previousGardenCount)) {
+      if (revealGarden) {
         setGardenRevealHeldCount(previousGardenCount);
         setGardenRevealGrowthUnlocked(false);
         beginGardenReveal();
       }
+
+      completeTask(id, completionIndex);
 
       if (isGardenLevelComplete(completionIndex)) {
         showMascotCheer('Garden level up! 🌸✨\nYour flower has fully bloomed!');
