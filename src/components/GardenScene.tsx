@@ -72,14 +72,8 @@ export function GardenScene({
   useEffect(() => {
     if (completedCount < scrollSyncedForCount) {
       setScrollSyncedForCount(completedCount);
-      return;
     }
-    if (editable || completedCount <= scrollSyncedForCount) return;
-    const id = requestAnimationFrame(() => {
-      setScrollSyncedForCount(completedCount);
-    });
-    return () => cancelAnimationFrame(id);
-  }, [completedCount, scrollSyncedForCount, editable]);
+  }, [completedCount, scrollSyncedForCount]);
 
   const handleFocusScrollReady = useCallback(() => {
     if (editable) return;

@@ -30,9 +30,9 @@ function scrollToDesignFocus(
   viewport: HTMLElement,
   focusXNorm: number,
   smooth: boolean,
-): void {
+): boolean {
   const canvas = viewport.querySelector<HTMLElement>('.garden-canvas');
-  if (!canvas || canvas.offsetWidth <= 0) return;
+  if (!canvas || canvas.offsetWidth <= 0) return false;
 
   const focusPx = focusXNorm * canvas.offsetWidth;
   const maxScroll = getMaxScrollLeft(viewport);
@@ -45,9 +45,15 @@ function scrollToDesignFocus(
     } catch {
       viewport.scrollLeft = left;
     }
-  } else {
-    viewport.scrollLeft = left;
+    return true;
   }
+
+  // CSS `scroll-behavior: smooth` would still animate a direct scrollLeft assignment.
+  const prevBehavior = viewport.style.scrollBehavior;
+  viewport.style.scrollBehavior = 'auto';
+  viewport.scrollLeft = left;
+  viewport.style.scrollBehavior = prevBehavior;
+  return true;
 }
 
 /**
@@ -131,24 +137,24 @@ export function GardenFlowerStrip({
     if (freeScroll) return;
     const el = viewportRef.current;
     if (!el) return;
-    scrollToDesignFocus(el, scrollFocusX, false);
-    onFocusScrollReady?.();
-  }, [autoScrollKey, scrollFocusX, freeScroll, onFocusScrollReady]);
 
-  useEffect(() => {
-    if (freeScroll) return;
-    const el = viewportRef.current;
-    if (!el) return;
+    const syncScroll = () => scrollToDesignFocus(el, scrollFocusX, false);
 
-    const scrollNow = () => scrollToDesignFocus(el, scrollFocusX, false);
+    if (syncScroll()) {
+      onFocusScrollReady?.();
+    }
 
-    const ro = new ResizeObserver(scrollNow);
+    const ro = new ResizeObserver(() => {
+      if (syncScroll()) {
+        onFocusScrollReady?.();
+      }
+    });
     ro.observe(el);
     const canvas = el.querySelector<HTMLElement>('.garden-canvas');
     if (canvas) ro.observe(canvas);
 
     return () => ro.disconnect();
-  }, [autoScrollKey, scrollFocusX, freeScroll]);
+  }, [autoScrollKey, scrollFocusX, freeScroll, onFocusScrollReady]);
 
   return (
     <div
