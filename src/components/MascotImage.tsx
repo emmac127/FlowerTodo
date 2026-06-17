@@ -1,25 +1,35 @@
 import { useEffect, useId, useState } from 'react';
+import type { AppVariant } from '../lib/appVariant';
 import mascotSrc from '../assets/kawaii-mascot.png';
+
+const DAD_MASCOT_SRC = '/garden/clipboardalien.png';
 
 interface MascotImageProps {
   className?: string;
+  variant?: AppVariant;
 }
 
 /**
  * Renders the mascot PNG inside SVG so alpha/transparency is composited correctly.
- * (Plain <img> + CSS filters can mishandle PNG alpha in some cases.)
  */
-export function MascotImage({ className }: MascotImageProps) {
+export function MascotImage({
+  className,
+  variant = 'default',
+}: MascotImageProps) {
   const shadowId = useId().replace(/:/g, '');
+  const isDad = variant === 'dad';
+  const imageSrc = isDad ? DAD_MASCOT_SRC : mascotSrc;
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
     const img = new Image();
-    img.src = mascotSrc;
+    img.src = imageSrc;
     img.onload = () => {
       setSize({ w: img.naturalWidth, h: img.naturalHeight });
     };
-  }, []);
+  }, [imageSrc]);
+
+  const ariaLabel = isDad ? 'Space helper character' : 'Kawaii helper character';
 
   if (!size) {
     return (
@@ -28,7 +38,7 @@ export function MascotImage({ className }: MascotImageProps) {
         viewBox="0 0 100 160"
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label="Kawaii helper character"
+        aria-label={ariaLabel}
         aria-busy="true"
       />
     );
@@ -41,7 +51,7 @@ export function MascotImage({ className }: MascotImageProps) {
       preserveAspectRatio="xMidYMid meet"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
-      aria-label="Kawaii helper character"
+      aria-label={ariaLabel}
     >
       <defs>
         <filter
@@ -56,13 +66,13 @@ export function MascotImage({ className }: MascotImageProps) {
             dx="0"
             dy="4"
             stdDeviation="5"
-            floodColor="#ff8fab"
+            floodColor={isDad ? '#7a9fd4' : '#ff8fab'}
             floodOpacity="0.35"
           />
         </filter>
       </defs>
       <image
-        href={mascotSrc}
+        href={imageSrc}
         x="0"
         y="0"
         width={size.w}

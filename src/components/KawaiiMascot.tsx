@@ -1,5 +1,6 @@
 ﻿import { forwardRef } from 'react';
 import headerTitleSrc from '../assets/header-title.png';
+import { useAppVariant } from '../context/AppVariantContext';
 import { GardenProgressMeter } from './GardenProgressMeter';
 import { MascotImage } from './MascotImage';
 import { MuteToggleButton } from './MuteToggleButton';
@@ -42,6 +43,8 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
     },
     ref,
   ) {
+    const variant = useAppVariant();
+    const isDad = variant === 'dad';
     const mascotClass = [
       'mascot',
       visible ? 'mascot--cheering' : '',
@@ -65,12 +68,12 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
                   <p className="mascot-speech__text">{message}</p>
                 </div>
               )}
-              <MascotImage className="mascot__render" />
+              <MascotImage className="mascot__render" variant={variant} />
             </div>
 
             <img
               src={headerTitleSrc}
-              alt="Flower To Do"
+              alt={isDad ? 'Moon To Do' : 'Flower To Do'}
               className="app-header-logo"
               decoding="async"
             />
@@ -78,9 +81,11 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
             <div className="garden-level-block">
               <div
                 className="garden-level"
-                aria-label={`Garden level ${gardenLevel}`}
+                aria-label={`${isDad ? 'Moon' : 'Garden'} level ${gardenLevel}`}
               >
-                <span className="garden-level__label">Garden Level</span>
+                <span className="garden-level__label">
+                  {isDad ? 'Moon Level' : 'Garden Level'}
+                </span>
                 <span className="garden-level__value" aria-hidden>
                   {gardenLevel}
                 </span>

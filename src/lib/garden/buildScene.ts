@@ -6,10 +6,8 @@ import {
   getTasksForGardenLevel,
 } from '../plantedGarden';
 import {
-  DESIGN_WIDTH,
-  getConfiguredLevels,
-  getLevelDefinition,
-  layoutConfig as defaultLayout,
+  defaultGardenConfig,
+  type GardenConfig,
 } from './loadConfig';
 import { resolveGardenAsset } from './gardenAsset';
 import type { ResolvedGardenAsset } from './gardenAsset';
@@ -173,9 +171,13 @@ function definitionScaleWithStage(def: GardenDefinition): boolean {
 }
 
 /** In-level score (0..max) for a level given the lifetime completion count. */
-function scoreInLevel(level: number, completedCount: number): number {
-  const raw = completedCount - getCompletionsBeforeLevel(level);
-  return Math.max(0, Math.min(raw, getMaxInLevelScore(level)));
+function scoreInLevel(
+  level: number,
+  completedCount: number,
+  config: GardenConfig,
+): number {
+  const raw = completedCount - getCompletionsBeforeLevel(level, config);
+  return Math.max(0, Math.min(raw, getMaxInLevelScore(level, config)));
 }
 
 function definitionName(def: GardenDefinition, level: number): string {
@@ -325,11 +327,15 @@ interface ElementSpec {
   heightDesign: number;
 }
 
-function makeElement(layout: LayoutConfig, spec: ElementSpec): PlacedElement {
+function makeElement(
+  layout: LayoutConfig,
+  spec: ElementSpec,
+  config: GardenConfig,
+): PlacedElement {
   const index = spec.stageIndex ?? spec.slotIndex ?? 0;
   const slotCount =
     spec.kind === 'scatter'
-      ? getScatterSlotCount(spec.level)
+      ? getScatterSlotCount(spec.level, config)
       : spec.kind === 'planterFill'
         ? getTasksForGardenLevel(spec.level)
         : 1;
@@ -420,19 +426,24 @@ function appendPlanterElements(
   name: string,
   score: number,
   elements: PlacedElement[],
+  config: GardenConfig,
 ): void {
   const baseAsset = def.onLevelStart
     ? resolvedFromStageImage(def.onLevelStart)
     : null;
   if (baseAsset) {
     elements.push(
-      makeElement(layout, {
-        level,
-        kind: 'planterBase',
-        asset: baseAsset,
-        name: `${name} planter`,
-        heightDesign: HEIGHT_PLANTER_BASE,
-      }),
+      makeElement(
+        layout,
+        {
+          level,
+          kind: 'planterBase',
+          asset: baseAsset,
+          name: `${name} planter`,
+          heightDesign: HEIGHT_PLANTER_BASE,
+        },
+        config,
+      ),
     );
   }
 
@@ -442,14 +453,18 @@ function appendPlanterElements(
     const asset = planterFillAsset(def, i);
     if (!asset) continue;
     elements.push(
-      makeElement(layout, {
-        level,
-        kind: 'planterFill',
-        asset,
-        name: `${name} flower ${i + 1}`,
-        slotIndex: i,
-        heightDesign: HEIGHT_PLANTER_FILL,
-      }),
+      makeElement(
+        layout,
+        {
+          level,
+          kind: 'planterFill',
+          asset,
+          name: `${name} flower ${i + 1}`,
+          slotIndex: i,
+          heightDesign: HEIGHT_PLANTER_FILL,
+        },
+        config,
+      ),
     );
   }
 }
@@ -461,18 +476,23 @@ function appendPlanterEditorEntries(
   name: string,
   elements: PlacedElement[],
   entries: EditorEntry[],
+  config: GardenConfig,
 ): void {
   const baseAsset = def.onLevelStart
     ? resolvedFromStageImage(def.onLevelStart)
     : null;
   if (baseAsset) {
-    const el = makeElement(layout, {
-      level,
-      kind: 'planterBase',
-      asset: baseAsset,
-      name: `${name} planter`,
-      heightDesign: HEIGHT_PLANTER_BASE,
-    });
+    const el = makeElement(
+      layout,
+      {
+        level,
+        kind: 'planterBase',
+        asset: baseAsset,
+        name: `${name} planter`,
+        heightDesign: HEIGHT_PLANTER_BASE,
+      },
+      config,
+    );
     elements.push(el);
     entries.push(
       editorEntryFromElement(el, `Level ${level} — ${name} planter`),
@@ -483,14 +503,18 @@ function appendPlanterEditorEntries(
   for (let i = 0; i < maxFills; i++) {
     const asset = planterFillAsset(def, i);
     if (!asset) continue;
-    const el = makeElement(layout, {
-      level,
-      kind: 'planterFill',
-      asset,
-      name: `${name} flower ${i + 1}`,
-      slotIndex: i,
-      heightDesign: HEIGHT_PLANTER_FILL,
-    });
+    const el = makeElement(
+      layout,
+      {
+        level,
+        kind: 'planterFill',
+        asset,
+        name: `${name} flower ${i + 1}`,
+        slotIndex: i,
+        heightDesign: HEIGHT_PLANTER_FILL,
+      },
+      config,
+    );
     elements.push(el);
     entries.push(
       editorEntryFromElement(el, `Level ${level} — ${name} flower #${i + 1}`),
@@ -513,9 +537,10 @@ export interface GardenSceneInstances {
  */
 export function buildGardenSceneInstances(
   completedCount: number,
-  layout: LayoutConfig = defaultLayout,
+  config: GardenConfig = defaultGardenConfig,
 ): GardenSceneInstances {
-  const activeLevel = getGardenLevel(completedCount);
+  const layout = config.layoutConfig;
+  const activeLevel = getGardenLevel(completedCount, config);
   if (activeLevel < 1) {
     return { elements: [], newestId: null, scrollFocusX: 0 };
   }
@@ -523,9 +548,9 @@ export function buildGardenSceneInstances(
   const elements: PlacedElement[] = [];
 
   for (let level = 1; level <= activeLevel; level++) {
-    const def = getLevelDefinition(level);
+    const def = config.getLevelDefinition(level);
     if (!def) continue;
-    const score = scoreInLevel(level, completedCount);
+    const score = scoreInLevel(level, completedCount, config);
     const name = definitionName(def, level);
 
     if (def.mode === 'multiStage') {
@@ -536,35 +561,43 @@ export function buildGardenSceneInstances(
       const asset = resolvedFromStageImage(stage);
       if (!asset) continue;
       elements.push(
-        makeElement(layout, {
-          level,
-          kind: 'multiStage',
-          asset,
-          name: `${name} — stage ${stageIndex}`,
-          stageIndex,
-          heightDesign: multiStageHeight(
+        makeElement(
+          layout,
+          {
+            level,
+            kind: 'multiStage',
+            asset,
+            name: `${name} — stage ${stageIndex}`,
             stageIndex,
-            definitionScaleWithStage(def),
-          ),
-        }),
+            heightDesign: multiStageHeight(
+              stageIndex,
+              definitionScaleWithStage(def),
+            ),
+          },
+          config,
+        ),
       );
     } else if (def.mode === 'scatterPerCompletion') {
       for (let slot = 0; slot < score; slot++) {
         const asset = scatterAssetForSlot(def, slot);
         if (!asset) continue;
         elements.push(
-          makeElement(layout, {
-            level,
-            kind: 'scatter',
-            asset,
-            name: `${name} ${slot + 1}`,
-            slotIndex: slot,
-            heightDesign: HEIGHT_SCATTER,
-          }),
+          makeElement(
+            layout,
+            {
+              level,
+              kind: 'scatter',
+              asset,
+              name: `${name} ${slot + 1}`,
+              slotIndex: slot,
+              heightDesign: HEIGHT_SCATTER,
+            },
+            config,
+          ),
         );
       }
     } else if (isPlanterMode(def.mode)) {
-      appendPlanterElements(layout, def, level, name, score, elements);
+      appendPlanterElements(layout, def, level, name, score, elements, config);
     }
   }
 
@@ -618,12 +651,13 @@ function editorEntryFromElement(el: PlacedElement, listName: string): EditorEntr
 
 export function buildEditorScene(
   layout: LayoutConfig,
+  config: GardenConfig = defaultGardenConfig,
 ): { entries: EditorEntry[]; elements: PlacedElement[] } {
   const entries: EditorEntry[] = [];
   const elements: PlacedElement[] = [];
 
-  for (const level of getConfiguredLevels()) {
-    const def = getLevelDefinition(level);
+  for (const level of config.getConfiguredLevels()) {
+    const def = config.getLevelDefinition(level);
     if (!def) continue;
     const name = definitionName(def, level);
     if (def.mode === 'multiStage') {
@@ -632,14 +666,18 @@ export function buildEditorScene(
       for (let s = 0; s < stageCount; s++) {
         const asset = resolvedFromStageImage(stages[s]!);
         if (!asset) continue;
-        const el = makeElement(layout, {
-          level,
-          kind: 'multiStage',
-          asset,
-          name: `${name} — stage ${s}`,
-          stageIndex: s,
-          heightDesign: multiStageHeight(s, definitionScaleWithStage(def)),
-        });
+        const el = makeElement(
+          layout,
+          {
+            level,
+            kind: 'multiStage',
+            asset,
+            name: `${name} — stage ${s}`,
+            stageIndex: s,
+            heightDesign: multiStageHeight(s, definitionScaleWithStage(def)),
+          },
+          config,
+        );
         elements.push(el);
         entries.push(
           editorEntryFromElement(el, `Level ${level} — ${name} (stage ${s})`),
@@ -647,30 +685,40 @@ export function buildEditorScene(
       }
     } else if (def.mode === 'scatterPerCompletion') {
       if (!def.asset && !(def.scatterAssets?.length)) continue;
-      const scatterSlots = getScatterSlotCount(level);
+      const scatterSlots = getScatterSlotCount(level, config);
       for (let slot = 0; slot < scatterSlots; slot++) {
         const asset = scatterAssetForSlot(def, slot);
         if (!asset) continue;
-        const el = makeElement(layout, {
-          level,
-          kind: 'scatter',
-          asset,
-          name: `${name} ${slot + 1}`,
-          slotIndex: slot,
-          heightDesign: HEIGHT_SCATTER,
-        });
+        const el = makeElement(
+          layout,
+          {
+            level,
+            kind: 'scatter',
+            asset,
+            name: `${name} ${slot + 1}`,
+            slotIndex: slot,
+            heightDesign: HEIGHT_SCATTER,
+          },
+          config,
+        );
         elements.push(el);
         entries.push(
           editorEntryFromElement(el, `Level ${level} — ${name} #${slot + 1}`),
         );
       }
     } else if (isPlanterMode(def.mode)) {
-      appendPlanterEditorEntries(layout, def, level, name, elements, entries);
+      appendPlanterEditorEntries(
+        layout,
+        def,
+        level,
+        name,
+        elements,
+        entries,
+        config,
+      );
     }
   }
 
   elements.sort((a, b) => a.zIndex - b.zIndex);
   return { entries, elements };
 }
-
-export { DESIGN_WIDTH };

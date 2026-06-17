@@ -1,0 +1,26 @@
+# Dad garden layout — positions for the moon scene.
+# Coordinates: x is normalized 0..1 (left to right). y is normalized with 1 at
+# the ground line.
+scene:
+  designWidth: 2400
+  designHeight: 320
+levels:
+  "1":
+    multiStage:
+      stages:
+        - x: 0.18
+          y: 0.9
+          zIndex: 10
+          scale: 0.55
+        - x: 0.22
+          y: 0.88
+          zIndex: 11
+          scale: 0.6
+        - x: 0.26
+          y: 0.86
+          zIndex: 12
+          scale: 0.65
+        - x: 0.3
+          y: 0.84
+          zIndex: 13
+          scale: 0.7

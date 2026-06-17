@@ -1,10 +1,8 @@
 import { useCallback, useRef } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import {
-  DESIGN_HEIGHT,
-  DESIGN_WIDTH,
+  defaultGardenConfig,
   GARDEN_HEADROOM_TOP,
-  STAGE_HEIGHT,
 } from '../lib/garden/loadConfig';
 import type { PlacedElement } from '../lib/garden/types';
 import { GardenCanvasElement } from './GardenCanvasElement';
@@ -13,6 +11,9 @@ interface GardenSceneCanvasProps {
   elements: PlacedElement[];
   /** Height of the garden band in CSS pixels. */
   bandHeight: number;
+  designWidth?: number;
+  designHeight?: number;
+  stageHeight?: number;
   /** False until the garden band has been measured (avoids scale jump). */
   bandReady?: boolean;
   /** Id of the element with the newest reveal (for a small pop-in). */
@@ -49,6 +50,9 @@ export function GardenSceneCanvas({
   elements,
   bandHeight,
   bandReady = true,
+  designWidth = defaultGardenConfig.designWidth,
+  designHeight = defaultGardenConfig.designHeight,
+  stageHeight = defaultGardenConfig.stageHeight,
   newestId = null,
   awaitingNewestReveal = false,
   gameplayNewestId = null,
@@ -62,8 +66,8 @@ export function GardenSceneCanvas({
   const draggingIdRef = useRef<string | null>(null);
 
   const scale =
-    bandReady && bandHeight > 0 ? bandHeight / DESIGN_HEIGHT : 0;
-  const innerWidth = DESIGN_WIDTH * scale;
+    bandReady && bandHeight > 0 ? bandHeight / designHeight : 0;
+  const innerWidth = designWidth * scale;
   const showElements = editable || (bandReady && scale > 0);
 
   const pointerToNorm = useCallback(
@@ -135,8 +139,8 @@ export function GardenSceneCanvas({
   };
 
   const stageStyle: CSSProperties = {
-    width: `${DESIGN_WIDTH}px`,
-    height: `${STAGE_HEIGHT}px`,
+    width: `${designWidth}px`,
+    height: `${stageHeight}px`,
     transform: `scale(${scale})`,
     transformOrigin: 'bottom left',
   };
@@ -171,8 +175,8 @@ export function GardenSceneCanvas({
               ? !inLevelMove
               : selectedId != null && el.id !== selectedId);
           const elStyle: CSSProperties = {
-            left: `${el.x * DESIGN_WIDTH}px`,
-            bottom: `${(1 - el.y) * DESIGN_HEIGHT}px`,
+            left: `${el.x * designWidth}px`,
+            bottom: `${(1 - el.y) * designHeight}px`,
             height: `${el.heightDesign * el.scale}px`,
             zIndex: isSelected ? el.zIndex + 10000 : el.zIndex,
             opacity: dimmed ? 0.35 : isPendingNewest ? 0 : 1,
@@ -206,6 +210,9 @@ export function GardenSceneCanvas({
 }
 
 /** Scaled headroom in CSS px (space above the grass band for tall blooms). */
-export function gardenHeadroomPx(bandHeight: number): number {
-  return bandHeight > 0 ? (GARDEN_HEADROOM_TOP / DESIGN_HEIGHT) * bandHeight : 0;
+export function gardenHeadroomPx(
+  bandHeight: number,
+  designHeight: number = defaultGardenConfig.designHeight,
+): number {
+  return bandHeight > 0 ? (GARDEN_HEADROOM_TOP / designHeight) * bandHeight : 0;
 }

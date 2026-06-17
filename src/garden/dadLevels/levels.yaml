@@ -1,0 +1,17 @@
+# Dad garden level definitions (Father's Day / space theme).
+# Positions live in dadLevels/layout.yaml.
+
+definitions:
+  fday_message:
+    name: Father's Day message
+    mode: multiStage
+    scaleWithStage: false
+    stages:
+      - { src: /garden/assets/Dad/fdaymessage/fmessage1.png, replace: true }
+      - { src: /garden/assets/Dad/fdaymessage/fmessage2.png, replace: true }
+      - { src: /garden/assets/Dad/fdaymessage/fmessage3.png, replace: true }
+      - { src: /garden/assets/Dad/fdaymessage/fmessage4.png, replace: true }
+
+levels:
+  "1":
+    use: fday_message

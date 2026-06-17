@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  TASK_STORAGE_KEYS,
+  type AppVariant,
+} from '../lib/appVariant';
+import {
   COMPLETED_MOVE_DELAY_MS,
   getNewTaskSortOrder,
   getNextSortOrder,
@@ -37,8 +41,6 @@ function inferGardenProgressCount(tasks: Task[], stored?: number): number {
   return Math.max(fromStored, fromTasks);
 }
 
-const STORAGE_KEY = 'kawaii-todo-tasks';
-
 function renumberCompleted(tasks: Task[]): Task[] {
   const completed = tasks
     .filter((t) => t.completed && t.completionIndex != null)
@@ -53,9 +55,9 @@ function renumberCompleted(tasks: Task[]): Task[] {
   });
 }
 
-function loadState(): StoredState {
+function loadState(storageKey: string): StoredState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return { tasks: [], gardenProgressCount: 0 };
     const parsed = JSON.parse(raw) as StoredState & { totalCompletedEver?: number };
     const storedTasks = parsed.tasks ?? [];
@@ -63,7 +65,6 @@ function loadState(): StoredState {
       storedTasks.map((t, i) => ({
         ...t,
         sortOrder: typeof t.sortOrder === 'number' ? t.sortOrder : i,
-        // If the page closed mid-planting, show any completed garden flowers.
         gardenRevealed:
           t.completed && t.gardenRevealed === false ? true : t.gardenRevealed,
       })),
@@ -79,30 +80,31 @@ function loadState(): StoredState {
   }
 }
 
-function saveState(state: StoredState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function saveState(storageKey: string, state: StoredState) {
+  localStorage.setItem(storageKey, JSON.stringify(state));
 }
 
 export function getCompletedCount(tasks: Task[]): number {
   return tasks.filter((t) => t.completed).length;
 }
 
-export function useTasks() {
+export function useTasks(variant: AppVariant = 'default') {
+  const storageKey = TASK_STORAGE_KEYS[variant];
   const [tasks, setTasks] = useState<Task[]>([]);
   const [gardenProgressCount, setGardenProgressCount] = useState(0);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const stored = loadState();
+    const stored = loadState(storageKey);
     setTasks(stored.tasks);
     setGardenProgressCount(stored.gardenProgressCount ?? 0);
     setHydrated(true);
-  }, []);
+  }, [storageKey]);
 
   useEffect(() => {
     if (!hydrated) return;
-    saveState({ tasks, gardenProgressCount });
-  }, [tasks, gardenProgressCount, hydrated]);
+    saveState(storageKey, { tasks, gardenProgressCount });
+  }, [tasks, gardenProgressCount, hydrated, storageKey]);
 
   const addTask = useCallback((text: string) => {
     const trimmed = text.trim();

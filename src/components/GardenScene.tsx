@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { GardenFlowerStrip } from './GardenFlowerStrip';
 import { GardenSceneCanvas, gardenHeadroomPx } from './GardenSceneCanvas';
 import { buildGardenSceneInstances } from '../lib/garden/buildScene';
+import { useAppVariant, useGardenConfig } from '../context/AppVariantContext';
 import { getGardenLayers, getSceneMilestoneCount } from '../lib/gardenProgress';
 import { getGardenLevel } from '../lib/plantedGarden';
 import type { PlacedElement } from '../lib/garden/types';
@@ -28,6 +29,8 @@ export function GardenScene({
   onSelectElement,
   onElementDrag,
 }: GardenSceneProps) {
+  const variant = useAppVariant();
+  const gardenConfig = useGardenConfig();
   const bandRef = useRef<HTMLDivElement>(null);
   const [bandHeight, setBandHeight] = useState(0);
   const [bandReady, setBandReady] = useState(false);
@@ -37,11 +40,11 @@ export function GardenScene({
 
   const layers = useMemo(() => getGardenLayers(completedCount), [completedCount]);
   const stage = Math.min(getSceneMilestoneCount(completedCount), 12);
-  const activeLevel = getGardenLevel(completedCount);
+  const activeLevel = getGardenLevel(completedCount, gardenConfig);
 
   const gameplayScene = useMemo(
-    () => buildGardenSceneInstances(completedCount),
-    [completedCount],
+    () => buildGardenSceneInstances(completedCount, gardenConfig),
+    [completedCount, gardenConfig],
   );
   const elements = elementsOverride ?? gameplayScene.elements;
   const gameplayNewestId = gameplayScene.newestId;
@@ -51,7 +54,8 @@ export function GardenScene({
     editable || awaitingNewestReveal ? null : gameplayNewestId;
   const scrollFocusX = editable ? 0 : gameplayScene.scrollFocusX;
 
-  const showGrass = layers.grass || activeLevel >= 1 || editable;
+  const showGround = layers.grass || activeLevel >= 1 || editable;
+  const isDadMoon = variant === 'dad';
 
   useLayoutEffect(() => {
     const el = bandRef.current;
@@ -81,19 +85,21 @@ export function GardenScene({
   }, [editable, completedCount]);
 
   const sceneStyle = {
-    '--garden-headroom-px': `${gardenHeadroomPx(bandHeight)}px`,
+    '--garden-headroom-px': `${gardenHeadroomPx(bandHeight, gardenConfig.designHeight)}px`,
   } as CSSProperties;
 
   return (
     <div
-      className={`garden-scene${editable ? ' garden-scene--editable' : ''}`}
+      className={`garden-scene${editable ? ' garden-scene--editable' : ''}${isDadMoon ? ' garden-scene--moon' : ''}`}
       style={sceneStyle}
       aria-hidden={!editable}
     >
       <div className="garden-scene__sky" />
 
-      {showGrass && (
-        <div className={`garden-layer garden-layer--grass stage-${stage}`} />
+      {showGround && (
+        <div
+          className={`garden-layer ${isDadMoon ? 'garden-layer--moon' : 'garden-layer--grass'} stage-${stage}`}
+        />
       )}
 
       <div className="garden-scene__band" ref={bandRef}>
@@ -110,6 +116,9 @@ export function GardenScene({
             elements={elements}
             bandHeight={bandHeight}
             bandReady={bandReady}
+            designWidth={gardenConfig.designWidth}
+            designHeight={gardenConfig.designHeight}
+            stageHeight={gardenConfig.stageHeight}
             newestId={newestId}
             awaitingNewestReveal={awaitingNewestReveal}
             gameplayNewestId={editable ? null : gameplayNewestId}
@@ -123,7 +132,11 @@ export function GardenScene({
       </div>
 
       {!editable && elements.length === 0 && (
-        <p className="garden-scene__hint">Complete tasks to plant your garden…</p>
+        <p className="garden-scene__hint">
+          {isDadMoon
+            ? 'Complete tasks to explore the moon…'
+            : 'Complete tasks to plant your garden…'}
+        </p>
       )}
     </div>
   );

@@ -1,6 +1,9 @@
 // Garden level math shared by the scene builder, progress meter, and dev tools.
 
-import { getConfiguredLevels, getLevelDefinition } from './garden/loadConfig';
+import {
+  defaultGardenConfig,
+  type GardenConfig,
+} from './garden/loadConfig';
 
 /** Default tasks per level when levels.yaml does not define a level. */
 export const LEVEL_1_TASKS = 3;
@@ -20,8 +23,11 @@ export function getTasksForGardenLevel(level: number): number {
  * Scatter levels: when `scatterAssets` has more entries than the default task
  * count, the level lasts long enough to place every listed asset.
  */
-export function getScatterSlotCount(level: number): number {
-  const def = getLevelDefinition(level);
+export function getScatterSlotCount(
+  level: number,
+  config: GardenConfig = defaultGardenConfig,
+): number {
+  const def = config.getLevelDefinition(level);
   const defaultTasks = getTasksForGardenLevel(level);
   if (def?.mode !== 'scatterPerCompletion') return defaultTasks;
   const scatterCount = def.scatterAssets?.length ?? 0;
@@ -32,13 +38,16 @@ export function getScatterSlotCount(level: number): number {
  * Task completions required to finish a garden level and advance to the next.
  * multiStage: one completion per stage after the first (7 stages → 6 completions).
  */
-export function getLevelCompletionBudget(level: number): number {
-  const def = getLevelDefinition(level);
+export function getLevelCompletionBudget(
+  level: number,
+  config: GardenConfig = defaultGardenConfig,
+): number {
+  const def = config.getLevelDefinition(level);
   if (def?.mode === 'multiStage') {
-    return Math.max(1, getMaxInLevelScore(level));
+    return Math.max(1, getMaxInLevelScore(level, config));
   }
   if (def?.mode === 'scatterPerCompletion') {
-    return getScatterSlotCount(level);
+    return getScatterSlotCount(level, config);
   }
   if (def?.mode === 'planter') {
     return def.perCompletion?.max ?? getTasksForGardenLevel(level);
@@ -50,22 +59,28 @@ export function getLevelCompletionBudget(level: number): number {
 }
 
 /** Completions required before a garden level begins (level 1 starts at 0). */
-export function getCompletionsBeforeLevel(level: number): number {
+export function getCompletionsBeforeLevel(
+  level: number,
+  config: GardenConfig = defaultGardenConfig,
+): number {
   if (level <= 1) return 0;
   let sum = 0;
   for (let L = 1; L < level; L++) {
-    sum += getLevelCompletionBudget(L);
+    sum += getLevelCompletionBudget(L, config);
   }
   return sum;
 }
 
 /** Current garden level from lifetime completion count. */
-export function getGardenLevel(completedCount: number): number {
+export function getGardenLevel(
+  completedCount: number,
+  config: GardenConfig = defaultGardenConfig,
+): number {
   if (completedCount <= 0) return 0;
-  const levels = getConfiguredLevels();
+  const levels = config.getConfiguredLevels();
   for (let i = levels.length - 1; i >= 0; i--) {
     const level = levels[i]!;
-    if (completedCount >= getCompletionsBeforeLevel(level)) {
+    if (completedCount >= getCompletionsBeforeLevel(level, config)) {
       return level;
     }
   }
@@ -73,16 +88,19 @@ export function getGardenLevel(completedCount: number): number {
 }
 
 /** Progress within the current garden level (0 right after a level-up). */
-export function getGardenCycleProgress(completedCount: number): {
+export function getGardenCycleProgress(
+  completedCount: number,
+  config: GardenConfig = defaultGardenConfig,
+): {
   planted: number;
   max: number;
 } {
-  const level = getGardenLevel(completedCount);
+  const level = getGardenLevel(completedCount, config);
   if (level <= 0) {
-    return { planted: 0, max: getLevelCompletionBudget(1) };
+    return { planted: 0, max: getLevelCompletionBudget(1, config) };
   }
-  const max = getLevelCompletionBudget(level);
-  const planted = completedCount - getCompletionsBeforeLevel(level);
+  const max = getLevelCompletionBudget(level, config);
+  const planted = completedCount - getCompletionsBeforeLevel(level, config);
   return { planted, max };
 }
 
@@ -90,8 +108,11 @@ export function getGardenCycleProgress(completedCount: number): {
  * Highest in-level score (stage index for multiStage, item count for scatter).
  * Used to cap which stage or scatter slot is visible.
  */
-export function getMaxInLevelScore(level: number): number {
-  const def = getLevelDefinition(level);
+export function getMaxInLevelScore(
+  level: number,
+  config: GardenConfig = defaultGardenConfig,
+): number {
+  const def = config.getLevelDefinition(level);
   if (def?.mode === 'multiStage') {
     const stageCount = def.stages?.length ?? 0;
     return Math.max(0, stageCount - 1);
@@ -103,16 +124,19 @@ export function getMaxInLevelScore(level: number): number {
     return def.fills?.length ?? getTasksForGardenLevel(level);
   }
   if (def?.mode === 'scatterPerCompletion') {
-    return getScatterSlotCount(level);
+    return getScatterSlotCount(level, config);
   }
   return getTasksForGardenLevel(level);
 }
 
 /** True when this completion finishes a garden level. */
-export function isGardenLevelComplete(completionIndex: number): boolean {
+export function isGardenLevelComplete(
+  completionIndex: number,
+  config: GardenConfig = defaultGardenConfig,
+): boolean {
   if (completionIndex <= 0) return false;
-  for (const level of getConfiguredLevels()) {
-    if (level > 1 && completionIndex === getCompletionsBeforeLevel(level)) {
+  for (const level of config.getConfiguredLevels()) {
+    if (level > 1 && completionIndex === getCompletionsBeforeLevel(level, config)) {
       return true;
     }
   }

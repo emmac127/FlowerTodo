@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { AppVariant } from '../lib/appVariant';
 import { buildEditorScene } from '../lib/garden/buildScene';
-import {
-  DESIGN_HEIGHT,
-  DESIGN_WIDTH,
-  getConfiguredLevels,
-} from '../lib/garden/loadConfig';
+import type { GardenConfig } from '../lib/garden/loadConfig';
 import {
   cloneLayout,
   saveLayoutYaml,
@@ -20,19 +17,22 @@ import {
 import type { LayoutConfig } from '../lib/garden/types';
 
 /** State + actions for the DEV-only Garden Editor. */
-export function useGardenEditor() {
+export function useGardenEditor(
+  gardenConfig: GardenConfig,
+  variant: AppVariant = 'default',
+) {
   const [enabled, setEnabled] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [workingLayout, setWorkingLayout] = useState<LayoutConfig>(() =>
-    cloneLayout(),
+    cloneLayout(gardenConfig.layoutConfig),
   );
   const [saving, setSaving] = useState(false);
   /** When set, dragging any asset in this level moves every asset in the level. */
   const [levelMoveLevel, setLevelMoveLevel] = useState<number | null>(null);
 
   const { entries, elements } = useMemo(
-    () => buildEditorScene(workingLayout),
-    [workingLayout],
+    () => buildEditorScene(workingLayout, gardenConfig),
+    [workingLayout, gardenConfig],
   );
 
   const selectedElement = useMemo(
@@ -48,7 +48,7 @@ export function useGardenEditor() {
   const handleDrag = useCallback(
     (id: string, x: number, y: number) => {
       setWorkingLayout((prev) => {
-        const { elements: sceneElements } = buildEditorScene(prev);
+        const { elements: sceneElements } = buildEditorScene(prev, gardenConfig);
         const dragged = sceneElements.find((el) => el.id === id);
         if (!dragged) return prev;
 
@@ -77,13 +77,13 @@ export function useGardenEditor() {
         return setLayoutPosition(prev, id, stageForId(id), x, y);
       });
     },
-    [levelMoveLevel, stageForId],
+    [levelMoveLevel, stageForId, gardenConfig],
   );
 
   const offsetLevel = useCallback((level: number, deltaX: number, deltaY: number) => {
     if (deltaX === 0 && deltaY === 0) return;
     setWorkingLayout((prev) => {
-      const { elements: sceneElements } = buildEditorScene(prev);
+      const { elements: sceneElements } = buildEditorScene(prev, gardenConfig);
       let next = prev;
       for (const el of sceneElements.filter((e) => e.level === level)) {
         next = setLayoutPosition(
@@ -101,7 +101,7 @@ export function useGardenEditor() {
   const scaleLevel = useCallback((level: number, factor: number) => {
     if (factor === 1 || !Number.isFinite(factor) || factor <= 0) return;
     setWorkingLayout((prev) => {
-      const { elements: sceneElements } = buildEditorScene(prev);
+      const { elements: sceneElements } = buildEditorScene(prev, gardenConfig);
       let next = prev;
       for (const el of sceneElements.filter((e) => e.level === level)) {
         const scaled = Math.max(0.05, Math.min(10, el.scale * factor));
@@ -174,7 +174,7 @@ export function useGardenEditor() {
     setSaving(true);
     try {
       const layout = layoutFromPlacedElements(workingLayout, elements);
-      const result = await saveLayoutYaml(layout);
+      const result = await saveLayoutYaml(layout, variant);
       if (result.ok) {
         window.location.reload();
         return;
@@ -183,7 +183,7 @@ export function useGardenEditor() {
     } finally {
       setSaving(false);
     }
-  }, [workingLayout, elements]);
+  }, [workingLayout, elements, variant]);
 
   const toggle = useCallback(() => {
     setEnabled((prev) => !prev);
@@ -191,13 +191,16 @@ export function useGardenEditor() {
     setLevelMoveLevel(null);
   }, []);
 
-  const configuredLevels = useMemo(() => getConfiguredLevels(), []);
+  const configuredLevels = useMemo(
+    () => gardenConfig.getConfiguredLevels(),
+    [gardenConfig],
+  );
 
   const nudgeSelectedByPixels = useCallback(
     (deltaXPx: number, deltaYPx: number) => {
       if (deltaXPx === 0 && deltaYPx === 0) return;
-      const deltaX = deltaXPx / DESIGN_WIDTH;
-      const deltaY = deltaYPx / DESIGN_HEIGHT;
+      const deltaX = deltaXPx / gardenConfig.designWidth;
+      const deltaY = deltaYPx / gardenConfig.designHeight;
 
       if (levelMoveLevel != null) {
         offsetLevel(levelMoveLevel, deltaX, deltaY);
@@ -218,7 +221,7 @@ export function useGardenEditor() {
         ),
       );
     },
-    [elements, levelMoveLevel, offsetLevel, selectedId, stageForId],
+    [elements, gardenConfig.designHeight, gardenConfig.designWidth, levelMoveLevel, offsetLevel, selectedId, stageForId],
   );
 
   useEffect(() => {

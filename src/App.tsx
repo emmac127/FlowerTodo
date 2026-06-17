@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FallingSakuraPetals } from './components/FallingSakuraPetals';
+import { TwinklingStars } from './components/TwinklingStars';
 import { GardenScene } from './components/GardenScene';
 import { StickyKawaiiHeader } from './components/StickyKawaiiHeader';
 import { SpiralCelebration } from './components/SpiralCelebration';
@@ -7,6 +8,7 @@ import { StarBurst } from './components/StarBurst';
 import { TaskList } from './components/TaskList';
 import { useTasks } from './hooks/useTasks';
 import { useGardenEditor } from './hooks/useGardenEditor';
+import { useAppVariant, useGardenConfig } from './context/AppVariantContext';
 import {
   GARDEN_REVEAL_ANIM_MS,
   getGardenAutoReturnDelayMs,
@@ -14,8 +16,11 @@ import {
   getGardenRevealScrollTop,
   shouldRevealGardenForCompletion,
 } from './lib/gardenReveal';
-import { getGardenCycleProgress, getGardenLevel } from './lib/gardenProgress';
-import { isGardenLevelComplete } from './lib/plantedGarden';
+import {
+  getGardenCycleProgress,
+  getGardenLevel,
+  isGardenLevelComplete,
+} from './lib/plantedGarden';
 import {
   DEFAULT_CELEBRATION_ORIGIN,
   measureScreenCelebrationOrigin,
@@ -24,11 +29,15 @@ import {
 import { DevPanel } from './components/DevPanel';
 import { GardenEditor } from './components/GardenEditor';
 import { pickMotivationalPhrase } from './lib/motivationalPhrases';
+import { pickDadMotivationalPhrase } from './lib/dadMotivationalPhrases';
 import { playAddTaskSound, playCelebrationTune, unlockAudio } from './lib/sounds';
 
 const SPEECH_DURATION_MS = 3200;
 const HOP_DURATION_MS = 1400;
-const PICKED_CELEBRATION_PHRASE = 'You did the one I picked!\nSo proud of you! ⭐';
+const PICKED_CELEBRATION_PHRASE_DEFAULT =
+  'You did the one I picked!\nSo proud of you! ⭐';
+const PICKED_CELEBRATION_PHRASE_DAD =
+  'You did the one I picked!\nMission accomplished! 🚀';
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -45,6 +54,9 @@ function usePrefersReducedMotion() {
 }
 
 export default function App() {
+  const variant = useAppVariant();
+  const gardenConfig = useGardenConfig();
+  const isDad = variant === 'dad';
   const [input, setInput] = useState('');
   const [muted, setMuted] = useState(false);
   const [mascotMessage, setMascotMessage] = useState<string | null>(null);
@@ -89,11 +101,11 @@ export default function App() {
     reorderTaskToIndex,
     setGardenProgressForDev,
     resetGardenLevel,
-  } = useTasks();
+  } = useTasks(variant);
 
   const [devPanelOpen, setDevPanelOpen] = useState(false);
   const isDev = import.meta.env.DEV;
-  const editor = useGardenEditor();
+  const editor = useGardenEditor(gardenConfig, variant);
 
   const handleDevApply = useCallback(
     ({ completedCount }: { completedCount: number }) => {
@@ -130,8 +142,11 @@ export default function App() {
     }
   }, [gardenProgressCount, resetGardenLevel]);
 
-  const gardenLevel = getGardenLevel(gardenProgressCount);
-  const gardenCycleProgress = getGardenCycleProgress(gardenProgressCount);
+  const gardenLevel = getGardenLevel(gardenProgressCount, gardenConfig);
+  const gardenCycleProgress = getGardenCycleProgress(
+    gardenProgressCount,
+    gardenConfig,
+  );
   const gardenDisplayCount =
     gardenRevealPhase === 'active' &&
     !gardenRevealGrowthUnlocked &&
@@ -140,7 +155,11 @@ export default function App() {
       : gardenProgressCount;
 
   const showMascotCheer = useCallback((phrase?: string) => {
-    const text = phrase ?? pickMotivationalPhrase(lastPhraseRef.current);
+    const text =
+      phrase ??
+      (isDad
+        ? pickDadMotivationalPhrase(lastPhraseRef.current)
+        : pickMotivationalPhrase(lastPhraseRef.current));
     lastPhraseRef.current = text;
     setMascotMessage(text);
     setSpeechVisible(true);
@@ -149,7 +168,7 @@ export default function App() {
     speechTimerRef.current = setTimeout(() => {
       setSpeechVisible(false);
     }, SPEECH_DURATION_MS);
-  }, []);
+  }, [isDad]);
 
   const measureMascotOrigin = useCallback(() => {
     const el = mascotRef.current;
@@ -178,7 +197,9 @@ export default function App() {
   }, [measureMascotOrigin, reducedMotion, showMascotCheer]);
 
   const runPickedCelebration = useCallback(() => {
-    showMascotCheer(PICKED_CELEBRATION_PHRASE);
+    showMascotCheer(
+      isDad ? PICKED_CELEBRATION_PHRASE_DAD : PICKED_CELEBRATION_PHRASE_DEFAULT,
+    );
 
     void (async () => {
       await unlockAudio();
@@ -202,7 +223,7 @@ export default function App() {
         });
       }, waitMs);
     })();
-  }, [muted, measureMascotOrigin, reducedMotion, showMascotCheer]);
+  }, [isDad, muted, measureMascotOrigin, reducedMotion, showMascotCheer]);
 
   const beginGardenReveal = useCallback(() => {
     savedScrollYRef.current = window.scrollY;
@@ -335,6 +356,7 @@ export default function App() {
       const revealGarden = shouldRevealGardenForCompletion(
         completionIndex,
         previousGardenCount,
+        gardenConfig,
       );
 
       if (revealGarden) {
@@ -345,8 +367,12 @@ export default function App() {
 
       completeTask(id, completionIndex);
 
-      if (isGardenLevelComplete(completionIndex)) {
-        showMascotCheer('Garden level up! 🌸✨\nYour flower has fully bloomed!');
+      if (isGardenLevelComplete(completionIndex, gardenConfig)) {
+        showMascotCheer(
+          isDad
+            ? 'Moon level up! 🌙✨\nMission accomplished!'
+            : 'Garden level up! 🌸✨\nYour flower has fully bloomed!',
+        );
       }
 
       if (wasPicked) {
@@ -359,7 +385,9 @@ export default function App() {
     [
       beginGardenReveal,
       completeTask,
+      gardenConfig,
       gardenProgressCount,
+      isDad,
       pickedTaskId,
       runNormalCelebration,
       runPickedCelebration,
@@ -411,9 +439,13 @@ export default function App() {
   if (!hydrated) {
     return (
       <div className="app-shell">
-        <FallingSakuraPetals reducedMotion={reducedMotion} />
+        {isDad ? (
+          <TwinklingStars reducedMotion={reducedMotion} />
+        ) : (
+          <FallingSakuraPetals reducedMotion={reducedMotion} />
+        )}
         <div className="app app--loading">
-          <p>Loading your garden…</p>
+          <p>{isDad ? 'Loading your moon base…' : 'Loading your garden…'}</p>
         </div>
       </div>
     );
@@ -423,7 +455,11 @@ export default function App() {
     <div
       className={`app-shell${editor.enabled ? ' app-shell--garden-editor' : ''}`}
     >
-      <FallingSakuraPetals reducedMotion={reducedMotion} />
+      {isDad ? (
+        <TwinklingStars reducedMotion={reducedMotion} />
+      ) : (
+        <FallingSakuraPetals reducedMotion={reducedMotion} />
+      )}
       <div className="app">
         <StickyKawaiiHeader
           ref={mascotRef}

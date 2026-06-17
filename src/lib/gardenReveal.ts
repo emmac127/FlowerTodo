@@ -1,17 +1,25 @@
 import { getGardenCycleProgress, getGardenLevel } from './plantedGarden';
+import {
+  defaultGardenConfig,
+  type GardenConfig,
+} from './garden/loadConfig';
 
 /** True when this completion advances the bottom garden (grow or new permanent flower). */
 export function shouldRevealGardenForCompletion(
   completionIndex: number,
   previousGardenCount: number,
+  config: GardenConfig = defaultGardenConfig,
 ): boolean {
   if (completionIndex <= previousGardenCount) return false;
 
-  if (getGardenLevel(completionIndex) > getGardenLevel(previousGardenCount)) {
+  if (
+    getGardenLevel(completionIndex, config) >
+    getGardenLevel(previousGardenCount, config)
+  ) {
     return true;
   }
 
-  const { planted } = getGardenCycleProgress(completionIndex);
+  const { planted } = getGardenCycleProgress(completionIndex, config);
   return planted > 0;
 }
 

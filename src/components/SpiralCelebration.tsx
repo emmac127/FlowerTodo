@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useAppVariant } from '../context/AppVariantContext';
 
 interface SpiralCelebrationProps {
   active: boolean;
@@ -42,6 +43,25 @@ function BurstArm({
     <div className={`celebration-burst-arm ${className}`} style={style}>
       {children}
     </div>
+  );
+}
+
+const STAR_BURST_COLORS = ['#fff8e7', '#e8c878', '#c8d4e8', '#9eb8e8', '#f0d080'];
+
+function MiniStar({ size, color }: { size: number; color: string }) {
+  return (
+    <svg
+      className="spiral-celebration__star"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <path
+        fill={color}
+        d="M12 2l2.2 6.8H21l-5.5 4 2.1 6.7L12 17.8 6.4 19.5l2.1-6.7L3 8.8h6.8z"
+      />
+    </svg>
   );
 }
 
@@ -102,6 +122,8 @@ export function SpiralCelebration({
   maxRadius,
   onComplete,
 }: SpiralCelebrationProps) {
+  const variant = useAppVariant();
+  const isDad = variant === 'dad';
   const [visible, setVisible] = useState(false);
 
   const particles = useMemo<Particle[]>(() => {
@@ -183,14 +205,23 @@ export function SpiralCelebration({
                     className="spiral-celebration__particle spiral-celebration__particle--trail spiral-celebration__particle--combo"
                     style={{ ['--trail-peak' as string]: `${0.5 - trailIndex * 0.12}` }}
                   >
-                    <HeartShape
-                      size={trailSize}
-                      color={HEART_COLORS[particle.id % HEART_COLORS.length]}
-                    />
-                    <MiniFlower
-                      size={trailSize * 0.72}
-                      color={FLOWER_COLORS[particle.id % FLOWER_COLORS.length]}
-                    />
+                    {isDad ? (
+                      <MiniStar
+                        size={trailSize}
+                        color={STAR_BURST_COLORS[particle.id % STAR_BURST_COLORS.length]}
+                      />
+                    ) : (
+                      <>
+                        <HeartShape
+                          size={trailSize}
+                          color={HEART_COLORS[particle.id % HEART_COLORS.length]}
+                        />
+                        <MiniFlower
+                          size={trailSize * 0.72}
+                          color={FLOWER_COLORS[particle.id % FLOWER_COLORS.length]}
+                        />
+                      </>
+                    )}
                   </span>
                 </BurstArm>
               );
@@ -204,14 +235,23 @@ export function SpiralCelebration({
               }}
             >
               <span className="spiral-celebration__particle spiral-celebration__particle--head spiral-celebration__particle--combo">
-                <HeartShape
-                  size={heartSize}
-                  color={HEART_COLORS[particle.id % HEART_COLORS.length]}
-                />
-                <MiniFlower
-                  size={flowerSize}
-                  color={FLOWER_COLORS[particle.id % FLOWER_COLORS.length]}
-                />
+                {isDad ? (
+                  <MiniStar
+                    size={heartSize}
+                    color={STAR_BURST_COLORS[particle.id % STAR_BURST_COLORS.length]}
+                  />
+                ) : (
+                  <>
+                    <HeartShape
+                      size={heartSize}
+                      color={HEART_COLORS[particle.id % HEART_COLORS.length]}
+                    />
+                    <MiniFlower
+                      size={flowerSize}
+                      color={FLOWER_COLORS[particle.id % FLOWER_COLORS.length]}
+                    />
+                  </>
+                )}
               </span>
             </BurstArm>
           </div>

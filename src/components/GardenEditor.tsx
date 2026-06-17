@@ -1,5 +1,6 @@
 import type { EditorEntry } from '../lib/garden/buildScene';
-import { getLevelDefinition } from '../lib/garden/loadConfig';
+import { useAppVariant, useGardenConfig } from '../context/AppVariantContext';
+import type { GardenConfig } from '../lib/garden/loadConfig';
 import type { PlacedElement } from '../lib/garden/types';
 
 const LEVEL_OFFSET_STEP = 0.01;
@@ -25,8 +26,8 @@ interface GardenEditorProps {
   onClose: () => void;
 }
 
-function levelLabel(level: number): string {
-  const def = getLevelDefinition(level);
+function levelLabel(level: number, gardenConfig: GardenConfig): string {
+  const def = gardenConfig.getLevelDefinition(level);
   return def?.name ? `Level ${level} — ${def.name}` : `Level ${level}`;
 }
 
@@ -49,6 +50,10 @@ export function GardenEditor({
   saving = false,
   onClose,
 }: GardenEditorProps) {
+  const variant = useAppVariant();
+  const gardenConfig = useGardenConfig();
+  const layoutSaveLabel =
+    variant === 'dad' ? 'Save dadLevels/layout.yaml' : 'Save layout.yaml';
   const wholeLevelMode = levelMoveLevel != null;
   const activeLevelMove =
     levelMoveLevel ?? configuredLevels[0] ?? 1;
@@ -127,7 +132,7 @@ export function GardenEditor({
           >
             {configuredLevels.map((level) => (
               <option key={level} value={level}>
-                {levelLabel(level)}
+                {levelLabel(level, gardenConfig)}
               </option>
             ))}
           </select>
@@ -317,7 +322,7 @@ export function GardenEditor({
           onClick={onSave}
           disabled={saving}
         >
-          {saving ? 'Saving…' : 'Save layout.yaml'}
+          {saving ? 'Saving…' : layoutSaveLabel}
         </button>
       </div>
     </div>

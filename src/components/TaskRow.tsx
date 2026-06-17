@@ -9,6 +9,8 @@ import {
   unlockAudio,
 } from '../lib/sounds';
 import { StemStrikeSVG } from './StemStrikeSVG';
+import { RocketStrikeSVG } from './RocketStrikeSVG';
+import { useAppVariant } from '../context/AppVariantContext';
 import { TaskActionMenu } from './TaskActionMenu';
 
 interface TaskRowProps {
@@ -88,6 +90,8 @@ export function TaskRow({
   onActionMenuOpenChange,
   onDragPointerDown,
 }: TaskRowProps) {
+  const variant = useAppVariant();
+  const isDad = variant === 'dad';
   const textRef = useRef<HTMLSpanElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
   const rowRef = useRef<HTMLLIElement>(null);
@@ -542,14 +546,25 @@ export function TaskRow({
             className="stem-overlay"
             style={{ width: textWidth + TASK_FLOWER_VIEW_BOX, height: rowHeight }}
           >
-            <StemStrikeSVG
-              textWidth={textWidth}
-              progress={progress}
-              tier={tier}
-              blooming={blooming}
-              wilting={wilting}
-              rowHeight={rowHeight}
-            />
+            {isDad ? (
+              <RocketStrikeSVG
+                textWidth={textWidth}
+                progress={progress}
+                tier={tier}
+                boosting={blooming}
+                wilting={wilting}
+                rowHeight={rowHeight}
+              />
+            ) : (
+              <StemStrikeSVG
+                textWidth={textWidth}
+                progress={progress}
+                tier={tier}
+                blooming={blooming}
+                wilting={wilting}
+                rowHeight={rowHeight}
+              />
+            )}
           </div>
         )}
       </div>

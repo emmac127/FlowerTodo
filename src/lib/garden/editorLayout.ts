@@ -1,6 +1,7 @@
 import { stringify } from 'yaml';
+import type { AppVariant } from '../appVariant';
 import { defaultZIndex } from './buildScene';
-import { layoutConfig } from './loadConfig';
+import { defaultGardenConfig } from './loadConfig';
 import type {
   LayoutConfig,
   LayoutLevelConfig,
@@ -16,7 +17,9 @@ function round(value: number): number {
 }
 
 /** Deep clone the committed layout so the editor can mutate a draft copy. */
-export function cloneLayout(source: LayoutConfig = layoutConfig): LayoutConfig {
+export function cloneLayout(
+  source: LayoutConfig = defaultGardenConfig.layoutConfig,
+): LayoutConfig {
   return structuredClone(source);
 }
 
@@ -297,13 +300,21 @@ export type SaveLayoutResult =
  * Dev only: POST layout YAML to the Vite dev server, which overwrites
  * src/garden/layout.yaml in the project. Reloads are left to the caller.
  */
-export async function saveLayoutYaml(layout: LayoutConfig): Promise<SaveLayoutResult> {
+export async function saveLayoutYaml(
+  layout: LayoutConfig,
+  variant: AppVariant = 'default',
+): Promise<SaveLayoutResult> {
   if (!import.meta.env.DEV) {
     return { ok: false, error: 'Layout save is only available in development.' };
   }
 
+  const url =
+    variant === 'dad'
+      ? `${GARDEN_LAYOUT_SAVE_PATH}?variant=dad`
+      : GARDEN_LAYOUT_SAVE_PATH;
+
   try {
-    const res = await fetch(GARDEN_LAYOUT_SAVE_PATH, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/yaml; charset=utf-8' },
       body: layoutToYaml(layout),

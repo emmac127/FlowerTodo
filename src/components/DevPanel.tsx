@@ -1,24 +1,19 @@
 import { useMemo, useState } from 'react';
+import { useGardenConfig } from '../context/AppVariantContext';
 import {
   getCompletionsBeforeLevel,
   getMaxInLevelScore,
   getGardenCycleProgress,
   getGardenLevel,
 } from '../lib/plantedGarden';
-import { getConfiguredLevels } from '../lib/garden/loadConfig';
 
 interface DevPanelProps {
   open: boolean;
   currentGardenProgressCount: number;
   onClose: () => void;
-  /** Set the garden progress count (level × score). */
   onApply: (args: { completedCount: number }) => void;
   onResetEverything: () => void;
 }
-
-const LEVEL_OPTIONS = getConfiguredLevels();
-const MIN_LEVEL = LEVEL_OPTIONS[0] ?? 1;
-const MAX_LEVEL = LEVEL_OPTIONS[LEVEL_OPTIONS.length - 1] ?? MIN_LEVEL;
 
 export function DevPanel({
   open,
@@ -27,23 +22,37 @@ export function DevPanel({
   onApply,
   onResetEverything,
 }: DevPanelProps) {
-  const currentLevel = getGardenLevel(currentGardenProgressCount);
-  const currentScore = getGardenCycleProgress(currentGardenProgressCount).planted;
+  const gardenConfig = useGardenConfig();
+  const levelOptions = useMemo(
+    () => gardenConfig.getConfiguredLevels(),
+    [gardenConfig],
+  );
+  const minLevel = levelOptions[0] ?? 1;
+  const maxLevel = levelOptions[levelOptions.length - 1] ?? minLevel;
+
+  const currentLevel = getGardenLevel(currentGardenProgressCount, gardenConfig);
+  const currentScore = getGardenCycleProgress(
+    currentGardenProgressCount,
+    gardenConfig,
+  ).planted;
 
   const [level, setLevel] = useState<number>(Math.max(1, currentLevel || 1));
   const [score, setScore] = useState<number>(currentScore);
 
-  const maxScore = useMemo(() => getMaxInLevelScore(level), [level]);
+  const maxScore = useMemo(
+    () => getMaxInLevelScore(level, gardenConfig),
+    [level, gardenConfig],
+  );
 
   if (!open) return null;
 
   const handleLevelChange = (next: number) => {
     const clamped = Math.max(
-      MIN_LEVEL,
-      Math.min(MAX_LEVEL, Math.round(next) || MIN_LEVEL),
+      minLevel,
+      Math.min(maxLevel, Math.round(next) || minLevel),
     );
     setLevel(clamped);
-    const cap = getMaxInLevelScore(clamped);
+    const cap = getMaxInLevelScore(clamped, gardenConfig);
     if (score > cap) setScore(cap);
   };
 
@@ -51,7 +60,7 @@ export function DevPanel({
     setScore(Math.max(0, Math.min(next, maxScore)));
   };
 
-  const targetCount = getCompletionsBeforeLevel(level) + score;
+  const targetCount = getCompletionsBeforeLevel(level, gardenConfig) + score;
 
   return (
     <div
@@ -80,14 +89,14 @@ export function DevPanel({
 
         <div className="dev-panel__field">
           <label htmlFor="dev-level">
-            Garden level ({MIN_LEVEL}–{MAX_LEVEL})
+            Garden level ({minLevel}–{maxLevel})
           </label>
           <div className="dev-panel__level-controls">
             <button
               type="button"
               className="dev-panel__step-btn"
               onClick={() => handleLevelChange(level - 1)}
-              disabled={level <= MIN_LEVEL}
+              disabled={level <= minLevel}
               aria-label="Previous level"
             >
               −
@@ -95,8 +104,8 @@ export function DevPanel({
             <input
               id="dev-level"
               type="number"
-              min={MIN_LEVEL}
-              max={MAX_LEVEL}
+              min={minLevel}
+              max={maxLevel}
               step={1}
               value={level}
               onChange={(e) => handleLevelChange(Number(e.target.value))}
@@ -105,7 +114,7 @@ export function DevPanel({
               type="button"
               className="dev-panel__step-btn"
               onClick={() => handleLevelChange(level + 1)}
-              disabled={level >= MAX_LEVEL}
+              disabled={level >= maxLevel}
               aria-label="Next level"
             >
               +
