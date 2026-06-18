@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, Fragment } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import {
   defaultGardenConfig,
@@ -6,6 +6,7 @@ import {
 } from '../lib/garden/loadConfig';
 import type { PlacedElement } from '../lib/garden/types';
 import { GardenCanvasElement } from './GardenCanvasElement';
+import { GardenPlacementStars } from './GardenPlacementStars';
 
 interface GardenSceneCanvasProps {
   elements: PlacedElement[];
@@ -27,6 +28,8 @@ interface GardenSceneCanvasProps {
   levelMoveLevel?: number | null;
   /** Editor: enables click-to-select and drag-to-move. */
   editable?: boolean;
+  /** Dad route: small star burst when a new element is revealed. */
+  placementStars?: boolean;
   onSelectElement?: (id: string) => void;
   onElementDrag?: (id: string, x: number, y: number) => void;
 }
@@ -59,6 +62,7 @@ export function GardenSceneCanvas({
   selectedId = null,
   levelMoveLevel = null,
   editable = false,
+  placementStars = false,
   onSelectElement,
   onElementDrag,
 }: GardenSceneCanvasProps) {
@@ -193,15 +197,25 @@ export function GardenSceneCanvas({
             .filter(Boolean)
             .join(' ');
           return (
-            <GardenCanvasElement
-              key={el.id}
-              element={el}
-              className={classes}
-              style={elStyle}
-              onPointerDown={
-                editable ? (e) => beginDrag(el.id, e) : undefined
-              }
-            />
+            <Fragment key={el.id}>
+              {isNew && placementStars && (
+                <GardenPlacementStars
+                  designX={el.x * designWidth}
+                  designY={
+                    (1 - el.y) * designHeight +
+                    (el.heightDesign * el.scale) * 0.45
+                  }
+                />
+              )}
+              <GardenCanvasElement
+                element={el}
+                className={classes}
+                style={elStyle}
+                onPointerDown={
+                  editable ? (e) => beginDrag(el.id, e) : undefined
+                }
+              />
+            </Fragment>
           );
         })}
       </div>

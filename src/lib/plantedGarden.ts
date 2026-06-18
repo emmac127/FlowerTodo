@@ -31,7 +31,8 @@ export function getScatterSlotCount(
   const defaultTasks = getTasksForGardenLevel(level);
   if (def?.mode !== 'scatterPerCompletion') return defaultTasks;
   const scatterCount = def.scatterAssets?.length ?? 0;
-  return scatterCount > defaultTasks ? scatterCount : defaultTasks;
+  if (scatterCount > 0) return scatterCount;
+  return defaultTasks;
 }
 
 /**
@@ -115,6 +116,9 @@ export function getMaxInLevelScore(
   const def = config.getLevelDefinition(level);
   if (def?.mode === 'multiStage') {
     const stageCount = def.stages?.length ?? 0;
+    if (config.variant === 'dad') {
+      return stageCount;
+    }
     return Math.max(0, stageCount - 1);
   }
   if (def?.mode === 'planter') {

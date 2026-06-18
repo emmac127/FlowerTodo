@@ -12,6 +12,61 @@ definitions:
       - { src: /garden/assets/Dad/fdaymessage/fmessage3.png, replace: true }
       - { src: /garden/assets/Dad/fdaymessage/fmessage4.png, replace: true }
 
+  lemfeet:
+    name: LEM feet
+    mode: scatterPerCompletion
+    scatterAssets:
+       - /garden/assets/Dad/lemfeet/foot1.png
+       - /garden/assets/Dad/lemfeet/foot2.png
+       - /garden/assets/Dad/lemfeet/foot3.png
+       - /garden/assets/Dad/lemfeet/foot4.png
+
+  lemlegs:
+    name: LEM legs
+    mode: scatterPerCompletion
+    scatterAssets:
+       - /garden/assets/Dad/lemlegs/a1.png
+       - /garden/assets/Dad/lemlegs/a2.png
+       - /garden/assets/Dad/lemlegs/a3.png
+       - /garden/assets/Dad/lemlegs/a4.png
+       - /garden/assets/Dad/lemlegs/a1detail.png
+       - /garden/assets/Dad/lemlegs/a2detail.png
+       - /garden/assets/Dad/lemlegs/a3detail.png
+       - /garden/assets/Dad/lemlegs/a4detail.png
+       - /garden/assets/Dad/lemlegs/ladder.png
+
+  lembase:
+    name: LEM base
+    mode: multiStage
+    scaleWithStage: false
+    stages:
+      - { src: /garden/assets/Dad/lembase/lem1.png, replace: false }
+      - { src: /garden/assets/Dad/lembase/lem2.png, replace: true }
+      - { src: /garden/assets/Dad/lembase/lem3.png, replace: true }
+      - { src: /garden/assets/Dad/lembase/lem4.png, replace: true }
+      - { src: /garden/assets/Dad/lembase/lem5.png, replace: true }
+      - { src: /garden/assets/Dad/lembase/lem6.png, replace: true }
+      - { src: /garden/assets/Dad/lembase/lem7.png, replace: true }
+
+  insidelem:
+    name: LEM internals
+    mode: scatterPerCompletion
+    scatterAssets:
+       - /garden/clipboardalien.png
+       - /garden/assets/Dad/insidelem/insidelem2.png
+       - /garden/assets/Dad/insidelem/insidelem1.png
+       - /garden/assets/Dad/insidelem/insidelem3.png
+       - /garden/assets/Dad/insidelem/insidelem4.png
+
+
 levels:
   "1":
     use: fday_message
+  "2":
+    use: lemfeet
+  "3":
+    use: lemlegs
+  "4":
+    use: lembase
+  "5":
+    use: insidelem

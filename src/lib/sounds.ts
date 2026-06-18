@@ -190,21 +190,25 @@ export function getFlowerBloomSettleMs(petalCount: number): number {
 /**
  * Schedule grow, bloom, and list-drop sounds during the completing tap so iOS
  * allows them even though animations finish later.
+ *
+ * `bloomDelayMs` — when to play the bloom chime (defaults to `growDurationMs`).
+ * Use a longer delay on /dad so grow plays at normal speed while the rocket flies.
  */
 export function scheduleCompletionSounds(
   ctx: AudioContext,
   completionIndex: number,
   growDurationMs: number,
   petalCount: number,
+  bloomDelayMs: number = growDurationMs,
 ) {
   const now = ctx.currentTime;
-  const growSec = growDurationMs / 1000;
+  const bloomAtSec = bloomDelayMs / 1000;
   const bloomSettleSec = getFlowerBloomSettleMs(petalCount) / 1000;
   const moveDelaySec = COMPLETED_MOVE_DELAY_MS / 1000;
 
   scheduleGrowAt(ctx, completionIndex, growDurationMs, now);
-  scheduleBloomAt(ctx, completionIndex, now + growSec);
-  scheduleTaskDropAt(ctx, now + growSec + bloomSettleSec + moveDelaySec);
+  scheduleBloomAt(ctx, completionIndex, now + bloomAtSec);
+  scheduleTaskDropAt(ctx, now + bloomAtSec + bloomSettleSec + moveDelaySec);
 }
 
 /** Schedule wilt + stem retract during the uncheck tap (iOS-safe). */

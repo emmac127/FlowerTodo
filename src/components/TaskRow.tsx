@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import type { Task } from '../hooks/useTasks';
-import { getGrowthTier, TASK_FLOWER_VIEW_BOX, type GrowthTier } from '../lib/growthTier';
+import { getGrowthTier, getStrikeDurationMs, TASK_FLOWER_VIEW_BOX, type GrowthTier } from '../lib/growthTier';
 import {
   playBloomSound,
   scheduleCompletionSounds,
@@ -178,7 +178,7 @@ export function TaskRow({
       const animTier = getGrowthTier(completionIdx);
       setActiveTier(animTier);
       setAnimDirection('complete');
-      const duration = reducedMotion ? 0 : animTier.growDurationMs;
+      const duration = reducedMotion ? 0 : getStrikeDurationMs(completionIdx, isDad);
 
       if (duration === 0) {
         setProgress(1);
@@ -217,7 +217,7 @@ export function TaskRow({
 
       completionRafRef.current = requestAnimationFrame(tick);
     },
-    [muted, onComplete, reducedMotion, task.id],
+    [isDad, muted, onComplete, reducedMotion, task.id],
   );
 
   const runUncompleteAnimation = useCallback((options?: { skipStateUpdate?: boolean }) => {
@@ -226,7 +226,7 @@ export function TaskRow({
     const animTier = getGrowthTier(completionIdx);
     setActiveTier(animTier);
     setAnimDirection('uncomplete');
-    const retractDuration = reducedMotion ? 0 : animTier.growDurationMs;
+    const retractDuration = reducedMotion ? 0 : getStrikeDurationMs(completionIdx, isDad);
     const wiltDuration = reducedMotion ? 0 : WILT_DURATION_MS;
 
     if (wiltDuration === 0 && retractDuration === 0) {
@@ -292,7 +292,7 @@ export function TaskRow({
     };
 
     requestAnimationFrame(tickWilt);
-  }, [muted, onUncomplete, reducedMotion, task.completionIndex, task.id]);
+  }, [isDad, muted, onUncomplete, reducedMotion, task.completionIndex, task.id]);
 
   const checkboxChecked =
     animDirection === 'complete'
@@ -311,12 +311,11 @@ export function TaskRow({
         cancelCompletionAnimation();
         setIsAnimating(false);
         const completionIdx = task.completionIndex ?? 1;
-        const animTier = getGrowthTier(completionIdx);
         if (ctx) {
           scheduleUncompleteSounds(
             ctx,
             completionIdx,
-            reducedMotion ? 0 : animTier.growDurationMs,
+            reducedMotion ? 0 : getStrikeDurationMs(completionIdx, isDad),
             reducedMotion ? 0 : WILT_DURATION_MS,
           );
         }
@@ -330,8 +329,15 @@ export function TaskRow({
 
       const idx = getNextCompletionIndex();
       const tier = getGrowthTier(idx);
+      const strikeDuration = getStrikeDurationMs(idx, isDad);
       if (ctx && !reducedMotion) {
-        scheduleCompletionSounds(ctx, idx, tier.growDurationMs, tier.petalCount);
+        scheduleCompletionSounds(
+          ctx,
+          idx,
+          tier.growDurationMs,
+          tier.petalCount,
+          isDad ? strikeDuration : tier.growDurationMs,
+        );
       }
       measure();
       runCompletionAnimation(idx);
@@ -339,8 +345,16 @@ export function TaskRow({
   };
 
   const showStem = task.completed || isAnimating || progress > 0;
-  const isStruck = progress >= 0.95;
-  const textOpacity = progress > 0.2 ? 0.55 + (1 - Math.min(progress, 1)) * 0.45 : 1;
+  const isStruck = !isDad && progress >= 0.95;
+  const showRocketStrike = isDad && progress > 0;
+  const rocketInFlight = isDad && isAnimating && animDirection === 'complete';
+  const textOpacity = isDad
+    ? progress > 0.85
+      ? 0.72 + ((1 - Math.min(progress, 1)) / 0.15) * 0.28
+      : 1
+    : progress > 0.2
+      ? 0.55 + (1 - Math.min(progress, 1)) * 0.45
+      : 1;
 
   const showPickedRing = isPicked && !task.completed;
 
@@ -527,8 +541,13 @@ export function TaskRow({
             ref={textRef}
             role="button"
             tabIndex={isAnimating || isMoveMode || isDragging ? -1 : 0}
-            className={`task-text task-text--editable ${isStruck ? 'task-text--struck' : ''}`}
-            style={{ opacity: textOpacity }}
+            className={`task-text task-text--editable${isStruck ? ' task-text--struck' : ''}${showRocketStrike ? ' task-text--rocket-strike' : ''}`}
+            style={{
+              opacity: textOpacity,
+              ...(showRocketStrike
+                ? { '--rocket-strike-progress': Math.min(progress, 1) }
+                : {}),
+            } as React.CSSProperties}
             onClick={startEditing}
             onKeyDown={(e) => {
               if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -553,6 +572,7 @@ export function TaskRow({
                 tier={tier}
                 boosting={blooming}
                 wilting={wilting}
+                inFlight={rocketInFlight}
                 rowHeight={rowHeight}
               />
             ) : (

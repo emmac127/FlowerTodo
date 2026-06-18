@@ -54,8 +54,9 @@ export function GardenScene({
     editable || awaitingNewestReveal ? null : gameplayNewestId;
   const scrollFocusX = editable ? 0 : gameplayScene.scrollFocusX;
 
-  const showGround = layers.grass || activeLevel >= 1 || editable;
   const isDadMoon = variant === 'dad';
+  const showGround =
+    editable || (isDadMoon ? completedCount > 0 : layers.grass || activeLevel >= 1);
 
   useLayoutEffect(() => {
     const el = bandRef.current;
@@ -123,6 +124,7 @@ export function GardenScene({
             awaitingNewestReveal={awaitingNewestReveal}
             gameplayNewestId={editable ? null : gameplayNewestId}
             editable={editable}
+            placementStars={isDadMoon && !editable}
             selectedId={selectedId}
             levelMoveLevel={levelMoveLevel}
             onSelectElement={onSelectElement}

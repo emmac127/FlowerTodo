@@ -170,6 +170,60 @@ function definitionScaleWithStage(def: GardenDefinition): boolean {
   return def.scaleWithStage !== false;
 }
 
+/**
+ * Dad multiStage: first completion shows stages[0]; each later completion
+ * advances one stage. Default garden skips stages[0] on the first completion.
+ */
+function isPersistentMultiStageStage(stage: StageImage): boolean {
+  return stage.replace === false;
+}
+
+/** Consecutive `replace: false` stages from the start of the list. */
+function countLeadingPersistentStages(stages: StageImage[]): number {
+  let count = 0;
+  for (const stage of stages) {
+    if (!isPersistentMultiStageStage(stage)) break;
+    count++;
+  }
+  return count;
+}
+
+/**
+ * Which multiStage indices to render at a given in-level score.
+ * Persistent stages (`replace: false`) stay visible once reached.
+ * Replaceable stages only show the latest reached slot in the chain.
+ */
+function visibleMultiStageIndices(
+  stages: StageImage[],
+  score: number,
+  config: GardenConfig,
+): number[] {
+  const leadingPersistent = countLeadingPersistentStages(stages);
+  const replaceMaxIndex =
+    config.variant === 'dad'
+      ? score - 1 + leadingPersistent
+      : score;
+
+  const indices: number[] = [];
+  for (let i = 0; i < stages.length; i++) {
+    if (isPersistentMultiStageStage(stages[i]!) && i <= score) {
+      indices.push(i);
+    }
+  }
+
+  let latestReplace = -1;
+  for (let i = 0; i < stages.length; i++) {
+    if (!isPersistentMultiStageStage(stages[i]!) && i <= replaceMaxIndex) {
+      latestReplace = i;
+    }
+  }
+  if (latestReplace >= 0) {
+    indices.push(latestReplace);
+  }
+
+  return indices.sort((a, b) => a - b);
+}
+
 /** In-level score (0..max) for a level given the lifetime completion count. */
 function scoreInLevel(
   level: number,
@@ -400,10 +454,10 @@ function isPlanterMode(mode: GardenDefinition['mode']): boolean {
 
 /** Max number of planter fills the definition allows for a level. */
 function planterFillCount(def: GardenDefinition, level: number): number {
-  const tasks = getTasksForGardenLevel(level);
   if (def.mode === 'planterSequence') {
-    return Math.min(def.fills?.length ?? 0, tasks);
+    return def.fills?.length ?? 0;
   }
+  const tasks = getTasksForGardenLevel(level);
   const max = def.perCompletion?.max ?? tasks;
   return Math.min(max, tasks);
 }
@@ -556,27 +610,29 @@ export function buildGardenSceneInstances(
     if (def.mode === 'multiStage') {
       const stages = def.stages ?? [];
       if (stages.length === 0) continue;
-      const stageIndex = Math.min(score, stages.length - 1);
-      const stage = stages[stageIndex]!;
-      const asset = resolvedFromStageImage(stage);
-      if (!asset) continue;
-      elements.push(
-        makeElement(
-          layout,
-          {
-            level,
-            kind: 'multiStage',
-            asset,
-            name: `${name} — stage ${stageIndex}`,
-            stageIndex,
-            heightDesign: multiStageHeight(
+      const stageIndices = visibleMultiStageIndices(stages, score, config);
+      for (const stageIndex of stageIndices) {
+        const stage = stages[stageIndex]!;
+        const asset = resolvedFromStageImage(stage);
+        if (!asset) continue;
+        elements.push(
+          makeElement(
+            layout,
+            {
+              level,
+              kind: 'multiStage',
+              asset,
+              name: `${name} — stage ${stageIndex}`,
               stageIndex,
-              definitionScaleWithStage(def),
-            ),
-          },
-          config,
-        ),
-      );
+              heightDesign: multiStageHeight(
+                stageIndex,
+                definitionScaleWithStage(def),
+              ),
+            },
+            config,
+          ),
+        );
+      }
     } else if (def.mode === 'scatterPerCompletion') {
       for (let slot = 0; slot < score; slot++) {
         const asset = scatterAssetForSlot(def, slot);
