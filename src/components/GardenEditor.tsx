@@ -3,7 +3,7 @@ import { useAppVariant, useGardenConfig } from '../context/AppVariantContext';
 import type { GardenConfig } from '../lib/garden/loadConfig';
 import type { PlacedElement } from '../lib/garden/types';
 
-const LEVEL_OFFSET_STEP = 0.01;
+const LEVEL_OFFSET_STEP = 0.0025;
 const LEVEL_SCALE_FACTOR = 1.05;
 
 interface GardenEditorProps {

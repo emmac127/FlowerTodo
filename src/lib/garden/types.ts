@@ -134,8 +134,13 @@ export interface PlacedElement {
   x: number;
   y: number;
   anchor: string;
-  /** Base height in design-canvas pixels (before {@link scale}). */
+  /** Base height in design-canvas pixels (before {@link scale}); fallback until image loads. */
   heightDesign: number;
+  /**
+   * multiStage growth ramp (0–1), baked into {@link heightDesign} for display math.
+   * @deprecated retained for editor metadata; sizing uses heightDesign.
+   */
+  sizeRamp?: number;
   /** Size multiplier for width and height (default 1). */
   scale: number;
   /** When true, mirror the asset horizontally (flip over the vertical axis). */

@@ -1529,14 +1529,14 @@ body {
   text-decoration-thickness: 2px;
 }
 
-/* Progressive golden strike — grows with rocket progress (dad route). */
+/* Progressive strike — solid bright gold (dad route). */
 .task-text--rocket-strike {
   --rocket-strike-progress: 0;
   text-decoration: none;
   background-image: linear-gradient(
     transparent calc(50% - 1px),
-    #ffd24a calc(50% - 1px),
-    #ffd24a calc(50% + 1px),
+    var(--rocket-strike-color, #f2d56b) calc(50% - 1px),
+    var(--rocket-strike-color, #f2d56b) calc(50% + 1px),
     transparent calc(50% + 1px)
   );
   background-repeat: no-repeat;
@@ -3343,6 +3343,7 @@ body {
   --accent-hover: #e8c878;
   --checkbox-border: #6b7fa8;
   --shadow: 0 4px 24px rgba(10, 14, 26, 0.55);
+  --rocket-strike-color: #f2d56b;
 }
 
 [data-theme='dad'] body {

@@ -4,6 +4,7 @@ import {
   TASK_FLOWER_VIEW_BOX,
   type GrowthTier,
 } from '../lib/growthTier';
+import { ROCKET_FLAME_COLORS } from '../lib/rocketFlameColors';
 
 interface RocketStrikeSVGProps {
   textWidth: number;
@@ -16,12 +17,7 @@ interface RocketStrikeSVGProps {
   rowHeight: number;
 }
 
-const FLAME_COLORS = {
-  core: '#fff9d4',
-  mid: '#ffd84a',
-  outer: '#ffb82e',
-  smoke: '#e8b84a',
-};
+const FLAME_COLORS = ROCKET_FLAME_COLORS;
 
 /** viewBox width; nose points right after the 90° rotate in RocketIcon. */
 const ROCKET_VIEW = 32;

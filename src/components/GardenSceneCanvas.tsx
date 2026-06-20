@@ -34,6 +34,16 @@ interface GardenSceneCanvasProps {
   onElementDrag?: (id: string, x: number, y: number) => void;
 }
 
+/** Normalized layout distance — nearby elements count as misclicks while placing. */
+const EDITOR_NEAR_ELEMENT_THRESHOLD = 0.12;
+
+function elementsAreCloseInEditor(
+  a: PlacedElement,
+  b: PlacedElement,
+): boolean {
+  return Math.hypot(a.x - b.x, a.y - b.y) < EDITOR_NEAR_ELEMENT_THRESHOLD;
+}
+
 /** Normalized x: 0 (left) .. 1 (right) in gameplay; editor allows off-canvas placement. */
 function clampLayoutX(value: number, editable: boolean): number {
   if (editable) return value;
@@ -97,11 +107,45 @@ export function GardenSceneCanvas({
       }
       event.stopPropagation();
       event.preventDefault();
+
+      const norm = pointerToNorm(event.clientX, event.clientY);
+      if (!norm) return;
+
+      // With something selected, a click on a nearby element repositions the
+      // selection instead of switching (avoids accidental selection).
+      if (
+        editable &&
+        selectedId != null &&
+        levelMoveLevel == null &&
+        id !== selectedId
+      ) {
+        const selected = elements.find((el) => el.id === selectedId);
+        const clicked = elements.find((el) => el.id === id);
+        if (
+          selected &&
+          clicked &&
+          elementsAreCloseInEditor(selected, clicked)
+        ) {
+          onElementDrag?.(selectedId, norm.x, norm.y);
+          draggingIdRef.current = selectedId;
+          canvasRef.current?.setPointerCapture(event.pointerId);
+          return;
+        }
+      }
+
       draggingIdRef.current = id;
       onSelectElement?.(id);
       canvasRef.current?.setPointerCapture(event.pointerId);
     },
-    [editable, levelMoveLevel, onSelectElement],
+    [
+      editable,
+      elements,
+      levelMoveLevel,
+      onElementDrag,
+      onSelectElement,
+      pointerToNorm,
+      selectedId,
+    ],
   );
 
   const moveDrag = useCallback(

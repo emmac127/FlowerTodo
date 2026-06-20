@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import type { Task } from '../hooks/useTasks';
-import { getGrowthTier, getStrikeDurationMs, TASK_FLOWER_VIEW_BOX, type GrowthTier } from '../lib/growthTier';
+import { getGrowthTier, TASK_FLOWER_VIEW_BOX, type GrowthTier } from '../lib/growthTier';
 import {
   playBloomSound,
   scheduleCompletionSounds,
@@ -178,7 +178,7 @@ export function TaskRow({
       const animTier = getGrowthTier(completionIdx);
       setActiveTier(animTier);
       setAnimDirection('complete');
-      const duration = reducedMotion ? 0 : getStrikeDurationMs(completionIdx, isDad);
+      const duration = reducedMotion ? 0 : animTier.growDurationMs;
 
       if (duration === 0) {
         setProgress(1);
@@ -217,7 +217,7 @@ export function TaskRow({
 
       completionRafRef.current = requestAnimationFrame(tick);
     },
-    [isDad, muted, onComplete, reducedMotion, task.id],
+    [muted, onComplete, reducedMotion, task.id],
   );
 
   const runUncompleteAnimation = useCallback((options?: { skipStateUpdate?: boolean }) => {
@@ -226,7 +226,7 @@ export function TaskRow({
     const animTier = getGrowthTier(completionIdx);
     setActiveTier(animTier);
     setAnimDirection('uncomplete');
-    const retractDuration = reducedMotion ? 0 : getStrikeDurationMs(completionIdx, isDad);
+    const retractDuration = reducedMotion ? 0 : animTier.growDurationMs;
     const wiltDuration = reducedMotion ? 0 : WILT_DURATION_MS;
 
     if (wiltDuration === 0 && retractDuration === 0) {
@@ -292,7 +292,7 @@ export function TaskRow({
     };
 
     requestAnimationFrame(tickWilt);
-  }, [isDad, muted, onUncomplete, reducedMotion, task.completionIndex, task.id]);
+  }, [muted, onUncomplete, reducedMotion, task.completionIndex, task.id]);
 
   const checkboxChecked =
     animDirection === 'complete'
@@ -311,11 +311,12 @@ export function TaskRow({
         cancelCompletionAnimation();
         setIsAnimating(false);
         const completionIdx = task.completionIndex ?? 1;
+        const animTier = getGrowthTier(completionIdx);
         if (ctx) {
           scheduleUncompleteSounds(
             ctx,
             completionIdx,
-            reducedMotion ? 0 : getStrikeDurationMs(completionIdx, isDad),
+            reducedMotion ? 0 : animTier.growDurationMs,
             reducedMotion ? 0 : WILT_DURATION_MS,
           );
         }
@@ -329,15 +330,8 @@ export function TaskRow({
 
       const idx = getNextCompletionIndex();
       const tier = getGrowthTier(idx);
-      const strikeDuration = getStrikeDurationMs(idx, isDad);
       if (ctx && !reducedMotion) {
-        scheduleCompletionSounds(
-          ctx,
-          idx,
-          tier.growDurationMs,
-          tier.petalCount,
-          isDad ? strikeDuration : tier.growDurationMs,
-        );
+        scheduleCompletionSounds(ctx, idx, tier.growDurationMs, tier.petalCount);
       }
       measure();
       runCompletionAnimation(idx);

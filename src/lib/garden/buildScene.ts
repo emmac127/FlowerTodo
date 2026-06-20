@@ -158,12 +158,14 @@ function resolveAutoAnchor(
 }
 
 function multiStageHeight(stageIndex: number, scaleWithStage: boolean): number {
-  const ramp = scaleWithStage
-    ? MULTISTAGE_STAGE_SCALE[
-        Math.min(stageIndex, MULTISTAGE_STAGE_SCALE.length - 1)
-      ]!
-    : 1;
-  return HEIGHT_MULTISTAGE_FULL * ramp;
+  return HEIGHT_MULTISTAGE_FULL * multiStageSizeRamp(stageIndex, scaleWithStage);
+}
+
+function multiStageSizeRamp(stageIndex: number, scaleWithStage: boolean): number {
+  if (!scaleWithStage) return 1;
+  return MULTISTAGE_STAGE_SCALE[
+    Math.min(stageIndex, MULTISTAGE_STAGE_SCALE.length - 1)
+  ]!;
 }
 
 function definitionScaleWithStage(def: GardenDefinition): boolean {
@@ -379,6 +381,7 @@ interface ElementSpec {
   stageIndex?: number;
   slotIndex?: number;
   heightDesign: number;
+  sizeRamp?: number;
 }
 
 function makeElement(
@@ -416,6 +419,7 @@ function makeElement(
     y: slot.y,
     anchor: slot.anchor,
     heightDesign: spec.heightDesign,
+    sizeRamp: spec.sizeRamp,
     scale: slot.scale,
     flipX: slot.flipX,
     zIndex: slot.zIndex,
@@ -628,6 +632,10 @@ export function buildGardenSceneInstances(
                 stageIndex,
                 definitionScaleWithStage(def),
               ),
+              sizeRamp: multiStageSizeRamp(
+                stageIndex,
+                definitionScaleWithStage(def),
+              ),
             },
             config,
           ),
@@ -731,6 +739,7 @@ export function buildEditorScene(
             name: `${name} — stage ${s}`,
             stageIndex: s,
             heightDesign: multiStageHeight(s, definitionScaleWithStage(def)),
+            sizeRamp: multiStageSizeRamp(s, definitionScaleWithStage(def)),
           },
           config,
         );

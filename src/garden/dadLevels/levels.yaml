@@ -10,8 +10,14 @@ definitions:
       - { src: /garden/assets/Dad/fdaymessage/fmessage1.png, replace: true }
       - { src: /garden/assets/Dad/fdaymessage/fmessage2.png, replace: true }
       - { src: /garden/assets/Dad/fdaymessage/fmessage3.png, replace: true }
-      - { src: /garden/assets/Dad/fdaymessage/fmessage4.png, replace: true }
-
+      - { src: /garden/assets/Dad/fdaymessage/fmessage4.png, replace: false }
+      - src: /garden/assets/Dad/flagwave/f1.png
+        animation:
+          frames:
+            - /garden/assets/Dad/flagwave/f1.png
+            - /garden/assets/Dad/flagwave/f2.png
+            - /garden/assets/Dad/flagwave/f3.png
+            - /garden/assets/Dad/flagwave/f2.png
   lemfeet:
     name: LEM feet
     mode: scatterPerCompletion
@@ -25,15 +31,10 @@ definitions:
     name: LEM legs
     mode: scatterPerCompletion
     scatterAssets:
-       - /garden/assets/Dad/lemlegs/a1.png
-       - /garden/assets/Dad/lemlegs/a2.png
-       - /garden/assets/Dad/lemlegs/a3.png
-       - /garden/assets/Dad/lemlegs/a4.png
-       - /garden/assets/Dad/lemlegs/a1detail.png
-       - /garden/assets/Dad/lemlegs/a2detail.png
-       - /garden/assets/Dad/lemlegs/a3detail.png
-       - /garden/assets/Dad/lemlegs/a4detail.png
-       - /garden/assets/Dad/lemlegs/ladder.png
+       - /garden/assets/Dad/detaillemlegs/a1.png.png
+       - /garden/assets/Dad/detaillemlegs/a2.png.png
+       - /garden/assets/Dad/detaillemlegs/a3.png.png
+       - /garden/assets/Dad/detaillemlegs/a4.png.png
 
   lembase:
     name: LEM base
@@ -58,6 +59,19 @@ definitions:
        - /garden/assets/Dad/insidelem/insidelem3.png
        - /garden/assets/Dad/insidelem/insidelem4.png
 
+  lemtop:
+    name: LEM top
+    mode: scatterPerCompletion
+    scatterAssets:
+       - /garden/assets/Dad/lemtop/lemtop1.png
+       - /garden/assets/Dad/lemtop/lemtop2.png
+       - /garden/assets/Dad/lemtop/lemtop3.png
+       - /garden/assets/Dad/lemtop/lemtop4.png
+       - /garden/assets/Dad/lemtop/lemtop5.png
+       - /garden/assets/Dad/lemtop/lemtop6.png
+       - /garden/assets/Dad/lemtop/lemtop7.png
+       - /garden/assets/Dad/lemtop/lemtop8.png
+
 
 levels:
   "1":
@@ -70,3 +84,5 @@ levels:
     use: lembase
   "5":
     use: insidelem
+  "6":
+    use: lemtop

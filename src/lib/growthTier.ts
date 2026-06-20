@@ -47,11 +47,3 @@ export function getGrowthTier(completedCount: number): GrowthTier {
     growDurationMs: 400 + Math.min(completedCount * 20, 200),
   };
 }
-
-/** Dad rocket strike — slower than the garden stem so the trail reads clearly. */
-export function getStrikeDurationMs(completedCount: number, isDad: boolean): number {
-  if (!isDad) {
-    return getGrowthTier(completedCount).growDurationMs;
-  }
-  return 1500 + Math.min(completedCount * 30, 500);
-}
