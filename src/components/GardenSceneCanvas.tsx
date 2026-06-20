@@ -32,6 +32,7 @@ interface GardenSceneCanvasProps {
   placementStars?: boolean;
   onSelectElement?: (id: string) => void;
   onElementDrag?: (id: string, x: number, y: number) => void;
+  onNewestDisplaySizeReady?: () => void;
 }
 
 /** Normalized layout distance — nearby elements count as misclicks while placing. */
@@ -75,6 +76,7 @@ export function GardenSceneCanvas({
   placementStars = false,
   onSelectElement,
   onElementDrag,
+  onNewestDisplaySizeReady,
 }: GardenSceneCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const draggingIdRef = useRef<string | null>(null);
@@ -255,6 +257,11 @@ export function GardenSceneCanvas({
                 element={el}
                 className={classes}
                 style={elStyle}
+                onDisplaySizeReady={
+                  !editable && el.id === gameplayNewestId
+                    ? onNewestDisplaySizeReady
+                    : undefined
+                }
                 onPointerDown={
                   editable ? (e) => beginDrag(el.id, e) : undefined
                 }

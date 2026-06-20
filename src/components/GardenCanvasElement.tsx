@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { animationFrameIndexAt } from '../lib/garden/gardenAnimation';
 import {
@@ -15,6 +15,8 @@ interface GardenCanvasElementProps {
   style: CSSProperties;
   className: string;
   onPointerDown?: (event: ReactPointerEvent<HTMLImageElement>) => void;
+  /** Fired once the asset's display height is known (cache hit or image load). */
+  onDisplaySizeReady?: () => void;
 }
 
 export function GardenCanvasElement({
@@ -22,6 +24,7 @@ export function GardenCanvasElement({
   style,
   className,
   onPointerDown,
+  onDisplaySizeReady,
 }: GardenCanvasElementProps) {
   const anim = element.animation;
   const [frameIndex, setFrameIndex] = useState(0);
@@ -62,15 +65,44 @@ export function GardenCanvasElement({
       : element.src;
 
   const measureKey = elementMeasureKey(element);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const displaySizeReadyRef = useRef(false);
 
   const [naturalHeight, setNaturalHeight] = useState<number | null>(() =>
     getCachedNaturalHeight(measureKey),
   );
 
+  const notifyDisplaySizeReady = useCallback(() => {
+    if (displaySizeReadyRef.current) return;
+    displaySizeReadyRef.current = true;
+    onDisplaySizeReady?.();
+  }, [onDisplaySizeReady]);
+
   // Swap cached measurement when the asset changes — never clear on layout edits.
   useEffect(() => {
+    displaySizeReadyRef.current = false;
     setNaturalHeight(getCachedNaturalHeight(measureKey));
   }, [measureKey]);
+
+  useLayoutEffect(() => {
+    const cached = getCachedNaturalHeight(measureKey);
+    if (cached != null) {
+      notifyDisplaySizeReady();
+      return;
+    }
+    const img = imgRef.current;
+    if (img?.complete && img.naturalHeight > 0) {
+      const next = cacheNaturalHeight(measureKey, img.naturalHeight);
+      setNaturalHeight(next);
+      notifyDisplaySizeReady();
+    }
+  }, [measureKey, src, notifyDisplaySizeReady]);
+
+  useEffect(() => {
+    if (naturalHeight != null) {
+      notifyDisplaySizeReady();
+    }
+  }, [naturalHeight, notifyDisplaySizeReady]);
 
   const displayHeight =
     naturalHeight != null
@@ -79,6 +111,7 @@ export function GardenCanvasElement({
 
   return (
     <img
+      ref={imgRef}
       className={className}
       style={{ ...style, height: `${displayHeight}px` }}
       src={src}
@@ -91,6 +124,7 @@ export function GardenCanvasElement({
         // Keep the tallest frame so animated sprites never shrink mid-loop.
         const cached = cacheNaturalHeight(measureKey, height);
         setNaturalHeight(cached);
+        notifyDisplaySizeReady();
       }}
       onPointerDown={onPointerDown}
     />

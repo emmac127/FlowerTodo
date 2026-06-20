@@ -16,6 +16,8 @@ import {
   getGardenRevealScrollTop,
   shouldRevealGardenForCompletion,
 } from './lib/gardenReveal';
+import { buildGardenSceneInstances } from './lib/garden/buildScene';
+import { preloadGardenAssetSize } from './lib/garden/elementDisplaySize';
 import {
   getGardenCycleProgress,
   getGardenLevel,
@@ -326,6 +328,15 @@ export default function App() {
     endGardenReveal,
     clearGardenRevealAutoReturn,
   ]);
+
+  /** Measure the incoming asset during reveal hold so it does not flash at fallback size. */
+  useEffect(() => {
+    if (gardenProgressCount <= 0) return;
+    const scene = buildGardenSceneInstances(gardenProgressCount, gardenConfig);
+    if (!scene.newestId) return;
+    const newest = scene.elements.find((el) => el.id === scene.newestId);
+    if (newest) preloadGardenAssetSize(newest);
+  }, [gardenProgressCount, gardenConfig]);
 
   const handlePickRandom = useCallback(() => {
     const incomplete = tasks.filter((t) => !t.completed);

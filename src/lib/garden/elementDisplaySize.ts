@@ -27,6 +27,37 @@ export function cacheNaturalHeight(key: string, height: number): number {
   return next;
 }
 
+/** Warm the natural-height cache before an element mounts (e.g. during reveal hold). */
+export function preloadGardenAssetSize(
+  element: Pick<PlacedElement, 'src' | 'animation'>,
+): void {
+  const key = elementMeasureKey(element);
+  if (getCachedNaturalHeight(key) != null) return;
+
+  const urls =
+    element.animation && element.animation.frames.length > 0
+      ? element.animation.frames
+      : [element.src];
+
+  let pending = urls.length;
+  let maxHeight = 0;
+
+  const finish = (height: number) => {
+    if (height > 0) maxHeight = Math.max(maxHeight, height);
+    pending -= 1;
+    if (pending <= 0 && maxHeight > 0) {
+      cacheNaturalHeight(key, maxHeight);
+    }
+  };
+
+  for (const url of urls) {
+    const img = new Image();
+    img.onload = () => finish(img.naturalHeight);
+    img.onerror = () => finish(0);
+    img.src = url;
+  }
+}
+
 /**
  * Source pixel height that maps to {@link PlacedElement.heightDesign} at scale 1.
  * Keeps proportional sizing while matching the previous fixed-height layout scale.

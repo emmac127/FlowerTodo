@@ -37,6 +37,9 @@ export function GardenScene({
   /** Completion count through which scroll has been synced (hides newest until caught up). */
   const [scrollSyncedForCount, setScrollSyncedForCount] =
     useState(completedCount);
+  /** Newest asset has a measured display height (avoids fallback-size flash). */
+  const [newestSizeReady, setNewestSizeReady] = useState(true);
+  const prevCompletedCountRef = useRef(completedCount);
 
   const layers = useMemo(() => getGardenLayers(completedCount), [completedCount]);
   const stage = Math.min(getSceneMilestoneCount(completedCount), 12);
@@ -49,7 +52,9 @@ export function GardenScene({
   const elements = elementsOverride ?? gameplayScene.elements;
   const gameplayNewestId = gameplayScene.newestId;
   const awaitingNewestReveal =
-    !editable && completedCount > scrollSyncedForCount;
+    !editable &&
+    gameplayNewestId != null &&
+    (scrollSyncedForCount < completedCount || !newestSizeReady);
   const newestId =
     editable || awaitingNewestReveal ? null : gameplayNewestId;
   const scrollFocusX = editable ? 0 : gameplayScene.scrollFocusX;
@@ -80,10 +85,21 @@ export function GardenScene({
     }
   }, [completedCount, scrollSyncedForCount]);
 
+  useEffect(() => {
+    if (completedCount > prevCompletedCountRef.current) {
+      setNewestSizeReady(false);
+    }
+    prevCompletedCountRef.current = completedCount;
+  }, [completedCount]);
+
   const handleFocusScrollReady = useCallback(() => {
     if (editable) return;
     setScrollSyncedForCount(completedCount);
   }, [editable, completedCount]);
+
+  const handleNewestDisplaySizeReady = useCallback(() => {
+    setNewestSizeReady(true);
+  }, []);
 
   const sceneStyle = {
     '--garden-headroom-px': `${gardenHeadroomPx(bandHeight, gardenConfig.designHeight)}px`,
@@ -129,6 +145,7 @@ export function GardenScene({
             levelMoveLevel={levelMoveLevel}
             onSelectElement={onSelectElement}
             onElementDrag={onElementDrag}
+            onNewestDisplaySizeReady={handleNewestDisplaySizeReady}
           />
         </GardenFlowerStrip>
       </div>
