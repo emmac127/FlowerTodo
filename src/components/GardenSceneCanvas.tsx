@@ -6,6 +6,7 @@ import {
 } from '../lib/garden/loadConfig';
 import type { PlacedElement } from '../lib/garden/types';
 import { GardenCanvasElement } from './GardenCanvasElement';
+import { DadMascotDelivery } from './DadMascotDelivery';
 import { GardenPlacementStars } from './GardenPlacementStars';
 import { MoonDustMotes } from './MoonDustMotes';
 
@@ -37,6 +38,12 @@ interface GardenSceneCanvasProps {
   dustMotes?: boolean;
   /** Gameplay: viewport pinned left — dust motes only fill the visible width. */
   lockScrollLeft?: boolean;
+  /** Dad route: mascot carries this element in before it is revealed. */
+  dadDeliveryElement?: PlacedElement | null;
+  /** Hide the incoming asset until the mascot sets it down. */
+  dadDeliveryAwaitingDrop?: boolean;
+  onDadDeliveryDrop?: () => void;
+  onDadDeliveryComplete?: () => void;
   onSelectElement?: (id: string) => void;
   onElementDrag?: (id: string, x: number, y: number) => void;
   onNewestDisplaySizeReady?: () => void;
@@ -84,6 +91,10 @@ export function GardenSceneCanvas({
   moonGround = false,
   dustMotes = false,
   lockScrollLeft = false,
+  dadDeliveryElement = null,
+  dadDeliveryAwaitingDrop = false,
+  onDadDeliveryDrop,
+  onDadDeliveryComplete,
   onSelectElement,
   onElementDrag,
   onNewestDisplaySizeReady,
@@ -290,7 +301,8 @@ export function GardenSceneCanvas({
             editable &&
             (inLevelMove || (levelMoveLevel == null && el.id === selectedId));
           const isPendingNewest =
-            awaitingNewestReveal && el.id === gameplayNewestId;
+            (awaitingNewestReveal && el.id === gameplayNewestId) ||
+            (dadDeliveryAwaitingDrop && el.id === dadDeliveryElement?.id);
           const isNew = !editable && el.id === newestId;
           const dimmed =
             editable &&
@@ -342,6 +354,15 @@ export function GardenSceneCanvas({
             </Fragment>
           );
         })}
+        {dadDeliveryElement && onDadDeliveryComplete && (
+          <DadMascotDelivery
+            element={dadDeliveryElement}
+            designWidth={designWidth}
+            designHeight={designHeight}
+            onDrop={onDadDeliveryDrop}
+            onComplete={onDadDeliveryComplete}
+          />
+        )}
       </div>
     </div>
   );

@@ -180,16 +180,6 @@ function isPersistentMultiStageStage(stage: StageImage): boolean {
   return stage.replace === false;
 }
 
-/** Consecutive `replace: false` stages from the start of the list. */
-function countLeadingPersistentStages(stages: StageImage[]): number {
-  let count = 0;
-  for (const stage of stages) {
-    if (!isPersistentMultiStageStage(stage)) break;
-    count++;
-  }
-  return count;
-}
-
 /**
  * Which multiStage indices to render at a given in-level score.
  * Persistent stages (`replace: false`) stay visible once reached.
@@ -200,11 +190,9 @@ function visibleMultiStageIndices(
   score: number,
   config: GardenConfig,
 ): number[] {
-  const leadingPersistent = countLeadingPersistentStages(stages);
-  const replaceMaxIndex =
-    config.variant === 'dad'
-      ? score - 1 + leadingPersistent
-      : score;
+  if (config.variant === 'dad') {
+    return visibleDadMultiStageIndices(stages, score);
+  }
 
   const indices: number[] = [];
   for (let i = 0; i < stages.length; i++) {
@@ -215,12 +203,48 @@ function visibleMultiStageIndices(
 
   let latestReplace = -1;
   for (let i = 0; i < stages.length; i++) {
-    if (!isPersistentMultiStageStage(stages[i]!) && i <= replaceMaxIndex) {
+    if (!isPersistentMultiStageStage(stages[i]!) && i <= score) {
       latestReplace = i;
     }
   }
   if (latestReplace >= 0) {
     indices.push(latestReplace);
+  }
+
+  return indices.sort((a, b) => a - b);
+}
+
+/**
+ * Dad route: completion N reveals stage N-1. Replaceable stages show one at a
+ * time; persistent stages (`replace: false`) stay once reached and supersede
+ * earlier replaceable art at the same progression step.
+ */
+function visibleDadMultiStageIndices(
+  stages: StageImage[],
+  score: number,
+): number[] {
+  if (score <= 0) return [];
+
+  const currentIndex = score - 1;
+  const indices: number[] = [];
+
+  for (let i = 0; i < stages.length; i++) {
+    if (isPersistentMultiStageStage(stages[i]!) && score >= i + 1) {
+      indices.push(i);
+    }
+  }
+
+  const currentStage = stages[currentIndex];
+  if (currentStage && !isPersistentMultiStageStage(currentStage)) {
+    let latestReplace = -1;
+    for (let i = 0; i <= currentIndex; i++) {
+      if (!isPersistentMultiStageStage(stages[i]!)) {
+        latestReplace = i;
+      }
+    }
+    if (latestReplace >= 0 && !indices.includes(latestReplace)) {
+      indices.push(latestReplace);
+    }
   }
 
   return indices.sort((a, b) => a - b);

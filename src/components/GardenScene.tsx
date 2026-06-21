@@ -40,6 +40,8 @@ export function GardenScene({
   /** Newest asset has a measured display height (avoids fallback-size flash). */
   const [newestSizeReady, setNewestSizeReady] = useState(true);
   const prevCompletedCountRef = useRef(completedCount);
+  const [dadDeliveryId, setDadDeliveryId] = useState<string | null>(null);
+  const [dadDeliveryDropped, setDadDeliveryDropped] = useState(false);
 
   const layers = useMemo(() => getGardenLayers(completedCount), [completedCount]);
   const stage = Math.min(getSceneMilestoneCount(completedCount), 12);
@@ -58,9 +60,37 @@ export function GardenScene({
     !pinViewport &&
     gameplayNewestId != null &&
     (scrollSyncedForCount < completedCount || !newestSizeReady);
+  const dadDeliveryActive =
+    pinViewport && dadDeliveryId != null && gameplayNewestId === dadDeliveryId;
+  const dadDeliveryAwaitingDrop = dadDeliveryActive && !dadDeliveryDropped;
+  const awaitingReveal =
+    awaitingNewestReveal || dadDeliveryAwaitingDrop;
   const newestId =
-    editable || awaitingNewestReveal ? null : gameplayNewestId;
+    editable || awaitingReveal ? null : gameplayNewestId;
   const scrollFocusX = editable ? 0 : gameplayScene.scrollFocusX;
+
+  const deliveryHeldElements = useMemo(() => {
+    if (!dadDeliveryAwaitingDrop || completedCount <= 0 || elementsOverride) {
+      return [];
+    }
+    const prev = buildGardenSceneInstances(completedCount - 1, gardenConfig);
+    const currentIds = new Set(gameplayScene.elements.map((el) => el.id));
+    return prev.elements.filter((el) => !currentIds.has(el.id));
+  }, [
+    dadDeliveryAwaitingDrop,
+    completedCount,
+    elementsOverride,
+    gardenConfig,
+    gameplayScene.elements,
+  ]);
+
+  const canvasElements = useMemo(() => {
+    if (elementsOverride) return elements;
+    if (deliveryHeldElements.length === 0) return elements;
+    return [...elements, ...deliveryHeldElements].sort(
+      (a, b) => a.zIndex - b.zIndex,
+    );
+  }, [elements, elementsOverride, deliveryHeldElements]);
 
   const showGround =
     editable || (isDadMoon ? completedCount > 0 : layers.grass || activeLevel >= 1);
@@ -93,14 +123,31 @@ export function GardenScene({
     }
   }, [completedCount, scrollSyncedForCount]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (completedCount > prevCompletedCountRef.current) {
+      if (pinViewport && gameplayNewestId) {
+        setDadDeliveryId(gameplayNewestId);
+        setDadDeliveryDropped(false);
+      }
       if (!pinViewport) {
         setNewestSizeReady(false);
       }
     }
+    if (completedCount < prevCompletedCountRef.current) {
+      setDadDeliveryId(null);
+      setDadDeliveryDropped(false);
+    }
     prevCompletedCountRef.current = completedCount;
-  }, [completedCount, pinViewport]);
+  }, [completedCount, pinViewport, gameplayNewestId]);
+
+  const handleDadDeliveryDrop = useCallback(() => {
+    setDadDeliveryDropped(true);
+  }, []);
+
+  const handleDadDeliveryComplete = useCallback(() => {
+    setDadDeliveryId(null);
+    setDadDeliveryDropped(false);
+  }, []);
 
   const handleFocusScrollReady = useCallback(() => {
     if (editable) return;
@@ -141,7 +188,7 @@ export function GardenScene({
           onFocusScrollReady={handleFocusScrollReady}
         >
           <GardenSceneCanvas
-            elements={elements}
+            elements={canvasElements}
             bandHeight={bandHeight}
             bandReady={bandReady}
             designWidth={gardenConfig.designWidth}
@@ -155,6 +202,14 @@ export function GardenScene({
             moonGround={isDadMoon && showGround}
             dustMotes={isDadMoon}
             lockScrollLeft={pinViewport}
+            dadDeliveryElement={
+              dadDeliveryActive
+                ? canvasElements.find((el) => el.id === dadDeliveryId) ?? null
+                : null
+            }
+            dadDeliveryAwaitingDrop={dadDeliveryAwaitingDrop}
+            onDadDeliveryDrop={handleDadDeliveryDrop}
+            onDadDeliveryComplete={handleDadDeliveryComplete}
             selectedId={selectedId}
             levelMoveLevel={levelMoveLevel}
             onSelectElement={onSelectElement}
