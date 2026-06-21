@@ -104,7 +104,7 @@ export function GardenSceneCanvas({
   const [viewportWidth, setViewportWidth] = useState(0);
 
   useLayoutEffect(() => {
-    if (!dustMotes) return;
+    if (!dustMotes && !dadDeliveryElement) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const viewport = canvas.closest<HTMLElement>(
@@ -120,11 +120,15 @@ export function GardenSceneCanvas({
     const ro = new ResizeObserver(update);
     ro.observe(viewport);
     return () => ro.disconnect();
-  }, [dustMotes]);
+  }, [dustMotes, dadDeliveryElement]);
 
   const scale =
     bandReady && bandHeight > 0 ? bandHeight / designHeight : 0;
   const innerWidth = designWidth * scale;
+  const visibleDesignWidth =
+    scale > 0 && lockScrollLeft && viewportWidth > 0
+      ? viewportWidth / scale
+      : designWidth;
   const showElements = editable || (bandReady && scale > 0);
   const moonGroundHeight =
     bandHeight > 0 ? bandHeight * 0.825 : 0; /* --garden-grass-ratio */
@@ -359,6 +363,7 @@ export function GardenSceneCanvas({
             element={dadDeliveryElement}
             designWidth={designWidth}
             designHeight={designHeight}
+            visibleDesignWidth={visibleDesignWidth}
             onDrop={onDadDeliveryDrop}
             onComplete={onDadDeliveryComplete}
           />

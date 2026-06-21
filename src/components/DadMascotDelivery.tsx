@@ -12,16 +12,19 @@ interface DadMascotDeliveryProps {
   element: PlacedElement;
   designWidth: number;
   designHeight: number;
+  /** Width of the visible canvas in design pixels (pinned viewport on /dad). */
+  visibleDesignWidth: number;
   /** Fired when the mascot sets the cargo down (before exit). */
   onDrop?: () => void;
   onComplete: () => void;
 }
 
-/** Tiny alien mascot carries a new moon asset in, sets it down, and exits left. */
+/** Tiny alien mascot carries a new moon asset in and sets it down at the anchor. */
 export function DadMascotDelivery({
   element,
   designWidth,
   designHeight,
+  visibleDesignWidth,
   onDrop,
   onComplete,
 }: DadMascotDeliveryProps) {
@@ -65,9 +68,16 @@ export function DadMascotDelivery({
   const cargoSrc =
     element.animation?.frames[0] ?? element.src;
   const cargoHeight = elementFallbackPixelHeight(element);
+  const enterFromRight = anchorX < visibleDesignWidth / 2;
+  const enterOffset = enterFromRight
+    ? visibleDesignWidth - anchorX + 96
+    : anchorX + 96;
 
   const handleAnimationEnd = (event: AnimationEvent<HTMLDivElement>) => {
-    if (event.animationName === 'dadMascotDeliveryRun') {
+    if (
+      event.animationName === 'dadMascotDeliveryRun' ||
+      event.animationName === 'dadMascotDeliveryRunFromRight'
+    ) {
       finish();
     }
   };
@@ -75,13 +85,15 @@ export function DadMascotDelivery({
   const style = {
     left: `${anchorX}px`,
     bottom: `${anchorBottom}px`,
-    '--delivery-enter-from': `calc(-1 * ${anchorX}px - 96px)`,
+    '--delivery-enter-from': enterFromRight
+      ? `${enterOffset}px`
+      : `calc(-1 * ${enterOffset}px)`,
     '--garden-el-flip-x': element.flipX ? -1 : 1,
   } as CSSProperties;
 
   return (
     <div
-      className="dad-mascot-delivery"
+      className={`dad-mascot-delivery${enterFromRight ? ' dad-mascot-delivery--from-right' : ''}`}
       style={style}
       aria-hidden
     >

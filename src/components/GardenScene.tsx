@@ -126,8 +126,13 @@ export function GardenScene({
   useLayoutEffect(() => {
     if (completedCount > prevCompletedCountRef.current) {
       if (pinViewport && gameplayNewestId) {
-        setDadDeliveryId(gameplayNewestId);
-        setDadDeliveryDropped(false);
+        const newest = gameplayScene.elements.find(
+          (el) => el.id === gameplayNewestId,
+        );
+        if (newest && newest.level > 1) {
+          setDadDeliveryId(gameplayNewestId);
+          setDadDeliveryDropped(false);
+        }
       }
       if (!pinViewport) {
         setNewestSizeReady(false);
@@ -138,7 +143,7 @@ export function GardenScene({
       setDadDeliveryDropped(false);
     }
     prevCompletedCountRef.current = completedCount;
-  }, [completedCount, pinViewport, gameplayNewestId]);
+  }, [completedCount, pinViewport, gameplayNewestId, gameplayScene.elements]);
 
   const handleDadDeliveryDrop = useCallback(() => {
     setDadDeliveryDropped(true);
