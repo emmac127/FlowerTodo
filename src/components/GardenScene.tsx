@@ -143,6 +143,8 @@ export function GardenScene({
             editable={editable}
             placementStars={isDadMoon && !editable}
             moonGround={isDadMoon && showGround}
+            dustMotes={isDadMoon}
+            lockScrollLeft={isDadMoon && !editable}
             selectedId={selectedId}
             levelMoveLevel={levelMoveLevel}
             onSelectElement={onSelectElement}

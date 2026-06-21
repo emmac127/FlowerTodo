@@ -1,4 +1,4 @@
-import { useCallback, useRef, Fragment } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, Fragment } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import {
   defaultGardenConfig,
@@ -7,6 +7,7 @@ import {
 import type { PlacedElement } from '../lib/garden/types';
 import { GardenCanvasElement } from './GardenCanvasElement';
 import { GardenPlacementStars } from './GardenPlacementStars';
+import { MoonDustMotes } from './MoonDustMotes';
 
 interface GardenSceneCanvasProps {
   elements: PlacedElement[];
@@ -32,6 +33,10 @@ interface GardenSceneCanvasProps {
   placementStars?: boolean;
   /** Dad route: scrollable moon surface (craters) behind placed assets. */
   moonGround?: boolean;
+  /** Dad route: silver dust motes above the moon surface. */
+  dustMotes?: boolean;
+  /** Gameplay: viewport pinned left — dust motes only fill the visible width. */
+  lockScrollLeft?: boolean;
   onSelectElement?: (id: string) => void;
   onElementDrag?: (id: string, x: number, y: number) => void;
   onNewestDisplaySizeReady?: () => void;
@@ -77,12 +82,34 @@ export function GardenSceneCanvas({
   editable = false,
   placementStars = false,
   moonGround = false,
+  dustMotes = false,
+  lockScrollLeft = false,
   onSelectElement,
   onElementDrag,
   onNewestDisplaySizeReady,
 }: GardenSceneCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const draggingIdRef = useRef<string | null>(null);
+  const [viewportWidth, setViewportWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    if (!dustMotes) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const viewport = canvas.closest<HTMLElement>(
+      '.garden-flower-scroll__viewport',
+    );
+    if (!viewport) return;
+
+    const update = () => {
+      const w = viewport.clientWidth;
+      if (w > 0) setViewportWidth(w);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(viewport);
+    return () => ro.disconnect();
+  }, [dustMotes]);
 
   const scale =
     bandReady && bandHeight > 0 ? bandHeight / designHeight : 0;
@@ -90,6 +117,15 @@ export function GardenSceneCanvas({
   const showElements = editable || (bandReady && scale > 0);
   const moonGroundHeight =
     bandHeight > 0 ? bandHeight * 0.825 : 0; /* --garden-grass-ratio */
+  const headroomPx = gardenHeadroomPx(bandHeight, designHeight);
+  const dustLayerHeight = bandHeight + headroomPx;
+  const moonAtmosphereHeight =
+    moonGroundHeight > 0
+      ? Math.min(112, Math.max(72, headroomPx + (bandHeight - moonGroundHeight) * 0.55))
+      : 0;
+  const dustLayerWidth = lockScrollLeft
+    ? viewportWidth
+    : innerWidth;
 
   const pointerToNorm = useCallback(
     (clientX: number, clientY: number) => {
@@ -222,6 +258,25 @@ export function GardenSceneCanvas({
             height: `${moonGroundHeight}px`,
           }}
         />
+      )}
+      {moonGround && moonAtmosphereHeight > 0 && innerWidth > 0 && (
+        <div
+          className="garden-canvas__moon-atmosphere"
+          aria-hidden
+          style={{
+            width: `${innerWidth}px`,
+            bottom: `${moonGroundHeight}px`,
+            height: `${moonAtmosphereHeight}px`,
+          }}
+        />
+      )}
+      {dustMotes && dustLayerHeight > 0 && dustLayerWidth > 0 && (
+        <div
+          className="moon-dust-motes moon-dust-motes--canvas"
+          style={{ width: `${dustLayerWidth}px`, height: `${dustLayerHeight}px` }}
+        >
+          <MoonDustMotes moonGroundHeight={moonGroundHeight} />
+        </div>
       )}
       <div className="garden-canvas__stage" style={stageStyle}>
         {showElements &&

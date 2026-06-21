@@ -2045,6 +2045,7 @@ body {
   position: absolute;
   bottom: 0;
   left: 0;
+  z-index: 3;
   transform-origin: bottom left;
   /* Clip below the ground line only; headroom above stays visible. */
   clip-path: inset(-100vmax 0 0 0);
@@ -2062,8 +2063,26 @@ body {
   object-position: left bottom;
 }
 
-.garden-canvas__stage {
+/* Thin exosphere haze above the moon horizon, fading into space. */
+.garden-canvas__moon-atmosphere {
+  position: absolute;
+  left: 0;
+  pointer-events: none;
   z-index: 1;
+  background:
+    radial-gradient(
+      ellipse 140% 90% at 50% 100%,
+      rgba(190, 200, 225, 0.22) 0%,
+      rgba(120, 130, 165, 0.08) 45%,
+      transparent 72%
+    ),
+    linear-gradient(
+      to top,
+      rgba(110, 120, 155, 0.32) 0%,
+      rgba(70, 80, 115, 0.14) 28%,
+      rgba(35, 45, 75, 0.05) 58%,
+      transparent 100%
+    );
 }
 
 .garden-canvas__el {
@@ -3379,7 +3398,11 @@ body {
 
 .twinkling-stars {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Keep sparkle stars in the sky — moon dust motes own the garden band. */
+  bottom: 42%;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -3387,9 +3410,24 @@ body {
 
 .twinkling-stars__star {
   position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff8e7 0%, #e8c878 55%, transparent 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   animation: starTwinkle 2.4s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+.twinkling-stars__star-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 0 5px rgba(255, 248, 230, 0.45))
+    drop-shadow(0 0 12px rgba(232, 200, 120, 0.2));
+}
+
+.twinkling-stars__star--bright .twinkling-stars__star-svg {
+  filter: drop-shadow(0 0 8px rgba(255, 252, 240, 0.65))
+    drop-shadow(0 0 20px rgba(232, 200, 120, 0.35));
 }
 
 .twinkling-stars--static .twinkling-stars__star {
@@ -3399,21 +3437,99 @@ body {
 @keyframes starTwinkle {
   0%,
   100% {
-    opacity: 0.25;
-    transform: scale(0.85);
+    opacity: 0.35;
+    transform: scale(0.9);
   }
   50% {
     opacity: 1;
-    transform: scale(1.15);
+    transform: scale(1.2);
+  }
+}
+
+/* Dad — silver dust motes drifting above the moon. */
+.moon-dust-motes--canvas {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.moon-dust-motes__layer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.moon-dust-motes__mote {
+  position: absolute;
+  display: block;
+  flex-shrink: 0;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(220, 228, 245, 0.7) 40%,
+    rgba(190, 200, 220, 0.25) 70%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 4px 1px rgba(255, 255, 255, 0.55),
+    0 0 10px 2px rgba(200, 210, 230, 0.3);
+  animation: moonDustDrift ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes moonDustDrift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.25;
+  }
+  35% {
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(var(--mote-drift-x, 12px), calc(var(--mote-drift-y, -16px) * -1))
+      scale(1);
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moon-dust-motes__mote {
+    animation: none;
+    opacity: 0.5;
   }
 }
 
 [data-theme='dad'] .garden-scene__sky {
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(20, 30, 60, 0.35) 45%,
-    rgba(30, 40, 70, 0.55) 100%
+  background:
+    radial-gradient(
+      ellipse 90% 55% at 50% 100%,
+      rgba(180, 190, 220, 0.12) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(20, 30, 60, 0.35) 45%,
+      rgba(30, 40, 70, 0.55) 100%
+    );
+}
+
+.garden-scene--moon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 70% 40% at 18% 100%,
+    rgba(220, 225, 240, 0.08) 0%,
+    transparent 65%
   );
 }
 
