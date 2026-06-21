@@ -58,6 +58,35 @@ export function preloadGardenAssetSize(
   }
 }
 
+/** Resolve once intrinsic height is cached (starts preload if needed). */
+export function waitForGardenAssetSize(
+  element: Pick<PlacedElement, 'src' | 'animation'>,
+  timeoutMs = 3000,
+): Promise<void> {
+  const key = elementMeasureKey(element);
+  if (getCachedNaturalHeight(key) != null) {
+    return Promise.resolve();
+  }
+
+  preloadGardenAssetSize(element);
+
+  return new Promise((resolve) => {
+    const deadline = performance.now() + timeoutMs;
+    const step = () => {
+      if (getCachedNaturalHeight(key) != null) {
+        resolve();
+        return;
+      }
+      if (performance.now() >= deadline) {
+        resolve();
+        return;
+      }
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
 /**
  * Source pixel height that maps to {@link PlacedElement.heightDesign} at scale 1.
  * Keeps proportional sizing while matching the previous fixed-height layout scale.

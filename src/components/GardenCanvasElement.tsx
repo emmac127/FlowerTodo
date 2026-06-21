@@ -78,7 +78,6 @@ export function GardenCanvasElement({
     onDisplaySizeReady?.();
   }, [onDisplaySizeReady]);
 
-  // Swap cached measurement when the asset changes — never clear on layout edits.
   useEffect(() => {
     displaySizeReadyRef.current = false;
     setNaturalHeight(getCachedNaturalHeight(measureKey));
@@ -87,33 +86,35 @@ export function GardenCanvasElement({
   useLayoutEffect(() => {
     const cached = getCachedNaturalHeight(measureKey);
     if (cached != null) {
-      notifyDisplaySizeReady();
+      setNaturalHeight(cached);
       return;
     }
     const img = imgRef.current;
     if (img?.complete && img.naturalHeight > 0) {
-      const next = cacheNaturalHeight(measureKey, img.naturalHeight);
-      setNaturalHeight(next);
-      notifyDisplaySizeReady();
+      setNaturalHeight(cacheNaturalHeight(measureKey, img.naturalHeight));
     }
-  }, [measureKey, src, notifyDisplaySizeReady]);
+  }, [measureKey, src]);
 
   useEffect(() => {
-    if (naturalHeight != null) {
-      notifyDisplaySizeReady();
-    }
+    if (naturalHeight == null) return;
+    notifyDisplaySizeReady();
   }, [naturalHeight, notifyDisplaySizeReady]);
 
-  const displayHeight =
-    naturalHeight != null
-      ? elementPixelHeightFromNatural(naturalHeight, element)
-      : elementFallbackPixelHeight(element);
+  const sizeReady = naturalHeight != null;
+  const displayHeight = sizeReady
+    ? elementPixelHeightFromNatural(naturalHeight, element)
+    : elementFallbackPixelHeight(element);
 
   return (
     <img
       ref={imgRef}
       className={className}
-      style={{ ...style, height: `${displayHeight}px` }}
+      style={{
+        ...style,
+        height: `${displayHeight}px`,
+        opacity: sizeReady ? (style.opacity ?? 1) : 0,
+        visibility: sizeReady ? (style.visibility ?? 'visible') : 'hidden',
+      }}
       src={src}
       alt=""
       draggable={false}
@@ -121,10 +122,7 @@ export function GardenCanvasElement({
       onLoad={(event) => {
         const height = event.currentTarget.naturalHeight;
         if (height <= 0) return;
-        // Keep the tallest frame so animated sprites never shrink mid-loop.
-        const cached = cacheNaturalHeight(measureKey, height);
-        setNaturalHeight(cached);
-        notifyDisplaySizeReady();
+        setNaturalHeight(cacheNaturalHeight(measureKey, height));
       }}
       onPointerDown={onPointerDown}
     />

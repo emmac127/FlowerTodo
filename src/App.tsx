@@ -17,7 +17,7 @@ import {
   shouldRevealGardenForCompletion,
 } from './lib/gardenReveal';
 import { buildGardenSceneInstances } from './lib/garden/buildScene';
-import { preloadGardenAssetSize } from './lib/garden/elementDisplaySize';
+import { preloadGardenAssetSize, waitForGardenAssetSize } from './lib/garden/elementDisplaySize';
 import {
   getGardenCycleProgress,
   getGardenLevel,
@@ -293,16 +293,33 @@ export default function App() {
     setGardenRevealGrowthUnlocked(false);
     const blindSlatCount = Math.max(1, tasks.length) + 1;
     const growthDelay = getGardenRevealGrowthStartDelayMs(blindSlatCount, reducedMotion);
+    let cancelled = false;
     gardenRevealGrowthTimerRef.current = window.setTimeout(() => {
       gardenRevealGrowthTimerRef.current = null;
-      setGardenRevealGrowthUnlocked(true);
+      void (async () => {
+        const scene = buildGardenSceneInstances(gardenProgressCount, gardenConfig);
+        const newest = scene.newestId
+          ? scene.elements.find((el) => el.id === scene.newestId)
+          : null;
+        if (newest) {
+          await waitForGardenAssetSize(newest);
+        }
+        if (!cancelled) {
+          setGardenRevealGrowthUnlocked(true);
+        }
+      })();
     }, growthDelay);
 
-    return clearGardenRevealGrowthTimer;
+    return () => {
+      cancelled = true;
+      clearGardenRevealGrowthTimer();
+    };
   }, [
     gardenRevealPhase,
     tasks.length,
     reducedMotion,
+    gardenProgressCount,
+    gardenConfig,
     clearGardenRevealGrowthTimer,
   ]);
 
