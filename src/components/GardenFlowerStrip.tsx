@@ -66,7 +66,6 @@ function scrollToDesignFocus(
  * scene is rendered by its children (a GardenSceneCanvas).
  */
 function pinViewportLeft(viewport: HTMLElement): boolean {
-  if (viewport.scrollWidth <= 0) return false;
   const prevBehavior = viewport.style.scrollBehavior;
   viewport.style.scrollBehavior = 'auto';
   viewport.scrollLeft = 0;

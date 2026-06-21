@@ -51,17 +51,25 @@ export function GardenScene({
   );
   const elements = elementsOverride ?? gameplayScene.elements;
   const gameplayNewestId = gameplayScene.newestId;
+  const isDadMoon = variant === 'dad';
+  const pinViewport = isDadMoon && !editable;
   const awaitingNewestReveal =
     !editable &&
+    !pinViewport &&
     gameplayNewestId != null &&
     (scrollSyncedForCount < completedCount || !newestSizeReady);
   const newestId =
     editable || awaitingNewestReveal ? null : gameplayNewestId;
   const scrollFocusX = editable ? 0 : gameplayScene.scrollFocusX;
 
-  const isDadMoon = variant === 'dad';
   const showGround =
     editable || (isDadMoon ? completedCount > 0 : layers.grass || activeLevel >= 1);
+
+  useLayoutEffect(() => {
+    if (pinViewport) {
+      setScrollSyncedForCount(completedCount);
+    }
+  }, [pinViewport, completedCount]);
 
   useLayoutEffect(() => {
     const el = bandRef.current;
@@ -87,10 +95,12 @@ export function GardenScene({
 
   useEffect(() => {
     if (completedCount > prevCompletedCountRef.current) {
-      setNewestSizeReady(false);
+      if (!pinViewport) {
+        setNewestSizeReady(false);
+      }
     }
     prevCompletedCountRef.current = completedCount;
-  }, [completedCount]);
+  }, [completedCount, pinViewport]);
 
   const handleFocusScrollReady = useCallback(() => {
     if (editable) return;
@@ -124,7 +134,7 @@ export function GardenScene({
           autoScrollKey={completedCount}
           scrollFocusX={scrollFocusX}
           freeScroll={editable}
-          lockScrollLeft={isDadMoon && !editable}
+          lockScrollLeft={pinViewport}
           placeMode={
             editable && selectedId != null && levelMoveLevel == null
           }
@@ -144,7 +154,7 @@ export function GardenScene({
             placementStars={isDadMoon && !editable}
             moonGround={isDadMoon && showGround}
             dustMotes={isDadMoon}
-            lockScrollLeft={isDadMoon && !editable}
+            lockScrollLeft={pinViewport}
             selectedId={selectedId}
             levelMoveLevel={levelMoveLevel}
             onSelectElement={onSelectElement}
