@@ -3,7 +3,8 @@ import { useAppVariant, useGardenConfig } from '../context/AppVariantContext';
 import type { GardenConfig } from '../lib/garden/loadConfig';
 import type { PlacedElement } from '../lib/garden/types';
 
-const LEVEL_OFFSET_STEP = 0.0025;
+/** Normalized X step (~6 px on the default 2400-wide design canvas). */
+const LEVEL_OFFSET_STEP_X = 0.0025;
 const LEVEL_SCALE_FACTOR = 1.05;
 
 interface GardenEditorProps {
@@ -52,6 +53,10 @@ export function GardenEditor({
 }: GardenEditorProps) {
   const variant = useAppVariant();
   const gardenConfig = useGardenConfig();
+  // Match X step in design pixels — the canvas is much wider than it is tall.
+  const levelOffsetStepY =
+    LEVEL_OFFSET_STEP_X *
+    (gardenConfig.designWidth / gardenConfig.designHeight);
   const layoutSaveLabel =
     variant === 'dad' ? 'Save dadLevels/layout.yaml' : 'Save layout.yaml';
   const wholeLevelMode = levelMoveLevel != null;
@@ -170,7 +175,7 @@ export function GardenEditor({
                 type="button"
                 className="garden-editor__prop-btn"
                 onClick={() =>
-                  onOffsetLevel(activeLevelMove, -LEVEL_OFFSET_STEP, 0)
+                  onOffsetLevel(activeLevelMove, -LEVEL_OFFSET_STEP_X, 0)
                 }
                 aria-label="Move level left"
               >
@@ -180,7 +185,7 @@ export function GardenEditor({
                 type="button"
                 className="garden-editor__prop-btn"
                 onClick={() =>
-                  onOffsetLevel(activeLevelMove, LEVEL_OFFSET_STEP, 0)
+                  onOffsetLevel(activeLevelMove, LEVEL_OFFSET_STEP_X, 0)
                 }
                 aria-label="Move level right"
               >
@@ -196,7 +201,7 @@ export function GardenEditor({
                 type="button"
                 className="garden-editor__prop-btn"
                 onClick={() =>
-                  onOffsetLevel(activeLevelMove, 0, -LEVEL_OFFSET_STEP)
+                  onOffsetLevel(activeLevelMove, 0, -levelOffsetStepY)
                 }
                 aria-label="Move level up"
               >
@@ -206,7 +211,7 @@ export function GardenEditor({
                 type="button"
                 className="garden-editor__prop-btn"
                 onClick={() =>
-                  onOffsetLevel(activeLevelMove, 0, LEVEL_OFFSET_STEP)
+                  onOffsetLevel(activeLevelMove, 0, levelOffsetStepY)
                 }
                 aria-label="Move level down"
               >

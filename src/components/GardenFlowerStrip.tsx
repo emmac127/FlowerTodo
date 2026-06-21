@@ -15,6 +15,11 @@ interface GardenFlowerStripProps {
   scrollFocusX?: number;
   /** Disable auto-scroll (used by the editor for free panning). */
   freeScroll?: boolean;
+  /**
+   * Gameplay: pin the viewport to the left edge — no horizontal pan or
+   * auto-scroll-to-newest (dad route).
+   */
+  lockScrollLeft?: boolean;
   /** Editor: list-selected flower — show crosshair and allow click-to-place. */
   placeMode?: boolean;
   /** Fired after the viewport is synced to scrollFocusX (before paint). */
@@ -60,11 +65,21 @@ function scrollToDesignFocus(
  * Horizontal-scroll shell for the garden. It only owns scrolling: the actual
  * scene is rendered by its children (a GardenSceneCanvas).
  */
+function pinViewportLeft(viewport: HTMLElement): boolean {
+  if (viewport.scrollWidth <= 0) return false;
+  const prevBehavior = viewport.style.scrollBehavior;
+  viewport.style.scrollBehavior = 'auto';
+  viewport.scrollLeft = 0;
+  viewport.style.scrollBehavior = prevBehavior;
+  return true;
+}
+
 export function GardenFlowerStrip({
   children,
   autoScrollKey = 0,
   scrollFocusX = 0,
   freeScroll = false,
+  lockScrollLeft = false,
   placeMode = false,
   onFocusScrollReady,
 }: GardenFlowerStripProps) {
@@ -132,13 +147,27 @@ export function GardenFlowerStrip({
     return () => el.removeEventListener('wheel', onWheel);
   }, [freeScroll, scrollViewportTo]);
 
+  useEffect(() => {
+    if (!lockScrollLeft || freeScroll) return;
+    const el = viewportRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (el.scrollLeft !== 0) pinViewportLeft(el);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [lockScrollLeft, freeScroll]);
+
   /** Snap scroll before paint when focus changes so new flowers are not shown mid-pan. */
   useLayoutEffect(() => {
     if (freeScroll) return;
     const el = viewportRef.current;
     if (!el) return;
 
-    const syncScroll = () => scrollToDesignFocus(el, scrollFocusX, false);
+    const syncScroll = () =>
+      lockScrollLeft
+        ? pinViewportLeft(el)
+        : scrollToDesignFocus(el, scrollFocusX, false);
 
     if (syncScroll()) {
       onFocusScrollReady?.();
@@ -154,17 +183,19 @@ export function GardenFlowerStrip({
     if (canvas) ro.observe(canvas);
 
     return () => ro.disconnect();
-  }, [autoScrollKey, scrollFocusX, freeScroll, onFocusScrollReady]);
+  }, [autoScrollKey, scrollFocusX, freeScroll, lockScrollLeft, onFocusScrollReady]);
+
+  const showScrollZones = needsScroll && !freeScroll && !lockScrollLeft;
 
   return (
     <div
-      className={`garden-flower-strip${needsScroll ? ' garden-flower-strip--scrollable' : ''}${freeScroll ? ' garden-flower-strip--editing' : ''}${placeMode ? ' garden-flower-strip--place-mode' : ''}`}
+      className={`garden-flower-strip${showScrollZones ? ' garden-flower-strip--scrollable' : ''}${freeScroll ? ' garden-flower-strip--editing' : ''}${lockScrollLeft ? ' garden-flower-strip--scroll-locked' : ''}${placeMode ? ' garden-flower-strip--place-mode' : ''}`}
     >
       <div ref={viewportRef} className="garden-flower-scroll__viewport">
         {children}
       </div>
 
-      {needsScroll && !freeScroll && (
+      {showScrollZones && (
         <>
           <button
             type="button"

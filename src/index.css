@@ -241,6 +241,11 @@ body {
   max-height: clamp(91px, 16.8vh, 154px);
 }
 
+[data-theme='dad'] .app-header-logo {
+  max-width: min(280px, 68vw);
+  max-height: clamp(100px, 18vh, 168px);
+}
+
 .garden-level-block {
   flex-shrink: 0;
   display: flex;
@@ -1961,6 +1966,12 @@ body {
   pointer-events: auto;
 }
 
+/* Dad gameplay — wide canvas, viewport pinned to the left edge. */
+.garden-flower-strip--scroll-locked .garden-flower-scroll__viewport {
+  overflow-x: hidden;
+  touch-action: pan-y pinch-zoom;
+}
+
 .garden-flower-strip--place-mode .garden-flower-scroll__viewport {
   cursor: crosshair;
 }
@@ -2037,6 +2048,22 @@ body {
   transform-origin: bottom left;
   /* Clip below the ground line only; headroom above stays visible. */
   clip-path: inset(-100vmax 0 0 0);
+}
+
+/* Dad moon — crater texture spans the full design canvas and scrolls with assets. */
+.garden-canvas__moon-ground {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: block;
+  pointer-events: none;
+  z-index: 0;
+  object-fit: cover;
+  object-position: left bottom;
+}
+
+.garden-canvas__stage {
+  z-index: 1;
 }
 
 .garden-canvas__el {
@@ -3392,22 +3419,8 @@ body {
 
 .garden-layer--moon {
   height: calc(var(--garden-band-height) * var(--garden-grass-ratio));
-  background:
-    url(/garden/moontex.png) center bottom / cover no-repeat,
-    linear-gradient(180deg, #4a5068 0%, #3a4058 40%, #2a3048 100%);
-}
-
-.garden-layer--moon::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.25;
-  background-image: radial-gradient(
-    ellipse 40% 30% at 70% 30%,
-    rgba(255, 255, 255, 0.15) 0%,
-    transparent 70%
-  );
+  /* Solid fill under the scroll canvas; craters scroll on .garden-canvas__moon-ground. */
+  background: linear-gradient(180deg, #4a5068 0%, #3a4058 40%, #2a3048 100%);
 }
 
 [data-theme='dad'] .sticky-kawaii-header {

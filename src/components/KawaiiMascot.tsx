@@ -1,5 +1,5 @@
 ﻿import { forwardRef } from 'react';
-import headerTitleSrc from '../assets/header-title.png';
+import defaultHeaderTitleSrc from '../assets/header-title.png';
 import { useAppVariant } from '../context/AppVariantContext';
 import { GardenProgressMeter } from './GardenProgressMeter';
 import { MascotImage } from './MascotImage';
@@ -45,6 +45,9 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
   ) {
     const variant = useAppVariant();
     const isDad = variant === 'dad';
+    const headerTitleSrc = isDad
+      ? '/garden/assets/Dad/Ciderimages/titlecard.png'
+      : defaultHeaderTitleSrc;
     const mascotClass = [
       'mascot',
       visible ? 'mascot--cheering' : '',
@@ -73,7 +76,7 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
 
             <img
               src={headerTitleSrc}
-              alt={isDad ? 'Moon To Do' : 'Flower To Do'}
+              alt={isDad ? 'To Do List for MEN' : 'Flower To Do'}
               className="app-header-logo"
               decoding="async"
             />

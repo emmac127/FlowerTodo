@@ -72,6 +72,19 @@ definitions:
        - /garden/assets/Dad/lemtop/lemtop7.png
        - /garden/assets/Dad/lemtop/lemtop8.png
 
+  cider:
+    name: Cider
+    mode: scatterPerCompletion
+    scatterAssets:
+       - /garden/assets/Dad/Ciderimages/tree1.png
+       - /garden/assets/Dad/Ciderimages/tree1.png
+       - /garden/assets/Dad/Ciderimages/c1.png
+       - /garden/assets/Dad/Ciderimages/c2.png   
+       - /garden/assets/Dad/Ciderimages/c3.png    
+       - /garden/assets/Dad/Ciderimages/c4.png
+       - /garden/assets/Dad/Ciderimages/c5.png  
+       - /garden/assets/Dad/Ciderimages/aliencashier.png
+
 
 levels:
   "1":
@@ -86,3 +99,5 @@ levels:
     use: insidelem
   "6":
     use: lemtop
+  "7":
+    use: cider

@@ -124,6 +124,7 @@ export function GardenScene({
           autoScrollKey={completedCount}
           scrollFocusX={scrollFocusX}
           freeScroll={editable}
+          lockScrollLeft={isDadMoon && !editable}
           placeMode={
             editable && selectedId != null && levelMoveLevel == null
           }
@@ -141,6 +142,7 @@ export function GardenScene({
             gameplayNewestId={editable ? null : gameplayNewestId}
             editable={editable}
             placementStars={isDadMoon && !editable}
+            moonGround={isDadMoon && showGround}
             selectedId={selectedId}
             levelMoveLevel={levelMoveLevel}
             onSelectElement={onSelectElement}

@@ -30,6 +30,8 @@ interface GardenSceneCanvasProps {
   editable?: boolean;
   /** Dad route: small star burst when a new element is revealed. */
   placementStars?: boolean;
+  /** Dad route: scrollable moon surface (craters) behind placed assets. */
+  moonGround?: boolean;
   onSelectElement?: (id: string) => void;
   onElementDrag?: (id: string, x: number, y: number) => void;
   onNewestDisplaySizeReady?: () => void;
@@ -74,6 +76,7 @@ export function GardenSceneCanvas({
   levelMoveLevel = null,
   editable = false,
   placementStars = false,
+  moonGround = false,
   onSelectElement,
   onElementDrag,
   onNewestDisplaySizeReady,
@@ -85,6 +88,8 @@ export function GardenSceneCanvas({
     bandReady && bandHeight > 0 ? bandHeight / designHeight : 0;
   const innerWidth = designWidth * scale;
   const showElements = editable || (bandReady && scale > 0);
+  const moonGroundHeight =
+    bandHeight > 0 ? bandHeight * 0.825 : 0; /* --garden-grass-ratio */
 
   const pointerToNorm = useCallback(
     (clientX: number, clientY: number) => {
@@ -205,6 +210,19 @@ export function GardenSceneCanvas({
       onPointerUp={editable ? endDrag : undefined}
       onPointerCancel={editable ? endDrag : undefined}
     >
+      {moonGround && moonGroundHeight > 0 && innerWidth > 0 && (
+        <img
+          className="garden-canvas__moon-ground"
+          src="/garden/moontex.png"
+          alt=""
+          draggable={false}
+          aria-hidden
+          style={{
+            width: `${innerWidth}px`,
+            height: `${moonGroundHeight}px`,
+          }}
+        />
+      )}
       <div className="garden-canvas__stage" style={stageStyle}>
         {showElements &&
           [...elements]
