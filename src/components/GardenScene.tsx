@@ -37,8 +37,8 @@ export function GardenScene({
   /** Completion count through which scroll has been synced (hides newest until caught up). */
   const [scrollSyncedForCount, setScrollSyncedForCount] =
     useState(completedCount);
-  /** Newest asset has a measured display height (avoids fallback-size flash). */
-  const [newestSizeReady, setNewestSizeReady] = useState(true);
+  /** Completion count for which the newest asset display size is known. */
+  const [sizeReadyForCount, setSizeReadyForCount] = useState(completedCount);
   const prevCompletedCountRef = useRef(completedCount);
   const [dadDeliveryId, setDadDeliveryId] = useState<string | null>(null);
   const [dadDeliveryDropped, setDadDeliveryDropped] = useState(false);
@@ -57,9 +57,10 @@ export function GardenScene({
   const pinViewport = isDadMoon && !editable;
   const awaitingNewestReveal =
     !editable &&
-    !pinViewport &&
     gameplayNewestId != null &&
-    (scrollSyncedForCount < completedCount || !newestSizeReady);
+    (!bandReady ||
+      (!pinViewport && scrollSyncedForCount < completedCount) ||
+      sizeReadyForCount < completedCount);
   const dadDeliveryActive =
     pinViewport && dadDeliveryId != null && gameplayNewestId === dadDeliveryId;
   const dadDeliveryAwaitingDrop = dadDeliveryActive && !dadDeliveryDropped;
@@ -123,6 +124,12 @@ export function GardenScene({
     }
   }, [completedCount, scrollSyncedForCount]);
 
+  useEffect(() => {
+    if (completedCount < sizeReadyForCount) {
+      setSizeReadyForCount(completedCount);
+    }
+  }, [completedCount, sizeReadyForCount]);
+
   useLayoutEffect(() => {
     if (completedCount > prevCompletedCountRef.current) {
       if (pinViewport && gameplayNewestId) {
@@ -133,9 +140,6 @@ export function GardenScene({
           setDadDeliveryId(gameplayNewestId);
           setDadDeliveryDropped(false);
         }
-      }
-      if (!pinViewport) {
-        setNewestSizeReady(false);
       }
     }
     if (completedCount < prevCompletedCountRef.current) {
@@ -160,8 +164,8 @@ export function GardenScene({
   }, [editable, completedCount]);
 
   const handleNewestDisplaySizeReady = useCallback(() => {
-    setNewestSizeReady(true);
-  }, []);
+    setSizeReadyForCount(completedCount);
+  }, [completedCount]);
 
   const sceneStyle = {
     '--garden-headroom-px': `${gardenHeadroomPx(bandHeight, gardenConfig.designHeight)}px`,
