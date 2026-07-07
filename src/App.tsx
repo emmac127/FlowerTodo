@@ -17,11 +17,25 @@ import {
   shouldRevealGardenForCompletion,
 } from './lib/gardenReveal';
 import { buildGardenSceneInstances } from './lib/garden/buildScene';
+import { getUnlockImageForDefinition } from './lib/garden/birdBehavior';
+import {
+  getGardenConfigForPhase,
+  mode1GardenConfig,
+} from './lib/garden/loadConfig';
+import {
+  getSceneGardenPhase,
+  getSceneProgressCount,
+} from './lib/gardenPhase';
+import { Mode2UnlockOverlay } from './components/Mode2UnlockOverlay';
+import { LevelUnlockOverlay } from './components/LevelUnlockOverlay';
+import { GardenPhaseToggle } from './components/GardenPhaseToggle';
+import type { GardenPhase } from './lib/garden/types';
 import { preloadGardenAssetSize, waitForGardenAssetSize } from './lib/garden/elementDisplaySize';
 import {
   getGardenCycleProgress,
   getGardenLevel,
   isGardenLevelComplete,
+  isGardenFullyComplete,
 } from './lib/plantedGarden';
 import {
   DEFAULT_CELEBRATION_ORIGIN,
@@ -87,6 +101,14 @@ export default function App() {
   const [gardenRevealHeldCount, setGardenRevealHeldCount] = useState<number | null>(null);
   const [gardenRevealGrowthUnlocked, setGardenRevealGrowthUnlocked] = useState(false);
   const [gardenRevealManual, setGardenRevealManual] = useState(false);
+  const [mode2UnlockActive, setMode2UnlockActive] = useState(false);
+  const [showFlowerButton, setShowFlowerButton] = useState(false);
+  const [gardenFadePhase, setGardenFadePhase] = useState<'mode1' | 'mode2' | 'none'>('none');
+  const [levelUnlock, setLevelUnlock] = useState<{
+    name: string;
+    image: string | null;
+  } | null>(null);
+  const [editorPhase, setEditorPhase] = useState<GardenPhase>('mode1');
 
   const {
     tasks,
@@ -99,26 +121,81 @@ export default function App() {
     clearCompleted,
     getNextCompletionIndex,
     gardenProgressCount,
+    phaseState,
     reorderTask,
     reorderTaskToIndex,
     setGardenProgressForDev,
     resetGardenLevel,
+    resetAllGardenState,
+    unlockMode2,
+    completeMode2Onboarding,
+    toggleNostalgicView,
   } = useTasks(variant);
 
   const [devPanelOpen, setDevPanelOpen] = useState(false);
   const isDev = import.meta.env.DEV;
-  const editor = useGardenEditor(gardenConfig, variant);
+  const editor = useGardenEditor(gardenConfig, variant, editorPhase);
+
+  useEffect(() => {
+    if (!hydrated || isDad || !phaseState.mode2Unlocked) return;
+    setEditorPhase((prev) => (prev === 'mode1' ? 'mode2' : prev));
+  }, [hydrated, isDad, phaseState.mode2Unlocked]);
+
+  const sceneProgressInput = {
+    gardenProgressCount,
+    mode2Unlocked: phaseState.mode2Unlocked,
+    mode2ProgressCount: phaseState.mode2ProgressCount,
+    mode1FrozenProgressCount: phaseState.mode1FrozenProgressCount,
+    viewingNostalgicMode1: phaseState.viewingNostalgicMode1,
+  };
+  const sceneProgressCount = getSceneProgressCount(sceneProgressInput);
+  const sceneGardenPhase = getSceneGardenPhase(sceneProgressInput);
+  const sceneGardenConfig =
+    !isDad && phaseState.mode2Unlocked
+      ? getGardenConfigForPhase(sceneGardenPhase)
+      : gardenConfig;
+
+  const showTaskList =
+    !phaseState.viewingNostalgicMode1 &&
+    !mode2UnlockActive;
 
   const handleDevApply = useCallback(
-    ({ completedCount }: { completedCount: number }) => {
-      setGardenProgressForDev(completedCount);
+    ({ completedCount, devPhase }: { completedCount: number; devPhase?: GardenPhase }) => {
+      if (devPhase === 'mode2') {
+        if (!phaseState.mode2Unlocked) {
+          unlockMode2(phaseState.mode1FrozenProgressCount || gardenProgressCount);
+        }
+        setGardenProgressForDev(completedCount, devPhase);
+        completeMode2Onboarding();
+      } else if (devPhase === 'mode1') {
+        setGardenProgressForDev(completedCount, devPhase);
+        setMode2UnlockActive(false);
+        setShowFlowerButton(false);
+        setGardenFadePhase('none');
+        setLevelUnlock(null);
+        setEditorPhase('mode1');
+      } else {
+        setGardenProgressForDev(completedCount, devPhase);
+      }
     },
-    [setGardenProgressForDev],
+    [
+      setGardenProgressForDev,
+      unlockMode2,
+      completeMode2Onboarding,
+      phaseState.mode2Unlocked,
+      phaseState.mode1FrozenProgressCount,
+      gardenProgressCount,
+    ],
   );
 
   const handleDevResetEverything = useCallback(() => {
-    setGardenProgressForDev(0);
-  }, [setGardenProgressForDev]);
+    resetAllGardenState();
+    setMode2UnlockActive(false);
+    setShowFlowerButton(false);
+    setGardenFadePhase('none');
+    setLevelUnlock(null);
+    setEditorPhase('mode1');
+  }, [resetAllGardenState]);
 
   const handleResetGarden = useCallback(() => {
     if (gardenProgressCount <= 0) return;
@@ -130,6 +207,11 @@ export default function App() {
       return;
     }
     resetGardenLevel();
+    setMode2UnlockActive(false);
+    setShowFlowerButton(false);
+    setGardenFadePhase('none');
+    setLevelUnlock(null);
+    setEditorPhase('mode1');
     setGardenRevealPhase('idle');
     setGardenRevealHeldCount(null);
     setGardenRevealGrowthUnlocked(false);
@@ -144,17 +226,17 @@ export default function App() {
     }
   }, [gardenProgressCount, resetGardenLevel]);
 
-  const gardenLevel = getGardenLevel(gardenProgressCount, gardenConfig);
+  const gardenLevel = getGardenLevel(sceneProgressCount, sceneGardenConfig);
   const gardenCycleProgress = getGardenCycleProgress(
-    gardenProgressCount,
-    gardenConfig,
+    sceneProgressCount,
+    sceneGardenConfig,
   );
   const gardenDisplayCount =
     gardenRevealPhase === 'active' &&
     !gardenRevealGrowthUnlocked &&
     gardenRevealHeldCount != null
       ? gardenRevealHeldCount
-      : gardenProgressCount;
+      : sceneProgressCount;
 
   const showMascotCheer = useCallback((phrase?: string) => {
     const text =
@@ -297,7 +379,7 @@ export default function App() {
     gardenRevealGrowthTimerRef.current = window.setTimeout(() => {
       gardenRevealGrowthTimerRef.current = null;
       void (async () => {
-        const scene = buildGardenSceneInstances(gardenProgressCount, gardenConfig);
+        const scene = buildGardenSceneInstances(sceneProgressCount, sceneGardenConfig);
         const newest = scene.newestId
           ? scene.elements.find((el) => el.id === scene.newestId)
           : null;
@@ -319,6 +401,8 @@ export default function App() {
     tasks.length,
     reducedMotion,
     gardenProgressCount,
+    sceneProgressCount,
+    sceneGardenConfig,
     gardenConfig,
     clearGardenRevealGrowthTimer,
   ]);
@@ -346,14 +430,25 @@ export default function App() {
     clearGardenRevealAutoReturn,
   ]);
 
-  /** Measure the incoming asset during reveal hold so it does not flash at fallback size. */
   useEffect(() => {
-    if (gardenProgressCount <= 0) return;
-    const scene = buildGardenSceneInstances(gardenProgressCount, gardenConfig);
+    if (sceneProgressCount <= 0) return;
+    const scene = buildGardenSceneInstances(sceneProgressCount, sceneGardenConfig);
     if (!scene.newestId) return;
     const newest = scene.elements.find((el) => el.id === scene.newestId);
     if (newest) preloadGardenAssetSize(newest);
-  }, [gardenProgressCount, gardenConfig]);
+  }, [sceneProgressCount, sceneGardenConfig]);
+
+  const handleMode2UnlockComplete = useCallback(() => {
+    unlockMode2(gardenProgressCount);
+    completeMode2Onboarding();
+    setMode2UnlockActive(false);
+    setShowFlowerButton(true);
+    setGardenFadePhase('none');
+  }, [unlockMode2, completeMode2Onboarding, gardenProgressCount]);
+
+  const handleMode2Transition = useCallback(() => {
+    setGardenFadePhase('mode2');
+  }, []);
 
   const handlePickRandom = useCallback(() => {
     const incomplete = tasks.filter((t) => !t.completed);
@@ -371,6 +466,8 @@ export default function App() {
 
   const handleTaskCompleted = useCallback(
     (id: string, completionIndex: number) => {
+      if (mode2UnlockActive || levelUnlock) return;
+
       const celebrationKey = `${id}:${completionIndex}`;
       const now = Date.now();
       const last = lastCelebrationRef.current;
@@ -380,11 +477,19 @@ export default function App() {
       lastCelebrationRef.current = { key: celebrationKey, at: now };
 
       const wasPicked = id === pickedTaskId;
-      const previousGardenCount = gardenProgressCount;
+      const mode2Active = !isDad && phaseState.mode2Unlocked;
+      const progressConfig = mode2Active
+        ? getGardenConfigForPhase('mode2')
+        : mode1GardenConfig;
+      const previousGardenCount = mode2Active
+        ? phaseState.mode2ProgressCount
+        : gardenProgressCount;
+      const nextGardenCount = previousGardenCount + 1;
+
       const revealGarden = shouldRevealGardenForCompletion(
-        completionIndex,
+        nextGardenCount,
         previousGardenCount,
-        gardenConfig,
+        progressConfig,
       );
 
       if (revealGarden) {
@@ -395,7 +500,30 @@ export default function App() {
 
       completeTask(id, completionIndex);
 
-      if (isGardenLevelComplete(completionIndex, gardenConfig)) {
+      if (
+        !isDad &&
+        !phaseState.mode2Unlocked &&
+        isGardenFullyComplete(nextGardenCount, mode1GardenConfig)
+      ) {
+        setMode2UnlockActive(true);
+        setGardenFadePhase('mode1');
+        if (wasPicked) setPickedTaskId(null);
+        return;
+      }
+
+      if (mode2Active && isGardenLevelComplete(nextGardenCount, progressConfig)) {
+        const newLevel = getGardenLevel(nextGardenCount, progressConfig);
+        const def = progressConfig.getLevelDefinition(newLevel);
+        if (def) {
+          setLevelUnlock({
+            name: def.name ?? `Level ${newLevel}`,
+            image: getUnlockImageForDefinition(def),
+          });
+        }
+      } else if (
+        !mode2Active &&
+        isGardenLevelComplete(nextGardenCount, isDad ? gardenConfig : mode1GardenConfig)
+      ) {
         showMascotCheer(
           isDad
             ? 'Moon level up! 🌙✨\nMission accomplished!'
@@ -411,11 +539,15 @@ export default function App() {
       runNormalCelebration();
     },
     [
+      mode2UnlockActive,
+      levelUnlock,
       beginGardenReveal,
       completeTask,
       gardenConfig,
       gardenProgressCount,
       isDad,
+      phaseState.mode2Unlocked,
+      phaseState.mode2ProgressCount,
       pickedTaskId,
       runNormalCelebration,
       runPickedCelebration,
@@ -464,6 +596,25 @@ export default function App() {
     inputRef.current?.focus();
   };
 
+  const displayGardenConfig = mode2UnlockActive
+    ? gardenFadePhase === 'mode2'
+      ? getGardenConfigForPhase('mode2')
+      : mode1GardenConfig
+    : sceneGardenConfig;
+
+  const displayGardenCount = mode2UnlockActive
+    ? gardenFadePhase === 'mode2'
+      ? 0
+      : gardenProgressCount
+    : gardenDisplayCount;
+
+  const isMode2PageTheme =
+    !isDad &&
+    (editor.enabled
+      ? editorPhase === 'mode2'
+      : sceneGardenPhase === 'mode2' &&
+        (!mode2UnlockActive || gardenFadePhase === 'mode2'));
+
   if (!hydrated) {
     return (
       <div className="app-shell">
@@ -481,8 +632,11 @@ export default function App() {
 
   return (
     <div
-      className={`app-shell${editor.enabled ? ' app-shell--garden-editor' : ''}`}
+      className={`app-shell${editor.enabled ? ' app-shell--garden-editor' : ''}${isMode2PageTheme ? ' app-shell--mode2' : ''}`}
     >
+      {isMode2PageTheme && (
+        <div className="mode2-sky-backdrop" aria-hidden />
+      )}
       {isDad ? (
         <TwinklingStars reducedMotion={reducedMotion} />
       ) : (
@@ -511,8 +665,9 @@ export default function App() {
         />
 
         <div
-          className={`app-body${gardenRevealPhase !== 'idle' ? ' app-body--garden-reveal' : ''}${gardenRevealPhase === 'exit' ? ' app-body--garden-reveal-exit' : ''}`}
+          className={`app-body${gardenRevealPhase !== 'idle' ? ' app-body--garden-reveal' : ''}${gardenRevealPhase === 'exit' ? ' app-body--garden-reveal-exit' : ''}${!showTaskList ? ' app-body--garden-only' : ''}`}
         >
+          {showTaskList && (
           <form
             className={`add-task-form${gardenRevealPhase !== 'idle' ? ' garden-reveal-slat' : ''}`}
             style={
@@ -535,7 +690,9 @@ export default function App() {
               +
             </button>
           </form>
+          )}
 
+          {showTaskList && (
           <main
             className={`app-main${gardenRevealPhase !== 'idle' ? ' app-main--garden-reveal' : ''}${gardenRevealPhase === 'exit' ? ' app-main--garden-reveal-exit' : ''}`}
           >
@@ -555,6 +712,7 @@ export default function App() {
               onReorderToIndex={reorderTaskToIndex}
             />
           </main>
+          )}
         </div>
 
         <div className="app-celebrations-layer" aria-hidden>
@@ -583,41 +741,96 @@ export default function App() {
       </div>
 
       <GardenScene
-        completedCount={gardenDisplayCount}
+        completedCount={displayGardenCount}
+        gardenConfigOverride={
+          editor.enabled ? editor.activeConfig : displayGardenConfig
+        }
+        gardenFadePhase={mode2UnlockActive ? gardenFadePhase : 'none'}
         elementsOverride={editor.enabled ? editor.elements : null}
         editable={editor.enabled}
         selectedId={editor.selectedId}
         levelMoveLevel={editor.levelMoveLevel}
         onSelectElement={editor.setSelectedId}
         onElementDrag={editor.handleDrag}
+        editorSurfaces={editor.enabled ? editor.workingSurfaces : undefined}
+        surfaceTool={editor.enabled ? editor.surfaceTool : null}
+        onAddSurfaceRect={editor.enabled ? editor.addSurfaceRect : undefined}
+        onUpdateSurfaceRect={editor.enabled ? editor.updateSurfaceRect : undefined}
+        selectedSurface={editor.enabled ? editor.selectedSurface : null}
+        onSelectSurface={editor.enabled ? editor.selectSurfaceOnCanvas : undefined}
+        collisionBoxTool={editor.enabled ? editor.collisionBoxTool : false}
+        onSetCollisionBox={editor.enabled ? editor.setCollisionBox : undefined}
+        suppressMascotDelivery={!!levelUnlock || mode2UnlockActive}
+        levelUnlockActive={!!levelUnlock}
       />
+
+      {((!isDad &&
+        (phaseState.mode2OnboardingComplete ||
+          (mode2UnlockActive && showFlowerButton))) ||
+        isDev) && (
+        <div className="app-bottom-toolbar">
+          {isDev && (
+            <>
+              <button
+                type="button"
+                className="dev-toggle-btn"
+                onClick={() => setDevPanelOpen(true)}
+                aria-label="Open dev tools"
+                title="Dev tools"
+              >
+                DEV
+              </button>
+              <button
+                type="button"
+                className={`dev-toggle-btn${editor.enabled ? ' dev-toggle-btn--active' : ''}`}
+                onClick={editor.toggle}
+                aria-label="Toggle garden editor"
+                title="Garden editor"
+              >
+                EDIT
+              </button>
+            </>
+          )}
+          {!isDad &&
+            (phaseState.mode2OnboardingComplete ||
+              (mode2UnlockActive && showFlowerButton)) && (
+              <GardenPhaseToggle
+                viewingNostalgicMode1={phaseState.viewingNostalgicMode1}
+                highlight={mode2UnlockActive && showFlowerButton}
+                onToggle={toggleNostalgicView}
+              />
+            )}
+        </div>
+      )}
+
+      {!isDad && (
+        <Mode2UnlockOverlay
+          active={mode2UnlockActive}
+          muted={muted}
+          showFlowerButton={showFlowerButton}
+          onShowFlowerButton={() => setShowFlowerButton(true)}
+          onTransitionToMode2={handleMode2Transition}
+          onComplete={handleMode2UnlockComplete}
+        />
+      )}
+
+      {!isDad && levelUnlock && (
+        <LevelUnlockOverlay
+          active
+          itemName={levelUnlock.name}
+          itemImage={levelUnlock.image}
+          muted={muted}
+          onDismiss={() => setLevelUnlock(null)}
+        />
+      )}
 
       {isDev && (
         <>
-          <div className="dev-toolbar">
-            <button
-              type="button"
-              className="dev-toggle-btn"
-              onClick={() => setDevPanelOpen(true)}
-              aria-label="Open dev tools"
-              title="Dev tools"
-            >
-              DEV
-            </button>
-            <button
-              type="button"
-              className={`dev-toggle-btn${editor.enabled ? ' dev-toggle-btn--active' : ''}`}
-              onClick={editor.toggle}
-              aria-label="Toggle garden editor"
-              title="Garden editor"
-            >
-              EDIT
-            </button>
-          </div>
-
           <DevPanel
             open={devPanelOpen}
+            variant={variant}
             currentGardenProgressCount={gardenProgressCount}
+            phaseState={phaseState}
             onClose={() => setDevPanelOpen(false)}
             onApply={handleDevApply}
             onResetEverything={handleDevResetEverything}
@@ -628,6 +841,7 @@ export default function App() {
               entries={editor.entries}
               selectedId={editor.selectedId}
               selectedElement={editor.selectedElement}
+              gardenConfig={editor.activeConfig}
               configuredLevels={editor.configuredLevels}
               levelMoveLevel={editor.levelMoveLevel}
               onLevelMoveLevelChange={editor.setLevelMoveLevel}
@@ -642,6 +856,16 @@ export default function App() {
               onSave={editor.save}
               saving={editor.saving}
               onClose={editor.toggle}
+              editorPhase={editorPhase}
+              onEditorPhaseChange={setEditorPhase}
+              surfaceTool={editor.surfaceTool}
+              onSurfaceToolChange={editor.setSurfaceTool}
+              onUpdateSurfaceRect={editor.updateSurfaceRect}
+              selectedSurfaceRect={editor.selectedSurfaceRect}
+              onDeleteSurface={editor.deleteSurfaceRect}
+              collisionBoxTool={editor.collisionBoxTool}
+              onCollisionBoxToolChange={editor.setCollisionBoxTool}
+              onClearCollisionBox={editor.clearCollisionBox}
             />
           )}
         </>

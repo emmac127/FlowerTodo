@@ -8,6 +8,8 @@ const GARDEN_LAYOUT_SAVE_PATH = '/__dev/save-garden-layout';
 const LAYOUT_PATHS = {
   default: ['src', 'garden', 'layout.yaml'],
   dad: ['src', 'garden', 'dadLevels', 'layout.yaml'],
+  mode2: ['src', 'garden', 'mode2', 'layout.yaml'],
+  mode2Surfaces: ['src', 'garden', 'mode2', 'surfaces.yaml'],
 } as const;
 
 /**
@@ -27,7 +29,19 @@ export function gardenLayoutSavePlugin(projectRoot: string): Plugin {
 
         const url = new URL(req.url ?? '', 'http://localhost');
         const variant = url.searchParams.get('variant') === 'dad' ? 'dad' : 'default';
-        const layoutFile = path.join(projectRoot, ...LAYOUT_PATHS[variant]);
+        const phase = url.searchParams.get('phase');
+        const file = url.searchParams.get('file');
+
+        let layoutFile: string;
+        if (variant === 'dad') {
+          layoutFile = path.join(projectRoot, ...LAYOUT_PATHS.dad);
+        } else if (phase === 'mode2' && file === 'surfaces') {
+          layoutFile = path.join(projectRoot, ...LAYOUT_PATHS.mode2Surfaces);
+        } else if (phase === 'mode2') {
+          layoutFile = path.join(projectRoot, ...LAYOUT_PATHS.mode2);
+        } else {
+          layoutFile = path.join(projectRoot, ...LAYOUT_PATHS.default);
+        }
 
         const chunks: Buffer[] = [];
         req.on('data', (chunk) => chunks.push(chunk));

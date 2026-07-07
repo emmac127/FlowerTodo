@@ -1,12 +1,16 @@
 import { stringify } from 'yaml';
 import type { AppVariant } from '../appVariant';
-import { defaultZIndex } from './buildScene';
-import { defaultGardenConfig } from './loadConfig';
+import type { GardenPhase } from './types';
+import { defaultZIndex, buildEditorScene } from './buildScene';
+import { defaultGardenConfig, type GardenConfig } from './loadConfig';
+import { offsetSurfacesForLevel } from './surfaces';
 import type {
+  BirdCollisionBox,
   LayoutConfig,
   LayoutLevelConfig,
   PlacedElement,
   PositionEntry,
+  SurfacesConfig,
 } from './types';
 
 /** Must match vite/gardenLayoutSave.ts — dev server POST target. */
@@ -25,7 +29,14 @@ export function cloneLayout(
 
 interface ParsedId {
   level: number;
-  kind: 'multiStage' | 'scatter' | 'planterBase' | 'planterFill';
+  kind:
+    | 'multiStage'
+    | 'scatter'
+    | 'planterBase'
+    | 'planterFill'
+    | 'birdPerchBase'
+    | 'birdPerchStage'
+    | 'birdAmbientStage';
   index: number;
 }
 
@@ -47,6 +58,12 @@ export function parseElementId(id: string): ParsedId | null {
 
   const fill = rest.match(/^planter-fill-(\d+)$/);
   if (fill) return { level, kind: 'planterFill', index: Number(fill[1]) };
+
+  if (rest === 'bird-perch-base') return { level, kind: 'birdPerchBase', index: 0 };
+  const birdPerch = rest.match(/^bird-perch-(\d+)$/);
+  if (birdPerch) return { level, kind: 'birdPerchStage', index: Number(birdPerch[1]) };
+  const birdAmbient = rest.match(/^bird-ambient-(\d+)$/);
+  if (birdAmbient) return { level, kind: 'birdAmbientStage', index: Number(birdAmbient[1]) };
 
   return null;
 }
@@ -80,6 +97,19 @@ function getLayoutEntry(
   if (parsed.kind === 'scatter') return levelCfg?.scatter?.[parsed.index];
   if (parsed.kind === 'planterBase') return levelCfg?.planter?.base;
   if (parsed.kind === 'planterFill') return levelCfg?.planter?.fills?.[parsed.index];
+  if (parsed.kind === 'birdPerchBase') return levelCfg?.birdPerch?.perch;
+  if (parsed.kind === 'birdPerchStage') {
+    return (
+      levelCfg?.birdPerch?.stages?.[parsed.index] ??
+      levelCfg?.birdPerch?.stages?.[String(parsed.index)]
+    );
+  }
+  if (parsed.kind === 'birdAmbientStage') {
+    return (
+      levelCfg?.birdAmbient?.stages?.[parsed.index] ??
+      levelCfg?.birdAmbient?.stages?.[String(parsed.index)]
+    );
+  }
   return undefined;
 }
 
@@ -105,6 +135,17 @@ function writeLayoutEntry(
       parsed.index,
       entry,
     );
+  } else if (parsed.kind === 'birdPerchBase') {
+    if (!levelCfg.birdPerch) levelCfg.birdPerch = {};
+    levelCfg.birdPerch.perch = entry;
+  } else if (parsed.kind === 'birdPerchStage') {
+    if (!levelCfg.birdPerch) levelCfg.birdPerch = {};
+    if (!levelCfg.birdPerch.stages) levelCfg.birdPerch.stages = {};
+    levelCfg.birdPerch.stages[String(stage)] = entry;
+  } else if (parsed.kind === 'birdAmbientStage') {
+    if (!levelCfg.birdAmbient) levelCfg.birdAmbient = { stages: {} };
+    if (!levelCfg.birdAmbient.stages) levelCfg.birdAmbient.stages = {};
+    levelCfg.birdAmbient.stages[String(stage)] = entry;
   }
 }
 
@@ -112,7 +153,9 @@ function mergeEntry(
   layout: LayoutConfig,
   id: string,
   stage: number,
-  patch: Partial<PositionEntry>,
+  patch: Partial<Omit<PositionEntry, 'collisionBox'>> & {
+    collisionBox?: BirdCollisionBox | null;
+  },
   fallbackX: number,
   fallbackY: number,
 ): LayoutConfig {
@@ -148,6 +191,14 @@ function mergeEntry(
     patch.animationLastFrameHold ?? existing?.animationLastFrameHold;
   if (typeof hold === 'number' && Number.isFinite(hold) && hold > 0) {
     entry.animationLastFrameHold = round(hold);
+  }
+
+  if ('collisionBox' in patch) {
+    if (patch.collisionBox != null) {
+      entry.collisionBox = patch.collisionBox;
+    }
+  } else if (existing?.collisionBox) {
+    entry.collisionBox = existing.collisionBox;
   }
 
   writeLayoutEntry(levelCfg, parsed, stage, entry);
@@ -246,11 +297,94 @@ export function setLayoutAnimationLastFrameHold(
   );
 }
 
-/** Stage index for a placed element (multiStage stage or scatter/planter slot). */
+function roundCollisionBox(box: BirdCollisionBox): BirdCollisionBox {
+  return {
+    offsetX: round(box.offsetX),
+    offsetY: round(box.offsetY),
+    width: round(Math.max(0.001, box.width)),
+    height: round(Math.max(0.001, box.height)),
+  };
+}
+
+/** Set or clear the collision box for a birdAmbient layout slot. */
+export function setLayoutCollisionBox(
+  layout: LayoutConfig,
+  id: string,
+  stage: number,
+  collisionBox: BirdCollisionBox | undefined,
+): LayoutConfig {
+  const parsed = parseElementId(id);
+  if (!parsed || parsed.kind !== 'birdAmbientStage') return layout;
+  const existing = getLayoutEntry(layout, parsed, stage);
+  return mergeEntry(
+    layout,
+    id,
+    stage,
+    { collisionBox: collisionBox ? roundCollisionBox(collisionBox) : null },
+    existing?.x ?? 0.5,
+    existing?.y ?? 1,
+  );
+}
+
+/** Layout slot index for reading/writing layout.yaml. */
 export function layoutIndexForElement(el: PlacedElement): number {
+  const parsed = parseElementId(el.id);
+  if (parsed) {
+    if (parsed.kind === 'birdPerchBase' || parsed.kind === 'planterBase') {
+      return 0;
+    }
+    if (
+      parsed.kind === 'birdPerchStage' ||
+      parsed.kind === 'birdAmbientStage' ||
+      parsed.kind === 'multiStage' ||
+      parsed.kind === 'scatter' ||
+      parsed.kind === 'planterFill'
+    ) {
+      return parsed.index;
+    }
+  }
   if (el.kind === 'multiStage') return el.stageIndex ?? 0;
-  if (el.kind === 'scatter' || el.kind === 'planterFill') return el.slotIndex ?? 0;
+  if (el.kind === 'birdAmbientStage') return el.stageIndex ?? 0;
+  if (
+    el.kind === 'scatter' ||
+    el.kind === 'planterFill' ||
+    el.kind === 'birdPerchStage'
+  ) {
+    return el.stageIndex ?? el.slotIndex ?? 0;
+  }
   return 0;
+}
+
+/**
+ * Translate every layout element on a level and every surface that unlocks on
+ * that level by the same normalized delta.
+ */
+export function applyLevelOffset(
+  layout: LayoutConfig,
+  surfaces: SurfacesConfig,
+  level: number,
+  deltaX: number,
+  deltaY: number,
+  config: GardenConfig = defaultGardenConfig,
+): { layout: LayoutConfig; surfaces: SurfacesConfig } {
+  if (deltaX === 0 && deltaY === 0) {
+    return { layout, surfaces };
+  }
+  const { elements } = buildEditorScene(layout, config);
+  let nextLayout = layout;
+  for (const el of elements.filter((e) => e.level === level)) {
+    nextLayout = setLayoutPosition(
+      nextLayout,
+      el.id,
+      layoutIndexForElement(el),
+      el.x + deltaX,
+      el.y + deltaY,
+    );
+  }
+  return {
+    layout: nextLayout,
+    surfaces: offsetSurfacesForLevel(surfaces, level, deltaX, deltaY),
+  };
 }
 
 /**
@@ -273,6 +407,9 @@ export function layoutFromPlacedElements(
         el.animation && el.animation.lastFrameHold > 0
           ? el.animation.lastFrameHold
           : undefined,
+      ...(el.kind === 'birdAmbientStage'
+        ? { collisionBox: el.birdCollisionBox ?? null }
+        : {}),
     }, el.x, el.y);
   }
   return layout;
@@ -303,21 +440,65 @@ export type SaveLayoutResult =
 export async function saveLayoutYaml(
   layout: LayoutConfig,
   variant: AppVariant = 'default',
+  phase?: GardenPhase,
 ): Promise<SaveLayoutResult> {
   if (!import.meta.env.DEV) {
     return { ok: false, error: 'Layout save is only available in development.' };
   }
 
-  const url =
-    variant === 'dad'
-      ? `${GARDEN_LAYOUT_SAVE_PATH}?variant=dad`
-      : GARDEN_LAYOUT_SAVE_PATH;
+  let url = GARDEN_LAYOUT_SAVE_PATH;
+  if (variant === 'dad') {
+    url = `${GARDEN_LAYOUT_SAVE_PATH}?variant=dad`;
+  } else if (phase === 'mode2') {
+    url = `${GARDEN_LAYOUT_SAVE_PATH}?phase=mode2`;
+  }
 
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/yaml; charset=utf-8' },
       body: layoutToYaml(layout),
+    });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    if (!res.ok || !data.ok) {
+      return {
+        ok: false,
+        error: data.error ?? `Save failed (${res.status})`,
+      };
+    }
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+const SURFACES_HEADER = `# Hop and food surfaces (generated by the Garden Editor).
+# Normalized coords: x/y = top-left corner, width/height in 0..1 design space.
+# Optional per surface: unlockLevel (garden level, default 1), unlockStage
+# (in-level score at first appearance, default 0). Surfaces stay once unlocked.
+`;
+
+export function surfacesToYaml(surfaces: import('./types').SurfacesConfig): string {
+  return SURFACES_HEADER + stringify(surfaces, { indent: 2 });
+}
+
+export async function saveSurfacesYaml(
+  surfaces: import('./types').SurfacesConfig,
+): Promise<SaveLayoutResult> {
+  if (!import.meta.env.DEV) {
+    return { ok: false, error: 'Surface save is only available in development.' };
+  }
+
+  const url = `${GARDEN_LAYOUT_SAVE_PATH}?phase=mode2&file=surfaces`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/yaml; charset=utf-8' },
+      body: surfacesToYaml(surfaces),
     });
     const data = (await res.json()) as { ok?: boolean; error?: string };
     if (!res.ok || !data.ok) {

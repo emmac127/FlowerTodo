@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { snapScrollLeft } from '../lib/garden/gardenPixelSnap';
 
 interface GardenFlowerStripProps {
   children: ReactNode;
@@ -42,7 +43,7 @@ function scrollToDesignFocus(
   const focusPx = focusXNorm * canvas.offsetWidth;
   const maxScroll = getMaxScrollLeft(viewport);
   const target = focusPx - viewport.clientWidth * 0.5;
-  const left = Math.max(0, Math.min(maxScroll, target));
+  const left = snapScrollLeft(Math.max(0, Math.min(maxScroll, target)));
 
   if (smooth) {
     try {
@@ -89,7 +90,7 @@ export function GardenFlowerStrip({
     const el = viewportRef.current;
     if (!el) return;
     const maxScroll = getMaxScrollLeft(el);
-    const next = Math.max(0, Math.min(maxScroll, left));
+    const next = snapScrollLeft(Math.max(0, Math.min(maxScroll, left)));
     if (smooth) {
       try {
         el.scrollTo({ left: next, behavior: 'smooth' });

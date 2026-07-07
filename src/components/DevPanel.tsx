@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useGardenConfig } from '../context/AppVariantContext';
 import {
   getCompletionsBeforeLevel,
@@ -6,23 +6,49 @@ import {
   getGardenCycleProgress,
   getGardenLevel,
 } from '../lib/plantedGarden';
+import {
+  getGardenConfigForPhase,
+  type GardenPhase,
+} from '../lib/garden/loadConfig';
+import type { GardenPhaseState } from '../lib/gardenPhase';
 
 interface DevPanelProps {
   open: boolean;
+  variant: 'default' | 'dad';
   currentGardenProgressCount: number;
+  phaseState: GardenPhaseState;
   onClose: () => void;
-  onApply: (args: { completedCount: number }) => void;
+  onApply: (args: { completedCount: number; devPhase?: GardenPhase }) => void;
   onResetEverything: () => void;
 }
 
 export function DevPanel({
   open,
+  variant,
   currentGardenProgressCount,
+  phaseState,
   onClose,
   onApply,
   onResetEverything,
 }: DevPanelProps) {
-  const gardenConfig = useGardenConfig();
+  const defaultConfig = useGardenConfig();
+  const [devPhase, setDevPhase] = useState<GardenPhase>(
+    phaseState.mode2Unlocked ? 'mode2' : 'mode1',
+  );
+
+  const gardenConfig = useMemo(
+    () =>
+      variant === 'dad'
+        ? defaultConfig
+        : getGardenConfigForPhase(devPhase),
+    [variant, defaultConfig, devPhase],
+  );
+
+  const activeCount =
+    devPhase === 'mode2' && phaseState.mode2Unlocked
+      ? phaseState.mode2ProgressCount
+      : currentGardenProgressCount;
+
   const levelOptions = useMemo(
     () => gardenConfig.getConfiguredLevels(),
     [gardenConfig],
@@ -30,14 +56,34 @@ export function DevPanel({
   const minLevel = levelOptions[0] ?? 1;
   const maxLevel = levelOptions[levelOptions.length - 1] ?? minLevel;
 
-  const currentLevel = getGardenLevel(currentGardenProgressCount, gardenConfig);
-  const currentScore = getGardenCycleProgress(
-    currentGardenProgressCount,
-    gardenConfig,
-  ).planted;
+  const currentLevel = getGardenLevel(activeCount, gardenConfig);
+  const currentScore = getGardenCycleProgress(activeCount, gardenConfig).planted;
 
   const [level, setLevel] = useState<number>(Math.max(1, currentLevel || 1));
   const [score, setScore] = useState<number>(currentScore);
+
+  useEffect(() => {
+    if (!open) return;
+    const phase = phaseState.mode2Unlocked ? 'mode2' : 'mode1';
+    setDevPhase(phase);
+    const config =
+      variant === 'dad' ? defaultConfig : getGardenConfigForPhase(phase);
+    const count =
+      phase === 'mode2' && phaseState.mode2Unlocked
+        ? phaseState.mode2ProgressCount
+        : currentGardenProgressCount;
+    const lvl = getGardenLevel(count, config);
+    const scr = getGardenCycleProgress(count, config).planted;
+    setLevel(Math.max(1, lvl || 1));
+    setScore(scr);
+  }, [
+    open,
+    variant,
+    defaultConfig,
+    phaseState.mode2Unlocked,
+    phaseState.mode2ProgressCount,
+    currentGardenProgressCount,
+  ]);
 
   const maxScore = useMemo(
     () => getMaxInLevelScore(level, gardenConfig),
@@ -82,9 +128,23 @@ export function DevPanel({
           </button>
         </header>
 
+        {variant === 'default' && (
+          <div className="dev-panel__field">
+            <label htmlFor="dev-garden-phase">Garden mode</label>
+            <select
+              id="dev-garden-phase"
+              value={devPhase}
+              onChange={(e) => setDevPhase(e.target.value as GardenPhase)}
+            >
+              <option value="mode1">Mode 1 (flower garden)</option>
+              <option value="mode2">Mode 2 (bird garden)</option>
+            </select>
+          </div>
+        )}
+
         <div className="dev-panel__current">
           <strong>Current:</strong> level {currentLevel}, score {currentScore} (
-          {currentGardenProgressCount} completions total)
+          {activeCount} completions in {devPhase})
         </div>
 
         <div className="dev-panel__field">
@@ -143,7 +203,10 @@ export function DevPanel({
             type="button"
             className="dev-panel__btn dev-panel__btn--primary"
             onClick={() => {
-              onApply({ completedCount: targetCount });
+              onApply({
+                completedCount: targetCount,
+                devPhase: variant === 'default' ? devPhase : undefined,
+              });
               onClose();
             }}
           >

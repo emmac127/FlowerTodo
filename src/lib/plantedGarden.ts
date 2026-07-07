@@ -37,26 +37,14 @@ export function getScatterSlotCount(
 
 /**
  * Task completions required to finish a garden level and advance to the next.
- * multiStage: one completion per stage after the first (7 stages → 6 completions).
+ * Always one more than {@link getMaxInLevelScore}: the final stage must be
+ * reached, then an additional task completes the level.
  */
 export function getLevelCompletionBudget(
   level: number,
   config: GardenConfig = defaultGardenConfig,
 ): number {
-  const def = config.getLevelDefinition(level);
-  if (def?.mode === 'multiStage') {
-    return Math.max(1, getMaxInLevelScore(level, config));
-  }
-  if (def?.mode === 'scatterPerCompletion') {
-    return getScatterSlotCount(level, config);
-  }
-  if (def?.mode === 'planter') {
-    return def.perCompletion?.max ?? getTasksForGardenLevel(level);
-  }
-  if (def?.mode === 'planterSequence') {
-    return def.fills?.length ?? getTasksForGardenLevel(level);
-  }
-  return getTasksForGardenLevel(level);
+  return Math.max(1, getMaxInLevelScore(level, config) + 1);
 }
 
 /** Completions required before a garden level begins (level 1 starts at 0). */
@@ -77,7 +65,14 @@ export function getGardenLevel(
   completedCount: number,
   config: GardenConfig = defaultGardenConfig,
 ): number {
-  if (completedCount <= 0) return 0;
+  if (completedCount <= 0) {
+    // Mode2 begins with level 1 assets (bird bath) visible before any tasks.
+    if (config.phase === 'mode2') {
+      const levels = config.getConfiguredLevels();
+      if (levels.length > 0) return levels[0]!;
+    }
+    return 0;
+  }
   const levels = config.getConfiguredLevels();
   for (let i = levels.length - 1; i >= 0; i--) {
     const level = levels[i]!;
@@ -130,6 +125,17 @@ export function getMaxInLevelScore(
   if (def?.mode === 'scatterPerCompletion') {
     return getScatterSlotCount(level, config);
   }
+  if (def?.mode === 'birdPerch') {
+    return def.stages?.length ?? getTasksForGardenLevel(level);
+  }
+  if (def?.mode === 'birdAmbient') {
+    const instances = config.getLevelBirdInstances(level);
+    if (instances && instances.length > 1) {
+      return instances.length;
+    }
+    const stageCount = def.stages?.length ?? 0;
+    return Math.max(0, stageCount - 1);
+  }
   return getTasksForGardenLevel(level);
 }
 
@@ -145,4 +151,26 @@ export function isGardenLevelComplete(
     }
   }
   return false;
+}
+
+/** Total completions required to finish every configured level. */
+export function getTotalCompletionsToFinishGarden(
+  config: GardenConfig = defaultGardenConfig,
+): number {
+  const levels = config.getConfiguredLevels();
+  if (levels.length === 0) return 0;
+  const maxLevel = levels[levels.length - 1]!;
+  return (
+    getCompletionsBeforeLevel(maxLevel, config) +
+    getLevelCompletionBudget(maxLevel, config)
+  );
+}
+
+/** True when the final stage of the final configured level is complete. */
+export function isGardenFullyComplete(
+  completionIndex: number,
+  config: GardenConfig = defaultGardenConfig,
+): boolean {
+  if (completionIndex <= 0) return false;
+  return completionIndex >= getTotalCompletionsToFinishGarden(config);
 }

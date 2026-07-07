@@ -1,14 +1,33 @@
-import { useCallback, useLayoutEffect, useRef, useState, Fragment } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, Fragment } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import {
   defaultGardenConfig,
   GARDEN_HEADROOM_TOP,
 } from '../lib/garden/loadConfig';
-import type { PlacedElement } from '../lib/garden/types';
+import type { BirdCollisionBox, PlacedElement, SurfaceRect } from '../lib/garden/types';
+import { surfaceUnlockLevel } from '../lib/garden/surfaces';
+import {
+  collisionBoxFromWorldRect,
+  worldBirdCollisionRect,
+} from '../lib/garden/birdCollision';
+import { isSurfaceEditorId } from '../lib/garden/surfaceEditorIds';
+import {
+  hitCornerHandle,
+  hitSurfaceAt,
+  isRectLargeEnough,
+  moveSurfaceRect,
+  rectFromPoints,
+  resizeSurfaceRect,
+  type SurfaceCorner,
+  type SurfaceKind,
+} from '../lib/garden/surfaceEditorInteraction';
 import { GardenCanvasElement } from './GardenCanvasElement';
+import { BirdCanvasElement } from './BirdCanvasElement';
 import { DadMascotDelivery } from './DadMascotDelivery';
+import { useAppVariant } from '../context/AppVariantContext';
 import { GardenPlacementStars } from './GardenPlacementStars';
 import { MoonDustMotes } from './MoonDustMotes';
+import { snapGardenScale, snapAnchorDesignPx, snapScreenPx } from '../lib/garden/gardenPixelSnap';
 
 interface GardenSceneCanvasProps {
   elements: PlacedElement[];
@@ -47,10 +66,35 @@ interface GardenSceneCanvasProps {
   onSelectElement?: (id: string) => void;
   onElementDrag?: (id: string, x: number, y: number) => void;
   onNewestDisplaySizeReady?: () => void;
+  /** Editor: all hop/food rectangles (including locked). */
+  editorSurfaces?: import('../lib/garden/types').SurfacesConfig;
+  /** Gameplay: hop/food rectangles unlocked at the current progress. */
+  gameplaySurfaces?: import('../lib/garden/types').SurfacesConfig;
+  surfaceTool?: 'hop' | 'food' | null;
+  onAddSurfaceRect?: (
+    kind: 'hop' | 'food',
+    rect: SurfaceRect,
+  ) => void;
+  onUpdateSurfaceRect?: (
+    kind: 'hop' | 'food',
+    id: string,
+    rect: SurfaceRect,
+  ) => void;
+  selectedSurface?: { kind: 'hop' | 'food'; id: string } | null;
+  onSelectSurface?: (surface: { kind: 'hop' | 'food'; id: string } | null) => void;
+  /** Editor: draw/edit bird collision boxes on the selected bird. */
+  collisionBoxTool?: boolean;
+  onSetCollisionBox?: (birdId: string, box: BirdCollisionBox) => void;
 }
 
 /** Normalized layout distance — nearby elements count as misclicks while placing. */
 const EDITOR_NEAR_ELEMENT_THRESHOLD = 0.12;
+
+function birdWorldCollisionRect(el: PlacedElement): SurfaceRect | null {
+  if (!el.birdCollisionBox) return null;
+  const world = worldBirdCollisionRect(el.x, el.y, el.birdCollisionBox);
+  return { ...world, id: el.id };
+}
 
 function elementsAreCloseInEditor(
   a: PlacedElement,
@@ -98,13 +142,113 @@ export function GardenSceneCanvas({
   onSelectElement,
   onElementDrag,
   onNewestDisplaySizeReady,
+  editorSurfaces,
+  gameplaySurfaces,
+  surfaceTool = null,
+  onAddSurfaceRect,
+  onUpdateSurfaceRect,
+  selectedSurface = null,
+  onSelectSurface,
+  collisionBoxTool = false,
+  onSetCollisionBox,
 }: GardenSceneCanvasProps) {
+  const variant = useAppVariant();
   const canvasRef = useRef<HTMLDivElement>(null);
   const draggingIdRef = useRef<string | null>(null);
+  const [birdPositions, setBirdPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
+  const surfaceSessionRef = useRef<
+    | {
+        mode: 'draw';
+        kind: SurfaceKind;
+        startX: number;
+        startY: number;
+      }
+    | {
+        mode: 'move';
+        kind: SurfaceKind;
+        id: string;
+        grabOffsetX: number;
+        grabOffsetY: number;
+      }
+    | {
+        mode: 'resize';
+        kind: SurfaceKind;
+        id: string;
+        handle: SurfaceCorner;
+        anchorRect: SurfaceRect;
+      }
+    | null
+  >(null);
+  const collisionSessionRef = useRef<
+    | {
+        mode: 'draw';
+        birdId: string;
+        anchorX: number;
+        anchorY: number;
+        startX: number;
+        startY: number;
+      }
+    | {
+        mode: 'move';
+        birdId: string;
+        anchorX: number;
+        anchorY: number;
+        grabOffsetX: number;
+        grabOffsetY: number;
+      }
+    | {
+        mode: 'resize';
+        birdId: string;
+        anchorX: number;
+        anchorY: number;
+        handle: SurfaceCorner;
+        anchorRect: SurfaceRect;
+      }
+    | null
+  >(null);
+  const [draftCollisionRect, setDraftCollisionRect] = useState<SurfaceRect | null>(
+    null,
+  );
+  const [draftSurfaceRect, setDraftSurfaceRect] = useState<SurfaceRect | null>(
+    null,
+  );
   const [viewportWidth, setViewportWidth] = useState(0);
+  const [viewportScrollLeft, setViewportScrollLeft] = useState(0);
+
+  const visibleSurfaces = editable ? editorSurfaces : gameplaySurfaces;
+  const hasSurfaceLayer =
+    visibleSurfaces != null &&
+    (visibleSurfaces.hop.length > 0 || visibleSurfaces.food.length > 0);
+
+  const birdElements = useMemo(
+    () => elements.filter((el) => el.birdBehavior && el.hasLayout),
+    [elements],
+  );
+
+  useEffect(() => {
+    if (editable) return;
+    setBirdPositions((prev) => {
+      const next: Record<string, { x: number; y: number }> = {};
+      for (const el of birdElements) {
+        next[el.id] = prev[el.id] ?? { x: el.x, y: el.y };
+      }
+      return next;
+    });
+  }, [birdElements, editable]);
+
+  const selectedBird = useMemo(() => {
+    if (!editable || !selectedId) return null;
+    return elements.find((el) => el.id === selectedId && el.kind === 'birdAmbientStage') ?? null;
+  }, [editable, elements, selectedId]);
+
+  const handleBirdPositionChange = useCallback((id: string, x: number, y: number) => {
+    setBirdPositions((prev) => ({ ...prev, [id]: { x, y } }));
+  }, []);
 
   useLayoutEffect(() => {
-    if (!dustMotes && !dadDeliveryElement) return;
+    if (!bandReady) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const viewport = canvas.closest<HTMLElement>(
@@ -115,23 +259,33 @@ export function GardenSceneCanvas({
     const update = () => {
       const w = viewport.clientWidth;
       if (w > 0) setViewportWidth(w);
+      setViewportScrollLeft(viewport.scrollLeft);
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(viewport);
-    return () => ro.disconnect();
-  }, [dustMotes, dadDeliveryElement]);
+    viewport.addEventListener('scroll', update, { passive: true });
+    return () => {
+      ro.disconnect();
+      viewport.removeEventListener('scroll', update);
+    };
+  }, [bandReady, dustMotes, dadDeliveryElement, hasSurfaceLayer]);
 
   const scale =
-    bandReady && bandHeight > 0 ? bandHeight / designHeight : 0;
-  const innerWidth = designWidth * scale;
+    bandReady && bandHeight > 0
+      ? snapGardenScale(bandHeight, designHeight)
+      : 0;
+  const innerWidth =
+    scale > 0 ? snapScreenPx(designWidth * scale) : designWidth * scale;
   const visibleDesignWidth =
-    scale > 0 && lockScrollLeft && viewportWidth > 0
+    scale > 0 && viewportWidth > 0
       ? viewportWidth / scale
       : designWidth;
+  const viewportLeftDesign =
+    scale > 0 ? viewportScrollLeft / scale : 0;
   const showElements = editable || (bandReady && scale > 0);
   const moonGroundHeight =
-    bandHeight > 0 ? bandHeight * 0.825 : 0; /* --garden-grass-ratio */
+    bandHeight > 0 ? snapScreenPx(bandHeight * 0.825) : 0; /* --garden-grass-ratio */
   const headroomPx = gardenHeadroomPx(bandHeight, designHeight);
   const dustLayerHeight = bandHeight + headroomPx;
   const moonAtmosphereHeight =
@@ -158,7 +312,7 @@ export function GardenSceneCanvas({
 
   const beginDrag = useCallback(
     (id: string, event: ReactPointerEvent) => {
-      if (!editable) return;
+      if (!editable || surfaceTool || selectedSurface || collisionBoxTool) return;
       if (levelMoveLevel != null) {
         const level = Number(id.match(/^L(\d+)-/)?.[1]);
         if (level !== levelMoveLevel) return;
@@ -203,27 +357,433 @@ export function GardenSceneCanvas({
       onSelectElement,
       pointerToNorm,
       selectedId,
+      surfaceTool,
+      selectedSurface,
+      collisionBoxTool,
     ],
+  );
+
+  const findSurfaceRect = useCallback(
+    (kind: SurfaceKind, id: string): SurfaceRect | null => {
+      if (!editorSurfaces) return null;
+      return editorSurfaces[kind].find((r) => r.id === id) ?? null;
+    },
+    [editorSurfaces],
+  );
+
+  const handleSurfacePointerDown = useCallback(
+    (event: ReactPointerEvent) => {
+      const activeKind = surfaceTool ?? selectedSurface?.kind;
+      if (!editable || !activeKind || !editorSurfaces) return false;
+
+      const norm = pointerToNorm(event.clientX, event.clientY);
+      if (!norm) return false;
+
+      const surfaces = editorSurfaces[activeKind];
+
+      if (selectedSurface?.kind === activeKind) {
+        const selectedRect = findSurfaceRect(activeKind, selectedSurface.id);
+        if (selectedRect) {
+          const handle = hitCornerHandle(
+            selectedRect,
+            norm.x,
+            norm.y,
+            designWidth,
+            designHeight,
+          );
+          if (handle) {
+            event.preventDefault();
+            event.stopPropagation();
+            surfaceSessionRef.current = {
+              mode: 'resize',
+              kind: activeKind,
+              id: selectedRect.id,
+              handle,
+              anchorRect: { ...selectedRect },
+            };
+            canvasRef.current?.setPointerCapture(event.pointerId);
+            return true;
+          }
+        }
+      }
+
+      const hit = hitSurfaceAt(surfaces, norm.x, norm.y);
+      if (hit) {
+        event.preventDefault();
+        event.stopPropagation();
+        onSelectSurface?.({ kind: activeKind, id: hit.id });
+        surfaceSessionRef.current = {
+          mode: 'move',
+          kind: activeKind,
+          id: hit.id,
+          grabOffsetX: norm.x - hit.x,
+          grabOffsetY: norm.y - hit.y,
+        };
+        canvasRef.current?.setPointerCapture(event.pointerId);
+        return true;
+      }
+
+      if (!surfaceTool) return false;
+
+      event.preventDefault();
+      event.stopPropagation();
+      onSelectSurface?.(null);
+      surfaceSessionRef.current = {
+        mode: 'draw',
+        kind: surfaceTool,
+        startX: norm.x,
+        startY: norm.y,
+      };
+      setDraftSurfaceRect({
+        id: 'draft',
+        x: norm.x,
+        y: norm.y,
+        width: 0,
+        height: 0,
+      });
+      canvasRef.current?.setPointerCapture(event.pointerId);
+      return true;
+    },
+    [
+      editable,
+      surfaceTool,
+      selectedSurface,
+      editorSurfaces,
+      pointerToNorm,
+      findSurfaceRect,
+      designWidth,
+      designHeight,
+      onSelectSurface,
+    ],
+  );
+
+  const handleSurfacePointerMove = useCallback(
+    (event: ReactPointerEvent) => {
+      const session = surfaceSessionRef.current;
+      if (!session || !editorSurfaces) return false;
+
+      const norm = pointerToNorm(event.clientX, event.clientY);
+      if (!norm) return false;
+
+      event.preventDefault();
+
+      if (session.mode === 'draw') {
+        const next = rectFromPoints(
+          session.startX,
+          session.startY,
+          norm.x,
+          norm.y,
+        );
+        setDraftSurfaceRect({
+          id: 'draft',
+          ...next,
+        });
+        return true;
+      }
+
+      const current = findSurfaceRect(session.kind, session.id);
+      if (!current || !onUpdateSurfaceRect) return true;
+
+      if (session.mode === 'move') {
+        onUpdateSurfaceRect(
+          session.kind,
+          session.id,
+          moveSurfaceRect(
+            current,
+            norm.x,
+            norm.y,
+            session.grabOffsetX,
+            session.grabOffsetY,
+          ),
+        );
+        return true;
+      }
+
+      onUpdateSurfaceRect(
+        session.kind,
+        session.id,
+        resizeSurfaceRect(session.anchorRect, session.handle, norm.x, norm.y),
+      );
+      return true;
+    },
+    [editorSurfaces, pointerToNorm, findSurfaceRect, onUpdateSurfaceRect],
+  );
+
+  const handleSurfacePointerUp = useCallback(
+    (event: ReactPointerEvent) => {
+      const session = surfaceSessionRef.current;
+      if (!session) return false;
+
+      event.preventDefault();
+      canvasRef.current?.releasePointerCapture(event.pointerId);
+
+      if (session.mode === 'draw' && onAddSurfaceRect) {
+        const norm = pointerToNorm(event.clientX, event.clientY);
+        if (norm) {
+          const next = rectFromPoints(
+            session.startX,
+            session.startY,
+            norm.x,
+            norm.y,
+          );
+          if (isRectLargeEnough(next)) {
+            onAddSurfaceRect(session.kind, {
+              ...next,
+              id: `${session.kind}_${Date.now()}`,
+            });
+          }
+        }
+      }
+
+      surfaceSessionRef.current = null;
+      setDraftSurfaceRect(null);
+      return true;
+    },
+    [onAddSurfaceRect, pointerToNorm],
+  );
+
+  const findBirdCollisionRect = useCallback(
+    (birdId: string): SurfaceRect | null => {
+      const el = elements.find((item) => item.id === birdId);
+      if (!el?.birdCollisionBox) return null;
+      return birdWorldCollisionRect(el);
+    },
+    [elements],
+  );
+
+  const commitCollisionWorldRect = useCallback(
+    (birdId: string, anchorX: number, anchorY: number, rect: SurfaceRect) => {
+      if (!onSetCollisionBox) return;
+      onSetCollisionBox(
+        birdId,
+        collisionBoxFromWorldRect(anchorX, anchorY, rect),
+      );
+    },
+    [onSetCollisionBox],
+  );
+
+  const handleCollisionPointerDown = useCallback(
+    (event: ReactPointerEvent) => {
+      if (!editable || !onSetCollisionBox || levelMoveLevel != null) return false;
+      if (surfaceTool || selectedSurface) return false;
+
+      const bird = selectedBird;
+      if (!bird) return false;
+
+      const norm = pointerToNorm(event.clientX, event.clientY);
+      if (!norm) return false;
+
+      const existing = bird.birdCollisionBox
+        ? birdWorldCollisionRect(bird)
+        : null;
+
+      if (existing && !collisionBoxTool) {
+        const handle = hitCornerHandle(
+          existing,
+          norm.x,
+          norm.y,
+          designWidth,
+          designHeight,
+        );
+        if (handle) {
+          event.preventDefault();
+          event.stopPropagation();
+          collisionSessionRef.current = {
+            mode: 'resize',
+            birdId: bird.id,
+            anchorX: bird.x,
+            anchorY: bird.y,
+            handle,
+            anchorRect: { ...existing },
+          };
+          canvasRef.current?.setPointerCapture(event.pointerId);
+          return true;
+        }
+        if (
+          norm.x >= existing.x &&
+          norm.x <= existing.x + existing.width &&
+          norm.y >= existing.y &&
+          norm.y <= existing.y + existing.height
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          collisionSessionRef.current = {
+            mode: 'move',
+            birdId: bird.id,
+            anchorX: bird.x,
+            anchorY: bird.y,
+            grabOffsetX: norm.x - existing.x,
+            grabOffsetY: norm.y - existing.y,
+          };
+          canvasRef.current?.setPointerCapture(event.pointerId);
+          return true;
+        }
+      }
+
+      if (!collisionBoxTool) return false;
+
+      event.preventDefault();
+      event.stopPropagation();
+      collisionSessionRef.current = {
+        mode: 'draw',
+        birdId: bird.id,
+        anchorX: bird.x,
+        anchorY: bird.y,
+        startX: norm.x,
+        startY: norm.y,
+      };
+      setDraftCollisionRect({
+        id: 'draft-collision',
+        x: norm.x,
+        y: norm.y,
+        width: 0,
+        height: 0,
+      });
+      canvasRef.current?.setPointerCapture(event.pointerId);
+      return true;
+    },
+    [
+      editable,
+      onSetCollisionBox,
+      levelMoveLevel,
+      surfaceTool,
+      selectedSurface,
+      collisionBoxTool,
+      selectedBird,
+      pointerToNorm,
+      designWidth,
+      designHeight,
+    ],
+  );
+
+  const handleCollisionPointerMove = useCallback(
+    (event: ReactPointerEvent) => {
+      const session = collisionSessionRef.current;
+      if (!session || !onSetCollisionBox) return false;
+
+      const norm = pointerToNorm(event.clientX, event.clientY);
+      if (!norm) return false;
+
+      event.preventDefault();
+
+      if (session.mode === 'draw') {
+        const next = rectFromPoints(
+          session.startX,
+          session.startY,
+          norm.x,
+          norm.y,
+        );
+        setDraftCollisionRect({ id: 'draft-collision', ...next });
+        return true;
+      }
+
+      const current = findBirdCollisionRect(session.birdId);
+      if (!current) return true;
+
+      if (session.mode === 'move') {
+        const moved = moveSurfaceRect(
+          current,
+          norm.x,
+          norm.y,
+          session.grabOffsetX,
+          session.grabOffsetY,
+        );
+        commitCollisionWorldRect(
+          session.birdId,
+          session.anchorX,
+          session.anchorY,
+          moved,
+        );
+        return true;
+      }
+
+      const resized = resizeSurfaceRect(
+        session.anchorRect,
+        session.handle,
+        norm.x,
+        norm.y,
+      );
+      commitCollisionWorldRect(
+        session.birdId,
+        session.anchorX,
+        session.anchorY,
+        resized,
+      );
+      return true;
+    },
+    [
+      pointerToNorm,
+      onSetCollisionBox,
+      findBirdCollisionRect,
+      commitCollisionWorldRect,
+    ],
+  );
+
+  const handleCollisionPointerUp = useCallback(
+    (event: ReactPointerEvent) => {
+      const session = collisionSessionRef.current;
+      if (!session) return false;
+
+      event.preventDefault();
+      canvasRef.current?.releasePointerCapture(event.pointerId);
+
+      if (session.mode === 'draw') {
+        const norm = pointerToNorm(event.clientX, event.clientY);
+        if (norm) {
+          const next = rectFromPoints(
+            session.startX,
+            session.startY,
+            norm.x,
+            norm.y,
+          );
+          if (isRectLargeEnough(next)) {
+            commitCollisionWorldRect(
+              session.birdId,
+              session.anchorX,
+              session.anchorY,
+              { id: session.birdId, ...next },
+            );
+          }
+        }
+      }
+
+      collisionSessionRef.current = null;
+      setDraftCollisionRect(null);
+      return true;
+    },
+    [pointerToNorm, commitCollisionWorldRect],
   );
 
   const moveDrag = useCallback(
     (event: ReactPointerEvent) => {
+      if (handleCollisionPointerMove(event)) return;
+      if (handleSurfacePointerMove(event)) return;
       if (!editable || draggingIdRef.current == null) return;
       const norm = pointerToNorm(event.clientX, event.clientY);
       if (!norm) return;
       onElementDrag?.(draggingIdRef.current, norm.x, norm.y);
     },
-    [editable, onElementDrag, pointerToNorm],
+    [editable, handleCollisionPointerMove, handleSurfacePointerMove, onElementDrag, pointerToNorm],
   );
 
-  const endDrag = useCallback((event: ReactPointerEvent) => {
-    if (draggingIdRef.current == null) return;
-    canvasRef.current?.releasePointerCapture(event.pointerId);
-    draggingIdRef.current = null;
-  }, []);
+  const endDrag = useCallback(
+    (event: ReactPointerEvent) => {
+      if (handleCollisionPointerUp(event)) return;
+      if (handleSurfacePointerUp(event)) return;
+      if (draggingIdRef.current == null) return;
+      canvasRef.current?.releasePointerCapture(event.pointerId);
+      draggingIdRef.current = null;
+    },
+    [handleCollisionPointerUp, handleSurfacePointerUp],
+  );
 
   const placeMode =
-    editable && selectedId != null && levelMoveLevel == null;
+    editable &&
+    selectedId != null &&
+    !isSurfaceEditorId(selectedId) &&
+    levelMoveLevel == null &&
+    !surfaceTool &&
+    !collisionBoxTool;
 
   /** Individual mode: place the list-selected flower at the click point. */
   const handleCanvasPointerDown = useCallback(
@@ -231,6 +791,8 @@ export function GardenSceneCanvas({
       if (!placeMode) return;
       const target = event.target as HTMLElement;
       if (target.closest('.garden-canvas__el')) return;
+      if (target.closest('.garden-collision-rect')) return;
+      if (target.closest('.garden-surface-rect')) return;
       const norm = pointerToNorm(event.clientX, event.clientY);
       if (!norm) return;
       event.preventDefault();
@@ -238,6 +800,150 @@ export function GardenSceneCanvas({
     },
     [placeMode, selectedId, pointerToNorm, onElementDrag],
   );
+
+  const surfaceEditActive = Boolean(
+    surfaceTool || (selectedSurface && levelMoveLevel == null),
+  );
+
+  const collisionEditActive = Boolean(
+    editable &&
+      levelMoveLevel == null &&
+      !placeMode &&
+      (collisionBoxTool ||
+        (selectedBird?.birdCollisionBox && !surfaceTool && !selectedSurface)),
+  );
+
+  const handleCanvasPointerDownCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (placeMode || levelMoveLevel != null) return;
+      if (collisionEditActive && handleCollisionPointerDown(event)) {
+        event.stopPropagation();
+        return;
+      }
+      if (!surfaceTool && !selectedSurface) return;
+      if (handleSurfacePointerDown(event)) {
+        event.stopPropagation();
+      }
+    },
+    [
+      placeMode,
+      levelMoveLevel,
+      collisionEditActive,
+      handleCollisionPointerDown,
+      surfaceTool,
+      selectedSurface,
+      handleSurfacePointerDown,
+    ],
+  );
+
+  const renderSurfaceRect = (
+    r: SurfaceRect,
+    kind: SurfaceKind,
+    options?: {
+      selected?: boolean;
+      draft?: boolean;
+      runtime?: boolean;
+      levelMove?: boolean;
+    },
+  ) => {
+    const selected = options?.selected ?? false;
+    const draft = options?.draft ?? false;
+    const runtime = options?.runtime ?? false;
+    const levelMove = options?.levelMove ?? false;
+    const className = [
+      'garden-surface-rect',
+      kind === 'hop'
+        ? 'garden-surface-rect--hop'
+        : 'garden-surface-rect--food',
+      runtime ? 'garden-surface-rect--runtime' : '',
+      surfaceTool === kind ? 'garden-surface-rect--interactive' : '',
+      selected ? 'garden-surface-rect--selected' : '',
+      draft ? 'garden-surface-rect--draft' : '',
+      levelMove ? 'garden-surface-rect--level-move' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    const style: CSSProperties = {
+      left: `${r.x * designWidth}px`,
+      bottom: `${(1 - r.y - r.height) * designHeight}px`,
+      width: `${r.width * designWidth}px`,
+      height: `${r.height * designHeight}px`,
+    };
+
+    const handles: SurfaceCorner[] = ['nw', 'ne', 'sw', 'se'];
+    const handleStyle = (corner: SurfaceCorner): CSSProperties => {
+      const base: CSSProperties = {
+        left:
+          corner === 'nw' || corner === 'sw'
+            ? '-5px'
+            : 'calc(100% - 5px)',
+        top:
+          corner === 'nw' || corner === 'ne'
+            ? '-5px'
+            : 'calc(100% - 5px)',
+      };
+      return base;
+    };
+
+    return (
+      <div key={r.id} className={className} style={style} aria-hidden>
+        {selected &&
+          (surfaceTool === kind || selectedSurface?.kind === kind) &&
+          handles.map((corner) => (
+            <span
+              key={corner}
+              className={`garden-surface-handle garden-surface-handle--${corner}`}
+              style={handleStyle(corner)}
+            />
+          ))}
+      </div>
+    );
+  };
+
+  const renderCollisionRect = (
+    r: SurfaceRect,
+    options?: { selected?: boolean; draft?: boolean },
+  ) => {
+    const selected = options?.selected ?? false;
+    const draft = options?.draft ?? false;
+    const className = [
+      'garden-collision-rect',
+      collisionBoxTool ? 'garden-collision-rect--interactive' : '',
+      selected ? 'garden-collision-rect--selected' : '',
+      draft ? 'garden-collision-rect--draft' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    const style: CSSProperties = {
+      left: `${r.x * designWidth}px`,
+      bottom: `${(1 - r.y - r.height) * designHeight}px`,
+      width: `${r.width * designWidth}px`,
+      height: `${r.height * designHeight}px`,
+    };
+
+    const handles: SurfaceCorner[] = ['nw', 'ne', 'sw', 'se'];
+    const handleStyle = (corner: SurfaceCorner): CSSProperties => ({
+      left:
+        corner === 'nw' || corner === 'sw' ? '-5px' : 'calc(100% - 5px)',
+      top:
+        corner === 'nw' || corner === 'ne' ? '-5px' : 'calc(100% - 5px)',
+    });
+
+    return (
+      <div key={r.id} className={className} style={style} aria-hidden>
+        {selected &&
+          handles.map((corner) => (
+            <span
+              key={corner}
+              className={`garden-surface-handle garden-surface-handle--${corner}`}
+              style={handleStyle(corner)}
+            />
+          ))}
+      </div>
+    );
+  };
 
   const canvasStyle: CSSProperties = {
     width: `${innerWidth}px`,
@@ -247,15 +953,20 @@ export function GardenSceneCanvas({
   const stageStyle: CSSProperties = {
     width: `${designWidth}px`,
     height: `${stageHeight}px`,
-    transform: `scale(${scale})`,
+    transform: `scale(${scale}) translateZ(0)`,
     transformOrigin: 'bottom left',
   };
 
   return (
     <div
       ref={canvasRef}
-      className={`garden-canvas${editable ? ' garden-canvas--editable' : ''}${placeMode ? ' garden-canvas--place-mode' : ''}`}
+      className={`garden-canvas${editable ? ' garden-canvas--editable' : ''}${placeMode ? ' garden-canvas--place-mode' : ''}${surfaceTool ? ` garden-canvas--surface-tool garden-canvas--surface-tool-${surfaceTool}` : ''}${collisionBoxTool ? ' garden-canvas--collision-tool' : ''}${surfaceEditActive ? ' garden-canvas--surface-edit' : ''}${collisionEditActive ? ' garden-canvas--collision-edit' : ''}`}
       style={canvasStyle}
+      onPointerDownCapture={
+        editable && (surfaceEditActive || collisionEditActive)
+          ? handleCanvasPointerDownCapture
+          : undefined
+      }
       onPointerDown={editable ? handleCanvasPointerDown : undefined}
       onPointerMove={editable ? moveDrag : undefined}
       onPointerUp={editable ? endDrag : undefined}
@@ -296,7 +1007,11 @@ export function GardenSceneCanvas({
       <div className="garden-canvas__stage" style={stageStyle}>
         {showElements &&
           [...elements]
-            .filter((el) => editable || el.hasLayout)
+            .filter(
+              (el) =>
+                (editable || el.hasLayout) &&
+                (!el.birdBehavior || editable),
+            )
             .sort((a, b) => a.zIndex - b.zIndex)
             .map((el) => {
           const inLevelMove =
@@ -313,9 +1028,19 @@ export function GardenSceneCanvas({
             (levelMoveLevel != null
               ? !inLevelMove
               : selectedId != null && el.id !== selectedId);
+          const snapAnchor =
+            scale > 0 &&
+            levelMoveLevel == null &&
+            (!editable || draggingIdRef.current !== el.id);
+          const anchor = snapAnchor
+            ? snapAnchorDesignPx(el.x, el.y, designWidth, designHeight, scale)
+            : {
+                left: el.x * designWidth,
+                bottom: (1 - el.y) * designHeight,
+              };
           const elStyle: CSSProperties = {
-            left: `${el.x * designWidth}px`,
-            bottom: `${(1 - el.y) * designHeight}px`,
+            left: `${anchor.left}px`,
+            bottom: `${anchor.bottom}px`,
             height: `${el.heightDesign * el.scale}px`,
             zIndex: isSelected ? el.zIndex + 10000 : el.zIndex,
             opacity: dimmed ? 0.35 : isPendingNewest ? 0 : 1,
@@ -344,6 +1069,7 @@ export function GardenSceneCanvas({
               )}
               <GardenCanvasElement
                 element={el}
+                gardenScale={scale}
                 className={classes}
                 style={elStyle}
                 onDisplaySizeReady={
@@ -358,12 +1084,114 @@ export function GardenSceneCanvas({
             </Fragment>
           );
         })}
+        {editable && editorSurfaces && (
+          <div className="garden-surface-layer" aria-hidden>
+            {editorSurfaces.hop.map((r) =>
+              renderSurfaceRect(r, 'hop', {
+                selected:
+                  selectedSurface?.kind === 'hop' &&
+                  selectedSurface.id === r.id,
+                levelMove:
+                  levelMoveLevel != null &&
+                  surfaceUnlockLevel(r) === levelMoveLevel,
+              }),
+            )}
+            {editorSurfaces.food.map((r) =>
+              renderSurfaceRect(r, 'food', {
+                selected:
+                  selectedSurface?.kind === 'food' &&
+                  selectedSurface.id === r.id,
+                levelMove:
+                  levelMoveLevel != null &&
+                  surfaceUnlockLevel(r) === levelMoveLevel,
+              }),
+            )}
+            {draftSurfaceRect &&
+              surfaceTool &&
+              renderSurfaceRect(draftSurfaceRect, surfaceTool, { draft: true })}
+          </div>
+        )}
+        {!editable && gameplaySurfaces && hasSurfaceLayer && (
+          <div className="garden-surface-layer garden-surface-layer--runtime" aria-hidden>
+            {gameplaySurfaces.hop.map((r) =>
+              renderSurfaceRect(r, 'hop', { runtime: true }),
+            )}
+            {gameplaySurfaces.food.map((r) =>
+              renderSurfaceRect(r, 'food', { runtime: true }),
+            )}
+          </div>
+        )}
+        {editable && (
+          <div className="garden-collision-layer" aria-hidden>
+            {elements
+              .filter((el) => el.kind === 'birdAmbientStage' && el.birdCollisionBox)
+              .map((el) => {
+                const world = birdWorldCollisionRect(el);
+                if (!world) return null;
+                return renderCollisionRect(world, {
+                  selected: el.id === selectedId,
+                });
+              })}
+            {draftCollisionRect &&
+              renderCollisionRect(draftCollisionRect, { draft: true })}
+          </div>
+        )}
+        {showElements &&
+          !editable &&
+          birdElements
+            .sort((a, b) => a.zIndex - b.zIndex)
+            .map((el) => {
+              if (!el.birdBehavior) return null;
+              const isPendingDelivery =
+                dadDeliveryAwaitingDrop && el.id === dadDeliveryElement?.id;
+              if (isPendingDelivery) return null;
+              const otherRects = birdElements
+                .filter((other) => other.id !== el.id && other.birdCollisionBox)
+                .map((other) => {
+                  const otherPos = birdPositions[other.id] ?? {
+                    x: other.x,
+                    y: other.y,
+                  };
+                  const world = worldBirdCollisionRect(
+                    otherPos.x,
+                    otherPos.y,
+                    other.birdCollisionBox!,
+                  );
+                  return { ...world, id: other.id };
+                });
+              const elStyle: CSSProperties = {
+                left: `${el.x * designWidth}px`,
+                bottom: `${(1 - el.y) * designHeight}px`,
+                height: `${el.heightDesign * el.scale}px`,
+                zIndex: el.zIndex + 5000,
+                '--garden-el-flip-x': el.flipX ? -1 : 1,
+              } as CSSProperties;
+              return (
+                <BirdCanvasElement
+                  key={`bird-${el.id}`}
+                  element={el}
+                  behavior={el.birdBehavior}
+                  designWidth={designWidth}
+                  designHeight={designHeight}
+                  gardenScale={scale}
+                  className="garden-canvas__el garden-canvas__el--bird"
+                  style={elStyle}
+                  otherBirdCollisionRects={otherRects}
+                  onPositionChange={(x, y) =>
+                    handleBirdPositionChange(el.id, x, y)
+                  }
+                />
+              );
+            })}
         {dadDeliveryElement && onDadDeliveryComplete && (
           <DadMascotDelivery
             element={dadDeliveryElement}
             designWidth={designWidth}
             designHeight={designHeight}
+            gardenScale={scale}
             visibleDesignWidth={visibleDesignWidth}
+            viewportLeftDesign={viewportLeftDesign}
+            variant={variant}
             onDrop={onDadDeliveryDrop}
             onComplete={onDadDeliveryComplete}
           />

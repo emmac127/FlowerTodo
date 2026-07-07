@@ -311,3 +311,25 @@ export async function playCelebrationTune(muted: boolean): Promise<number> {
 
   return Math.round((notes.length * (noteDur + gap) + 0.1) * 1000);
 }
+
+/** Rising tone for gift-box unlock build-up. */
+export async function playUnlockBuildUpSound(muted: boolean): Promise<void> {
+  if (muted) return;
+  const ctx = await getContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const duration = 0.9;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(220, now);
+  osc.frequency.exponentialRampToValueAtTime(880, now + duration);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.08, now + 0.08);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + duration + 0.05);
+}

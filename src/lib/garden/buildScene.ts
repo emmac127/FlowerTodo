@@ -1,6 +1,7 @@
 import {
   getCompletionsBeforeLevel,
   getGardenLevel,
+  getLevelCompletionBudget,
   getMaxInLevelScore,
   getScatterSlotCount,
   getTasksForGardenLevel,
@@ -11,7 +12,9 @@ import {
 } from './loadConfig';
 import { resolveGardenAsset } from './gardenAsset';
 import type { ResolvedGardenAsset } from './gardenAsset';
+import { resolveBirdBehavior } from './birdBehavior';
 import type {
+  BirdStageImage,
   ElementKind,
   GardenDefinition,
   GardenAssetRef,
@@ -29,6 +32,8 @@ const HEIGHT_MULTISTAGE_FULL = 300;
 const HEIGHT_SCATTER = 96;
 const HEIGHT_PLANTER_BASE = 200;
 const HEIGHT_PLANTER_FILL = 112;
+const HEIGHT_BIRD = 120;
+const HEIGHT_BIRD_PERCH = 160;
 
 /** Growth ramp so early multi-stage stages render smaller than the full bloom. */
 const MULTISTAGE_STAGE_SCALE = [0.3, 0.5, 0.68, 0.82, 0.92, 1.0];
@@ -90,6 +95,28 @@ function collectLevelLayoutPoints(
     if (isPositionedEntry(fill)) points.push({ x: fill.x, y: fill.y });
   }
 
+  const birdPerch = levelLayout.birdPerch;
+  if (isPositionedEntry(birdPerch?.perch)) {
+    points.push({ x: birdPerch.perch.x, y: birdPerch.perch.y });
+  }
+  const perchStages = birdPerch?.stages;
+  if (perchStages) {
+    const list = Array.isArray(perchStages) ? perchStages : Object.values(perchStages);
+    for (const stage of list) {
+      if (isPositionedEntry(stage)) points.push({ x: stage.x, y: stage.y });
+    }
+  }
+
+  const ambientStages = levelLayout.birdAmbient?.stages;
+  if (ambientStages) {
+    const list = Array.isArray(ambientStages)
+      ? ambientStages
+      : Object.values(ambientStages);
+    for (const stage of list) {
+      if (isPositionedEntry(stage)) points.push({ x: stage.x, y: stage.y });
+    }
+  }
+
   return points;
 }
 
@@ -125,6 +152,24 @@ function collectKindLayoutPoints(
   }
   for (const fill of planter?.fills ?? []) {
     if (isPositionedEntry(fill)) points.push({ x: fill.x, y: fill.y });
+  }
+  if (kind === 'birdPerchBase' && isPositionedEntry(levelLayout?.birdPerch?.perch)) {
+    points.push({
+      x: levelLayout.birdPerch!.perch!.x,
+      y: levelLayout.birdPerch!.perch!.y,
+    });
+  }
+  if (kind === 'birdPerchStage' || kind === 'birdAmbientStage') {
+    const stages =
+      kind === 'birdPerchStage'
+        ? levelLayout?.birdPerch?.stages
+        : levelLayout?.birdAmbient?.stages;
+    if (stages) {
+      const list = Array.isArray(stages) ? stages : Object.values(stages);
+      for (const stage of list) {
+        if (isPositionedEntry(stage)) points.push({ x: stage.x, y: stage.y });
+      }
+    }
   }
   return points;
 }
@@ -299,10 +344,13 @@ function autoPlace(
 ): Omit<ResolvedSlot, 'zIndex' | 'scale' | 'flipX' | 'animationLastFrameHold'> {
   const anchor = resolveAutoAnchor(layout, level, kind);
 
-  if (kind === 'multiStage' || kind === 'planterBase') {
+  if (kind === 'multiStage' || kind === 'planterBase' || kind === 'birdPerchBase') {
     return {
       x: anchor.x,
-      y: kind === 'planterBase' ? anchor.y : Math.max(anchor.y, 0.85),
+      y:
+        kind === 'planterBase' || kind === 'birdPerchBase'
+          ? anchor.y
+          : Math.max(anchor.y, 0.85),
       anchor: 'bottomCenter',
       hasLayout: false,
     };
@@ -346,6 +394,19 @@ function readLayoutEntry(
   if (kind === 'scatter') return levelLayout?.scatter?.[index];
   if (kind === 'planterBase') return levelLayout?.planter?.base;
   if (kind === 'planterFill') return levelLayout?.planter?.fills?.[index];
+  if (kind === 'birdPerchBase') return levelLayout?.birdPerch?.perch;
+  if (kind === 'birdPerchStage') {
+    return (
+      levelLayout?.birdPerch?.stages?.[index] ??
+      levelLayout?.birdPerch?.stages?.[String(index)]
+    );
+  }
+  if (kind === 'birdAmbientStage') {
+    return (
+      levelLayout?.birdAmbient?.stages?.[index] ??
+      levelLayout?.birdAmbient?.stages?.[String(index)]
+    );
+  }
   return undefined;
 }
 
@@ -404,8 +465,19 @@ interface ElementSpec {
   name: string;
   stageIndex?: number;
   slotIndex?: number;
+  /** birdAmbient: layout slot (defaults to stageIndex for multi-stage birds). */
+  birdInstanceIndex?: number;
   heightDesign: number;
   sizeRamp?: number;
+  birdBehavior?: PlacedElement['birdBehavior'];
+  mascotDeliversElement?: boolean;
+}
+
+function birdLayoutIndex(spec: ElementSpec): number {
+  if (spec.kind === 'birdAmbientStage') {
+    return spec.birdInstanceIndex ?? spec.stageIndex ?? 0;
+  }
+  return spec.stageIndex ?? spec.slotIndex ?? 0;
 }
 
 function makeElement(
@@ -413,7 +485,7 @@ function makeElement(
   spec: ElementSpec,
   config: GardenConfig,
 ): PlacedElement {
-  const index = spec.stageIndex ?? spec.slotIndex ?? 0;
+  const index = birdLayoutIndex(spec);
   const slotCount =
     spec.kind === 'scatter'
       ? getScatterSlotCount(spec.level, config)
@@ -421,6 +493,7 @@ function makeElement(
         ? getTasksForGardenLevel(spec.level)
         : 1;
   const slot = resolveSlot(layout, spec.level, spec.kind, index, slotCount);
+  const layoutEntry = readLayoutEntry(layout, spec.level, spec.kind, index);
 
   const idSuffix =
     spec.kind === 'multiStage'
@@ -429,7 +502,13 @@ function makeElement(
         ? `scatter-${spec.slotIndex}`
         : spec.kind === 'planterBase'
           ? 'planter-base'
-          : `planter-fill-${spec.slotIndex}`;
+          : spec.kind === 'planterFill'
+            ? `planter-fill-${spec.slotIndex}`
+            : spec.kind === 'birdPerchBase'
+              ? 'bird-perch-base'
+              : spec.kind === 'birdPerchStage'
+                ? `bird-perch-${spec.stageIndex}`
+                : `bird-ambient-${index}`;
 
   return {
     id: `L${spec.level}-${idSuffix}`,
@@ -449,7 +528,16 @@ function makeElement(
     zIndex: slot.zIndex,
     hasLayout: slot.hasLayout,
     animation: placedAnimation(spec.asset, slot.animationLastFrameHold),
+    birdBehavior: spec.birdBehavior,
+    birdCollisionBox: layoutEntry?.collisionBox,
+    mascotDeliversElement: spec.mascotDeliversElement !== false,
   };
+}
+
+function stageMascotDelivers(
+  stage?: { mascotDeliversElement?: boolean },
+): boolean {
+  return stage?.mascotDeliversElement !== false;
 }
 
 function resolvedFromStageImage(image: StageImage): ResolvedGardenAsset | null {
@@ -523,6 +611,7 @@ function appendPlanterElements(
           asset: baseAsset,
           name: `${name} planter`,
           heightDesign: HEIGHT_PLANTER_BASE,
+          mascotDeliversElement: stageMascotDelivers(def.onLevelStart),
         },
         config,
       ),
@@ -534,6 +623,8 @@ function appendPlanterElements(
   for (let i = 0; i < fillCount; i++) {
     const asset = planterFillAsset(def, i);
     if (!asset) continue;
+    const fillStage =
+      def.mode === 'planterSequence' ? def.fills?.[i] : def.perCompletion;
     elements.push(
       makeElement(
         layout,
@@ -544,10 +635,308 @@ function appendPlanterElements(
           name: `${name} flower ${i + 1}`,
           slotIndex: i,
           heightDesign: HEIGHT_PLANTER_FILL,
+          mascotDeliversElement: stageMascotDelivers(fillStage),
         },
         config,
       ),
     );
+  }
+}
+
+/** Which birdPerch stage indices are visible at a given score. */
+function visibleBirdPerchStageIndices(
+  stages: StageImage[],
+  score: number,
+): number[] {
+  if (score <= 0) return [];
+  let latest = -1;
+  for (let i = 0; i < stages.length; i++) {
+    if (i < score) latest = i;
+  }
+  return latest >= 0 ? [latest] : [];
+}
+
+function layoutEntryForBirdStage(
+  layout: LayoutConfig,
+  level: number,
+  kind: 'birdPerchStage' | 'birdAmbientStage',
+  index: number,
+): PositionEntry | undefined {
+  return readLayoutEntry(layout, level, kind, index);
+}
+
+function appendBirdPerchElements(
+  layout: LayoutConfig,
+  def: GardenDefinition,
+  level: number,
+  name: string,
+  score: number,
+  elements: PlacedElement[],
+  config: GardenConfig,
+): void {
+  const perchAsset = def.onLevelStart
+    ? resolvedFromStageImage(def.onLevelStart)
+    : null;
+  if (perchAsset) {
+    elements.push(
+      makeElement(
+        layout,
+        {
+          level,
+          kind: 'birdPerchBase',
+          asset: perchAsset,
+          name: `${name} perch`,
+          heightDesign: HEIGHT_BIRD_PERCH,
+          mascotDeliversElement: stageMascotDelivers(def.onLevelStart),
+        },
+        config,
+      ),
+    );
+  }
+
+  const stages = def.stages ?? [];
+  for (const stageIndex of visibleBirdPerchStageIndices(stages, score)) {
+    const stage = stages[stageIndex]!;
+    const asset = resolvedFromStageImage(stage);
+    if (!asset) continue;
+    elements.push(
+      makeElement(
+        layout,
+        {
+          level,
+          kind: 'birdPerchStage',
+          asset,
+          name: `${name} — stage ${stageIndex}`,
+          stageIndex,
+          heightDesign: HEIGHT_BIRD,
+          mascotDeliversElement: stageMascotDelivers(stage),
+        },
+        config,
+      ),
+    );
+  }
+}
+
+function appendBirdAmbientInstance(
+  layout: LayoutConfig,
+  def: GardenDefinition,
+  level: number,
+  name: string,
+  growthStage: number,
+  instanceIndex: number,
+  elements: PlacedElement[],
+  config: GardenConfig,
+  completedCount: number,
+): void {
+  const stages = (def.stages ?? []) as BirdStageImage[];
+  const stage = stages[growthStage];
+  if (!stage) return;
+  const asset = resolvedFromStageImage(stage);
+  if (!asset) return;
+  const layoutEntry = layoutEntryForBirdStage(
+    layout,
+    level,
+    'birdAmbientStage',
+    instanceIndex,
+  );
+  const birdBehavior = resolveBirdBehavior(
+    def,
+    stage,
+    asset.src,
+    layoutEntry?.hopSurfaceId,
+    layoutEntry?.foodSurfaceId,
+    config.surfacesConfig,
+    completedCount,
+    config,
+  );
+  elements.push(
+    makeElement(
+      layout,
+      {
+        level,
+        kind: 'birdAmbientStage',
+        asset,
+        name: `${name} — stage ${growthStage}`,
+        stageIndex: growthStage,
+        birdInstanceIndex: instanceIndex,
+        heightDesign: HEIGHT_BIRD,
+        birdBehavior,
+        mascotDeliversElement: stageMascotDelivers(stage),
+      },
+      config,
+    ),
+  );
+}
+
+function appendBirdAmbientElements(
+  layout: LayoutConfig,
+  def: GardenDefinition,
+  level: number,
+  name: string,
+  score: number,
+  elements: PlacedElement[],
+  config: GardenConfig,
+  completedCount: number,
+  instanceIndex?: number,
+): void {
+  const stages = (def.stages ?? []) as BirdStageImage[];
+  if (stages.length === 0) return;
+  const stageIndices = visibleMultiStageIndices(stages, score, config);
+  if (stageIndices.length === 0) return;
+
+  if (instanceIndex !== undefined) {
+    // Multi-bird levels: one bird unlocked per in-level completion.
+    if (score <= instanceIndex) return;
+
+    const growthStage = stageIndices[stageIndices.length - 1]!;
+    appendBirdAmbientInstance(
+      layout,
+      def,
+      level,
+      name,
+      growthStage,
+      instanceIndex,
+      elements,
+      config,
+      completedCount,
+    );
+    return;
+  }
+
+  for (const stageIndex of stageIndices) {
+    appendBirdAmbientInstance(
+      layout,
+      def,
+      level,
+      name,
+      stageIndex,
+      stageIndex,
+      elements,
+      config,
+      completedCount,
+    );
+  }
+}
+
+function appendBirdPerchEditorEntries(
+  layout: LayoutConfig,
+  def: GardenDefinition,
+  level: number,
+  name: string,
+  elements: PlacedElement[],
+  entries: EditorEntry[],
+  config: GardenConfig,
+): void {
+  const perchAsset = def.onLevelStart
+    ? resolvedFromStageImage(def.onLevelStart)
+    : null;
+  if (perchAsset) {
+    const el = makeElement(
+      layout,
+      {
+        level,
+        kind: 'birdPerchBase',
+        asset: perchAsset,
+        name: `${name} perch`,
+        heightDesign: HEIGHT_BIRD_PERCH,
+        mascotDeliversElement: stageMascotDelivers(def.onLevelStart),
+      },
+      config,
+    );
+    elements.push(el);
+    entries.push(editorEntryFromElement(el, `Level ${level} — ${name} perch`));
+  }
+
+  const stages = def.stages ?? [];
+  for (let s = 0; s < stages.length; s++) {
+    const stage = stages[s]!;
+    const asset = resolvedFromStageImage(stage);
+    if (!asset) continue;
+    const el = makeElement(
+      layout,
+      {
+        level,
+        kind: 'birdPerchStage',
+        asset,
+        name: `${name} — stage ${s}`,
+        stageIndex: s,
+        heightDesign: HEIGHT_BIRD,
+        mascotDeliversElement: stageMascotDelivers(stage),
+      },
+      config,
+    );
+    elements.push(el);
+    entries.push(
+      editorEntryFromElement(el, `Level ${level} — ${name} (stage ${s})`),
+    );
+  }
+}
+
+function appendBirdAmbientEditorEntries(
+  layout: LayoutConfig,
+  def: GardenDefinition,
+  level: number,
+  name: string,
+  elements: PlacedElement[],
+  entries: EditorEntry[],
+  config: GardenConfig,
+  instanceIndex?: number,
+): void {
+  const stages = (def.stages ?? []) as BirdStageImage[];
+  const stageCount = stages.length;
+  if (stageCount === 0) return;
+
+  const appendOne = (growthStage: number, layoutSlot: number, listName: string) => {
+    const stage = stages[growthStage]!;
+    const asset = resolvedFromStageImage(stage);
+    if (!asset) return;
+    const layoutEntry = layoutEntryForBirdStage(
+      layout,
+      level,
+      'birdAmbientStage',
+      layoutSlot,
+    );
+    const birdBehavior = resolveBirdBehavior(
+      def,
+      stage,
+      asset.src,
+      layoutEntry?.hopSurfaceId,
+      layoutEntry?.foodSurfaceId,
+      config.surfacesConfig,
+    );
+    const el = makeElement(
+      layout,
+      {
+        level,
+        kind: 'birdAmbientStage',
+        asset,
+        name: listName,
+        stageIndex: growthStage,
+        birdInstanceIndex: layoutSlot,
+        heightDesign: HEIGHT_BIRD,
+        birdBehavior,
+        mascotDeliversElement: stageMascotDelivers(stage),
+      },
+      config,
+    );
+    elements.push(el);
+    entries.push(editorEntryFromElement(el, listName));
+  };
+
+  if (instanceIndex !== undefined) {
+    const growthStage = stageCount - 1;
+    const suffix =
+      instanceIndex > 0 ? ` (stage ${instanceIndex})` : '';
+    appendOne(
+      growthStage,
+      instanceIndex,
+      `Level ${level} — ${name}${suffix}`,
+    );
+    return;
+  }
+
+  for (let s = 0; s < stageCount; s++) {
+    appendOne(s, s, `Level ${level} — ${name} (stage ${s})`);
   }
 }
 
@@ -572,6 +961,7 @@ function appendPlanterEditorEntries(
         asset: baseAsset,
         name: `${name} planter`,
         heightDesign: HEIGHT_PLANTER_BASE,
+        mascotDeliversElement: stageMascotDelivers(def.onLevelStart),
       },
       config,
     );
@@ -585,6 +975,8 @@ function appendPlanterEditorEntries(
   for (let i = 0; i < maxFills; i++) {
     const asset = planterFillAsset(def, i);
     if (!asset) continue;
+    const fillStage =
+      def.mode === 'planterSequence' ? def.fills?.[i] : def.perCompletion;
     const el = makeElement(
       layout,
       {
@@ -594,6 +986,7 @@ function appendPlanterEditorEntries(
         name: `${name} flower ${i + 1}`,
         slotIndex: i,
         heightDesign: HEIGHT_PLANTER_FILL,
+        mascotDeliversElement: stageMascotDelivers(fillStage),
       },
       config,
     );
@@ -630,9 +1023,31 @@ export function buildGardenSceneInstances(
   const elements: PlacedElement[] = [];
 
   for (let level = 1; level <= activeLevel; level++) {
+    const score =
+      level < activeLevel
+        ? getLevelCompletionBudget(level, config)
+        : scoreInLevel(level, completedCount, config);
+    const birdInstances = config.getLevelBirdInstances(level);
+    if (birdInstances) {
+      for (const { def, instanceIndex } of birdInstances) {
+        const name = definitionName(def, level);
+        appendBirdAmbientElements(
+          layout,
+          def,
+          level,
+          name,
+          score,
+          elements,
+          config,
+          completedCount,
+          instanceIndex,
+        );
+      }
+      continue;
+    }
+
     const def = config.getLevelDefinition(level);
     if (!def) continue;
-    const score = scoreInLevel(level, completedCount, config);
     const name = definitionName(def, level);
 
     if (def.mode === 'multiStage') {
@@ -660,6 +1075,7 @@ export function buildGardenSceneInstances(
                 stageIndex,
                 definitionScaleWithStage(def),
               ),
+              mascotDeliversElement: stageMascotDelivers(stage),
             },
             config,
           ),
@@ -686,6 +1102,19 @@ export function buildGardenSceneInstances(
       }
     } else if (isPlanterMode(def.mode)) {
       appendPlanterElements(layout, def, level, name, score, elements, config);
+    } else if (def.mode === 'birdPerch') {
+      appendBirdPerchElements(layout, def, level, name, score, elements, config);
+    } else if (def.mode === 'birdAmbient') {
+      appendBirdAmbientElements(
+        layout,
+        def,
+        level,
+        name,
+        score,
+        elements,
+        config,
+        completedCount,
+      );
     }
   }
 
@@ -698,12 +1127,45 @@ export function buildGardenSceneInstances(
   };
 }
 
+/**
+ * Elements that appear at the start of the active level (score 0) but were not
+ * visible at the previous completion count — hidden during the unlock overlay.
+ */
+export function findLevelStartPendingElements(
+  completedCount: number,
+  config: GardenConfig = defaultGardenConfig,
+): PlacedElement[] {
+  if (completedCount <= 0) return [];
+  const level = getGardenLevel(completedCount, config);
+  if (level < 1) return [];
+  if (scoreInLevel(level, completedCount, config) > 0) return [];
+
+  const current = buildGardenSceneInstances(completedCount, config);
+  const previous = buildGardenSceneInstances(completedCount - 1, config);
+  const prevIds = new Set(previous.elements.map((e) => e.id));
+  return current.elements.filter(
+    (e) => e.level === level && !prevIds.has(e.id),
+  );
+}
+
+/**
+ * New element visible at the start of the active level (score 0), if any.
+ * Used for mascot delivery after the level-unlock overlay dismisses.
+ */
+export function findLevelStartDeliveryElement(
+  completedCount: number,
+  config: GardenConfig = defaultGardenConfig,
+): PlacedElement | null {
+  const pending = findLevelStartPendingElements(completedCount, config);
+  return pending.length > 0 ? pending[pending.length - 1]! : null;
+}
+
 /** A selectable row in the Garden Editor's element list. */
 export interface EditorEntry {
   /** Matches the rendered element id so selection drives the canvas halo. */
   id: string;
   level: number;
-  kind: ElementKind;
+  kind: ElementKind | 'surface';
   name: string;
   /** Number of growth stages (>1 shows a stage dropdown). */
   stageCount: number;
@@ -712,6 +1174,9 @@ export interface EditorEntry {
   zIndex: number;
   scale: number;
   flipX: boolean;
+  /** Hop/food rectangle from surfaces.yaml (mode2 editor). */
+  surfaceKind?: 'hop' | 'food';
+  surfaceRect?: import('./types').SurfaceRect;
 }
 
 function multiStageStageCount(def: GardenDefinition): number {
@@ -745,6 +1210,24 @@ export function buildEditorScene(
   const elements: PlacedElement[] = [];
 
   for (const level of config.getConfiguredLevels()) {
+    const birdInstances = config.getLevelBirdInstances(level);
+    if (birdInstances) {
+      for (const { def, instanceIndex } of birdInstances) {
+        const name = definitionName(def, level);
+        appendBirdAmbientEditorEntries(
+          layout,
+          def,
+          level,
+          name,
+          elements,
+          entries,
+          config,
+          instanceIndex,
+        );
+      }
+      continue;
+    }
+
     const def = config.getLevelDefinition(level);
     if (!def) continue;
     const name = definitionName(def, level);
@@ -752,7 +1235,8 @@ export function buildEditorScene(
       const stages = def.stages ?? [];
       const stageCount = multiStageStageCount(def);
       for (let s = 0; s < stageCount; s++) {
-        const asset = resolvedFromStageImage(stages[s]!);
+        const stage = stages[s]!;
+        const asset = resolvedFromStageImage(stage);
         if (!asset) continue;
         const el = makeElement(
           layout,
@@ -764,6 +1248,7 @@ export function buildEditorScene(
             stageIndex: s,
             heightDesign: multiStageHeight(s, definitionScaleWithStage(def)),
             sizeRamp: multiStageSizeRamp(s, definitionScaleWithStage(def)),
+            mascotDeliversElement: stageMascotDelivers(stage),
           },
           config,
         );
@@ -797,6 +1282,26 @@ export function buildEditorScene(
       }
     } else if (isPlanterMode(def.mode)) {
       appendPlanterEditorEntries(
+        layout,
+        def,
+        level,
+        name,
+        elements,
+        entries,
+        config,
+      );
+    } else if (def.mode === 'birdPerch') {
+      appendBirdPerchEditorEntries(
+        layout,
+        def,
+        level,
+        name,
+        elements,
+        entries,
+        config,
+      );
+    } else if (def.mode === 'birdAmbient') {
+      appendBirdAmbientEditorEntries(
         layout,
         def,
         level,

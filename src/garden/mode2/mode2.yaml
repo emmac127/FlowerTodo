@@ -1,0 +1,313 @@
+# Mode2 (Bird Garden) level definitions
+#
+# Positions live in layout.yaml; hop/food rectangles in surfaces.yaml.
+# Bird collision boxes also live in layout.yaml (see below).
+# Edit with the in-app Garden Editor (default app, Mode 2 selected).
+#
+# --- One bird per level (current levels 2–3) ---
+# levels:
+#   "2":
+#     use: blue_bird
+#
+# --- Multiple birds on one level ---
+# Each bird is one stage: 1st completion → bird 0, 2nd → bird 1, etc.
+# Layout slots under birdAmbient.stages ("0", "1", …) match that order.
+# Draw collision boxes in the editor (select bird → Draw collision box).
+#
+# levels:
+#   "4":
+#     birds:
+#       - use: titmouse_bird
+#       - use: titmouse_bird
+#       - use: titmouse_bird
+#
+# layout.yaml for level 4:
+#   "4":
+#     birdAmbient:
+#       stages:
+#         "0":          # stage 0 — appears after 1st completion on this level
+#           x: 0.3
+#           y: 0.7
+#           scale: 0.4
+#           collisionBox:
+#             offsetX: -0.02   # left edge relative to bird anchor
+#             offsetY: -0.06   # top edge relative to anchor (anchor = bottom-center)
+#             width: 0.04
+#             height: 0.08
+#         "1":          # stage 1 — after 2nd completion
+#           x: 0.65
+#           y: 0.55
+#           collisionBox: { offsetX: -0.018, offsetY: -0.055, width: 0.036, height: 0.07 }
+#         "2":          # stage 2 — after 3rd completion
+#           x: 0.5
+#           y: 0.65
+
+# --- Mascot delivery (per stage) ---
+# On any stage entry (stages[], or onLevelStart for perch/planter bases), set
+# mascotDeliversElement: false to carry a generic flower instead of that asset.
+# Omit or true = mascot carries the real stage image. Default true.
+
+definitions:
+  bird_bath:
+    name: Bird bath
+    mode: multiStage
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/birdfeeder.png
+    stages:
+      - { src: /garden/assets/Birds/birdfeeder.png, replace: true }
+
+  # --- Example: perch bird (hatches from egg) ---
+  # example_perch_bird:
+  #   name: Robin on perch
+  #   mode: birdPerch
+  #   onLevelStart: { src: /garden/assets/birds/perch.png, replace: false }
+  #   stages:
+  #     - { src: /garden/assets/birds/egg.png, replace: true }
+  #     - { src: /garden/assets/birds/hatch1.png, replace: true }
+  #     - { src: /garden/assets/birds/hatch2.png, replace: true }
+  #     - { src: /garden/assets/birds/robin-idle.png, replace: true }
+
+  # --- Example: ambient hopping bird ---
+  # example_ambient_bird:
+  #   name: Sparrow
+  #   mode: birdAmbient
+  #   scaleWithStage: false
+  #   unlockImage: /garden/assets/birds/sparrow-idle.png
+  #   hopSurfaceId: hop_main
+  #   foodSurfaceId: food_seeds
+  #   behavior:
+  #     hopIntervalSec: { min: 2, max: 5 }
+  #     hopChance: 0.6        # weight for choosing a hop vs wingflap/peck
+  #     flyChance: 0.35       # probability of a long hop that uses wingflap
+  #     wingflapChance: 0.25  # in-place wingflap (not during a hop)
+  #     peckChance: 0.2
+  #     idleFrame: 0
+  #   animations:
+  #     idle:
+  #       frames:
+  #         - /garden/assets/birds/sparrow-idle.png
+  #       frameDuration: 0.2
+  #     wingflap:
+  #       frames:
+  #         - /garden/assets/birds/sparrow-idle.png
+  #         - /garden/assets/birds/sparrow-flap1.png
+  #         - /garden/assets/birds/sparrow-flap2.png
+  #         - /garden/assets/birds/sparrow-idle.png
+  #       frameDuration: 0.08
+  #     peck:
+  #       frames:
+  #         - /garden/assets/birds/sparrow-idle.png
+  #         - /garden/assets/birds/sparrow-peck1.png
+  #         - /garden/assets/birds/sparrow-peck2.png
+  #         - /garden/assets/birds/sparrow-idle.png
+  #       frameDuration: 0.1
+  #   stages:
+  #     - { src: /garden/assets/birds/sparrow-idle.png, hopEnabled: true, replace: true }
+
+  acorn_bird:
+    name: Acorn bird
+    mode: birdAmbient
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/acorn1.png
+    behavior:
+      hopIntervalSec: { min: 3, max: 6 }
+      wingflapChance: 0.35
+      peckChance: 0
+      flyChance: 0.3
+      idleFrame: 0
+    animations:
+      idle:
+        frames:
+          - /garden/assets/Birds/acorn1.png
+        frameDuration: 0.2
+      wingflap:
+        frames:
+          - /garden/assets/Birds/acorn1.png
+          - /garden/assets/Birds/acorn2.png
+        frameDuration: 0.08
+      peck:
+        frames:
+          - /garden/assets/Birds/acorn1.png
+        frameDuration: 0.1
+    stages:
+      - { src: /garden/assets/Birds/acorn1.png, hopEnabled: true, replace: true }
+  blue_bird:
+    name: Blue bird
+    mode: birdAmbient
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/Blue/b1.png
+    behavior:
+      hopIntervalSec: { min: 3, max: 9 }
+      wingflapChance: 0.35
+      peckChance: 0.6
+      flyChance: 0
+      idleFrame: 0
+    animations:
+      idle:
+        frames:
+          - /garden/assets/Birds/Blue/b1.png
+        frameDuration: 0.2
+      wingflap:
+        frames:
+          - /garden/assets/Birds/Blue/b5.png
+          - /garden/assets/Birds/Blue/b7.png
+          - /garden/assets/Birds/Blue/b8.png
+          - /garden/assets/Birds/Blue/b9.png
+          - /garden/assets/Birds/Blue/b10.png
+        frameDuration: 0.08
+      peck:
+        frames:
+          - /garden/assets/Birds/Blue/b1.png
+          - /garden/assets/Birds/Blue/b2.png
+          - /garden/assets/Birds/Blue/b3.png
+          - /garden/assets/Birds/Blue/b4.png
+        frameDuration: 0.1
+    stages:
+      - { src: /garden/assets/Birds/Blue/b1.png, hopEnabled: true, replace: true }
+
+  titmouse_bird:
+    name: Titmouse
+    mode: birdAmbient
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/Titmouse/titmouse1.png
+    behavior:
+      hopIntervalSec: { min: 1, max: 3 }
+      hopNormPerSec: 0.12
+      wingflapChance: 0.55
+      peckChance: 0.6
+      idleFrame: 0
+    animations:
+      idle:
+        frames:
+          - /garden/assets/Birds/Titmouse/titmouse1.png
+        frameDuration: 0.2
+      wingflap:
+        frames:
+          - /garden/assets/Birds/Titmouse/titmouse1.png
+          - /garden/assets/Birds/Titmouse/titmouse3.png
+          - /garden/assets/Birds/Titmouse/titmouse4.png
+          - /garden/assets/Birds/Titmouse/titmouse5.png
+          - /garden/assets/Birds/Titmouse/titmouse6.png
+          - /garden/assets/Birds/Titmouse/titmouse7.png
+          - /garden/assets/Birds/Titmouse/titmouse8.png
+        frameDuration: 0.05
+      peck:
+        frames:
+          - /garden/assets/Birds/Titmouse/titmouse8.png
+          - /garden/assets/Birds/Titmouse/titmouse9.png
+          - /garden/assets/Birds/Titmouse/titmouse10.png
+          - /garden/assets/Birds/Titmouse/titmouse9.png
+        frameDuration: 0.1
+    stages:
+      - { src: /garden/assets/Birds/Titmouse/titmouse1.png, hopEnabled: true, replace: true }
+
+  moon_bird:
+    name: Moon bird
+    mode: birdPerch
+    unlockImage: /garden/assets/Birds/Moon/moon4.png
+    onLevelStart:
+      src: /garden/assets/Birds/Moon/moonpost.png
+      replace: false
+    stages:
+      - { src: /garden/assets/Birds/Moon/moon1.png, replace: true, mascotDeliversElement: true }
+      - { src: /garden/assets/Birds/Moon/moon2.png, replace: true, mascotDeliversElement: false }
+      - { src: /garden/assets/Birds/Moon/moon3.png, replace: true, mascotDeliversElement: false }
+      - { src: /garden/assets/Birds/Moon/moon4.png, replace: true, mascotDeliversElement: false }
+
+  sun_bird:
+    name: Sun bird
+    mode: birdPerch
+    unlockImage: /garden/assets/Birds/Sun/sun4.png
+    onLevelStart:
+      src: /garden/assets/Birds/Sun/sunpost.png
+      replace: false
+    stages:
+      - { src: /garden/assets/Birds/Sun/sun1.png, replace: true, mascotDeliversElement: true }
+      - { src: /garden/assets/Birds/Sun/sun2.png, replace: true, mascotDeliversElement: false }
+      - { src: /garden/assets/Birds/Sun/sun3.png, replace: true, mascotDeliversElement: false }
+      - { src: /garden/assets/Birds/Sun/sun4.png, replace: true, mascotDeliversElement: false }
+
+  pedestal_garden:
+    name: Pedestal
+    mode: multiStage
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/Pedestal/p1.png
+    stages:
+      - { src: /garden/assets/Birds/Pedestal/p1.png, replace: false }
+      - { src: /garden/assets/Birds/Pedestal/p2.png, replace: false }
+      - { src: /garden/assets/Birds/Pedestal/p3.png, replace: false }
+      - { src: /garden/assets/Birds/Pedestal/p4.png, replace: false }
+      - { src: /garden/assets/Birds/Pedestal/p5.png, replace: false }
+      - { src: /garden/assets/Birds/Pedestal/p6.png, replace: false }
+
+  water_garden:
+    name: Anhinga pond
+    mode: multiStage
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/Hinga/h11.png
+    stages:
+      - { src: /garden/assets/Birds/Water/w1.png, replace: true }
+      - { src: /garden/assets/Birds/Water/w2.png, replace: true }
+      - { src: /garden/assets/Birds/Water/w3.png, replace: true }
+      - { src: /garden/assets/Birds/Water/w4.png, replace: true }
+      - src: /garden/assets/Birds/Water/w5.png
+        replace: false
+        animation:
+          frames:
+            - /garden/assets/Birds/Water/w5.png
+            - /garden/assets/Birds/Water/w6.png
+          frameDuration: 0.3
+      - src: /garden/assets/Birds/Hinga/h1.png
+        replace: false
+        animation:
+          frames:
+            - /garden/assets/Birds/Hinga/h1.png
+            - /garden/assets/Birds/Hinga/h2.png
+            - /garden/assets/Birds/Hinga/h3.png
+            - /garden/assets/Birds/Hinga/h4.png
+            - /garden/assets/Birds/Hinga/h5.png
+            - /garden/assets/Birds/Hinga/h6.png
+            - /garden/assets/Birds/Hinga/h7.png
+            - /garden/assets/Birds/Hinga/h8.png
+            - /garden/assets/Birds/Hinga/h9.png
+            - /garden/assets/Birds/Hinga/h10.png
+            - /garden/assets/Birds/Hinga/h11.png
+          frameDuration: 0.12
+
+  waterbricks_garden:
+    name: Pond bricks
+    mode: multiStage
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/Water/w7.png
+    stages:
+      - { src: /garden/assets/Birds/Water/w7.png, replace: false }
+      - { src: /garden/assets/Birds/Water/w8.png, replace: false }
+      - { src: /garden/assets/Birds/Water/w9.png, replace: false }
+      - { src: /garden/assets/Birds/Water/w10.png, replace: false }
+      - { src: /garden/assets/Birds/Water/w11.png, replace: false }
+      - { src: /garden/assets/Birds/Water/w12.png, replace: false }
+      - { src: /garden/assets/Birds/Water/w13.png, replace: false }
+
+levels:
+  "1":
+    birds:
+      - use: titmouse_bird
+      - use: titmouse_bird
+      - use: titmouse_bird
+  "2":
+    use: pedestal_garden
+  "3":
+    use: blue_bird
+  "4":
+    use: moon_bird
+  "5":
+    use: sun_bird
+  "6":
+    birds: 
+      - use: acorn_bird
+      - use: acorn_bird
+      - use: acorn_bird
+  "7":
+    use: water_garden
+  "8":
+    use: waterbricks_garden

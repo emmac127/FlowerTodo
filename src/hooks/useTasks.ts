@@ -4,6 +4,10 @@ import {
   type AppVariant,
 } from '../lib/appVariant';
 import {
+  DEFAULT_GARDEN_PHASE_STATE,
+  type GardenPhaseState,
+} from '../lib/gardenPhase';
+import {
   COMPLETED_MOVE_DELAY_MS,
   getNewTaskSortOrder,
   getNextSortOrder,
@@ -28,8 +32,14 @@ export interface Task {
 
 interface StoredState {
   tasks: Task[];
-  /** Lifetime completions — kept when clearing completed tasks from the list. */
+  /** Lifetime mode1 completions — kept when clearing completed tasks from the list. */
   gardenProgressCount?: number;
+  mode2Unlocked?: boolean;
+  activeGardenPhase?: GardenPhaseState['activeGardenPhase'];
+  mode2ProgressCount?: number;
+  mode1FrozenProgressCount?: number;
+  viewingNostalgicMode1?: boolean;
+  mode2OnboardingComplete?: boolean;
 }
 
 function inferGardenProgressCount(tasks: Task[], stored?: number): number {
@@ -55,10 +65,28 @@ function renumberCompleted(tasks: Task[]): Task[] {
   });
 }
 
-function loadState(storageKey: string): StoredState {
+function parsePhaseState(parsed: StoredState): GardenPhaseState {
+  return {
+    mode2Unlocked: parsed.mode2Unlocked === true,
+    activeGardenPhase:
+      parsed.activeGardenPhase === 'mode2' ? 'mode2' : 'mode1',
+    mode2ProgressCount: Math.max(0, parsed.mode2ProgressCount ?? 0),
+    mode1FrozenProgressCount: Math.max(0, parsed.mode1FrozenProgressCount ?? 0),
+    viewingNostalgicMode1: parsed.viewingNostalgicMode1 === true,
+    mode2OnboardingComplete: parsed.mode2OnboardingComplete === true,
+  };
+}
+
+function loadState(storageKey: string): StoredState & { phase: GardenPhaseState } {
   try {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return { tasks: [], gardenProgressCount: 0 };
+    if (!raw) {
+      return {
+        tasks: [],
+        gardenProgressCount: 0,
+        phase: { ...DEFAULT_GARDEN_PHASE_STATE },
+      };
+    }
     const parsed = JSON.parse(raw) as StoredState & { totalCompletedEver?: number };
     const storedTasks = parsed.tasks ?? [];
     const tasks = renumberCompleted(
@@ -74,14 +102,33 @@ function loadState(storageKey: string): StoredState {
       tasks,
       parsed.gardenProgressCount ?? legacyEver,
     );
-    return { tasks, gardenProgressCount };
+    return { tasks, gardenProgressCount, phase: parsePhaseState(parsed) };
   } catch {
-    return { tasks: [], gardenProgressCount: 0 };
+    return {
+      tasks: [],
+      gardenProgressCount: 0,
+      phase: { ...DEFAULT_GARDEN_PHASE_STATE },
+    };
   }
 }
 
-function saveState(storageKey: string, state: StoredState) {
-  localStorage.setItem(storageKey, JSON.stringify(state));
+function saveState(
+  storageKey: string,
+  state: StoredState & { phase: GardenPhaseState },
+) {
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify({
+      tasks: state.tasks,
+      gardenProgressCount: state.gardenProgressCount,
+      mode2Unlocked: state.phase.mode2Unlocked,
+      activeGardenPhase: state.phase.activeGardenPhase,
+      mode2ProgressCount: state.phase.mode2ProgressCount,
+      mode1FrozenProgressCount: state.phase.mode1FrozenProgressCount,
+      viewingNostalgicMode1: state.phase.viewingNostalgicMode1,
+      mode2OnboardingComplete: state.phase.mode2OnboardingComplete,
+    }),
+  );
 }
 
 export function getCompletedCount(tasks: Task[]): number {
@@ -90,21 +137,26 @@ export function getCompletedCount(tasks: Task[]): number {
 
 export function useTasks(variant: AppVariant = 'default') {
   const storageKey = TASK_STORAGE_KEYS[variant];
+  const isDefault = variant === 'default';
   const [tasks, setTasks] = useState<Task[]>([]);
   const [gardenProgressCount, setGardenProgressCount] = useState(0);
+  const [phaseState, setPhaseState] = useState<GardenPhaseState>({
+    ...DEFAULT_GARDEN_PHASE_STATE,
+  });
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const stored = loadState(storageKey);
     setTasks(stored.tasks);
     setGardenProgressCount(stored.gardenProgressCount ?? 0);
+    setPhaseState(isDefault ? stored.phase : { ...DEFAULT_GARDEN_PHASE_STATE });
     setHydrated(true);
-  }, [storageKey]);
+  }, [storageKey, isDefault]);
 
   useEffect(() => {
     if (!hydrated) return;
-    saveState(storageKey, { tasks, gardenProgressCount });
-  }, [tasks, gardenProgressCount, hydrated, storageKey]);
+    saveState(storageKey, { tasks, gardenProgressCount, phase: phaseState });
+  }, [tasks, gardenProgressCount, phaseState, hydrated, storageKey]);
 
   const addTask = useCallback((text: string) => {
     const trimmed = text.trim();
@@ -143,9 +195,16 @@ export function useTasks(variant: AppVariant = 'default') {
             : t,
         ),
       );
-      setGardenProgressCount((prev) => Math.max(prev, completionIndex));
+      if (isDefault && phaseState.mode2Unlocked) {
+        setPhaseState((prev) => ({
+          ...prev,
+          mode2ProgressCount: prev.mode2ProgressCount + 1,
+        }));
+      } else {
+        setGardenProgressCount((g) => Math.max(g, completionIndex));
+      }
     },
-    [],
+    [isDefault, phaseState.mode2Unlocked],
   );
 
   const uncompleteTask = useCallback((id: string) => {
@@ -251,21 +310,20 @@ export function useTasks(variant: AppVariant = 'default') {
   }, []);
 
   const getNextCompletionIndex = useCallback(() => {
+    if (isDefault && phaseState.mode2Unlocked) {
+      return phaseState.mode2ProgressCount + 1;
+    }
     return gardenProgressCount + 1;
-  }, [gardenProgressCount]);
+  }, [
+    gardenProgressCount,
+    isDefault,
+    phaseState.mode2Unlocked,
+    phaseState.mode2ProgressCount,
+  ]);
 
-  /**
-   * Dev helper: force the garden progress count to a target value and drop any
-   * task completion data that no longer makes sense (completionIndex above the
-   * new count). Existing tasks are kept but reset to "not completed" when the
-   * progress count moves backwards, so the picker / planting flow can replay.
-   */
-  /**
-   * Reset garden to level 0 while keeping every task (including completed ones).
-   * Clears garden linkage on tasks so progress does not re-infer from old indices.
-   */
   const resetGardenLevel = useCallback(() => {
     setGardenProgressCount(0);
+    setPhaseState({ ...DEFAULT_GARDEN_PHASE_STATE });
     setTasks((prev) =>
       prev.map((t) =>
         t.completed
@@ -282,36 +340,90 @@ export function useTasks(variant: AppVariant = 'default') {
     );
   }, []);
 
-  const setGardenProgressForDev = useCallback((target: number) => {
-    const safe = Math.max(0, Math.floor(target));
-    setGardenProgressCount(safe);
-    setTasks((prev) =>
-      renumberCompleted(
-        prev.map((t) => {
-          if (
-            t.completed &&
-            t.completionIndex != null &&
-            t.completionIndex > safe
-          ) {
-            return {
-              ...t,
-              completed: false,
-              completionIndex: undefined,
-              plantSlot: undefined,
-              plantX: undefined,
-              gardenRevealed: undefined,
-              releaseToBottomAt: undefined,
-            };
-          }
-          return t;
-        }),
-      ),
-    );
-  }, []);
+  const setGardenProgressForDev = useCallback(
+    (target: number, devPhase?: 'mode1' | 'mode2') => {
+      const safe = Math.max(0, Math.floor(target));
+      if (isDefault && devPhase === 'mode2') {
+        setPhaseState((prev) => ({
+          ...prev,
+          mode2ProgressCount: safe,
+          mode2Unlocked: true,
+          activeGardenPhase: 'mode2',
+          viewingNostalgicMode1: false,
+          mode2OnboardingComplete: true,
+        }));
+        return;
+      }
+      if (isDefault && devPhase === 'mode1') {
+        setPhaseState({ ...DEFAULT_GARDEN_PHASE_STATE });
+      }
+      setGardenProgressCount(safe);
+      setTasks((prev) =>
+        renumberCompleted(
+          prev.map((t) => {
+            if (
+              t.completed &&
+              t.completionIndex != null &&
+              t.completionIndex > safe
+            ) {
+              return {
+                ...t,
+                completed: false,
+                completionIndex: undefined,
+                plantSlot: undefined,
+                plantX: undefined,
+                gardenRevealed: undefined,
+                releaseToBottomAt: undefined,
+              };
+            }
+            return t;
+          }),
+        ),
+      );
+    },
+    [isDefault],
+  );
+
+  const unlockMode2 = useCallback((frozenMode1Count: number) => {
+    if (!isDefault) return;
+    setPhaseState({
+      mode2Unlocked: true,
+      activeGardenPhase: 'mode2',
+      mode2ProgressCount: 0,
+      mode1FrozenProgressCount: frozenMode1Count,
+      viewingNostalgicMode1: false,
+      mode2OnboardingComplete: false,
+    });
+  }, [isDefault]);
+
+  const completeMode2Onboarding = useCallback(() => {
+    if (!isDefault) return;
+    setPhaseState((prev) => ({
+      ...prev,
+      mode2OnboardingComplete: true,
+      viewingNostalgicMode1: false,
+    }));
+  }, [isDefault]);
+
+  const toggleNostalgicView = useCallback(() => {
+    if (!isDefault) return;
+    setPhaseState((prev) => {
+      if (!prev.mode2Unlocked || !prev.mode2OnboardingComplete) return prev;
+      return {
+        ...prev,
+        viewingNostalgicMode1: !prev.viewingNostalgicMode1,
+      };
+    });
+  }, [isDefault]);
+
+  const resetAllGardenState = useCallback(() => {
+    resetGardenLevel();
+  }, [resetGardenLevel]);
 
   return {
     tasks,
     gardenProgressCount,
+    phaseState,
     hydrated,
     addTask,
     completeTask,
@@ -324,5 +436,9 @@ export function useTasks(variant: AppVariant = 'default') {
     reorderTaskToIndex,
     setGardenProgressForDev,
     resetGardenLevel,
+    resetAllGardenState,
+    unlockMode2,
+    completeMode2Onboarding,
+    toggleNostalgicView,
   };
 }

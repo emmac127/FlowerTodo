@@ -8,10 +8,13 @@ import {
   elementPixelHeightFromNatural,
   getCachedNaturalHeight,
 } from '../lib/garden/elementDisplaySize';
+import { snapDesignLength } from '../lib/garden/gardenPixelSnap';
 import type { PlacedElement } from '../lib/garden/types';
 
 interface GardenCanvasElementProps {
   element: PlacedElement;
+  /** Stage scale; when set, display height snaps to device pixels. */
+  gardenScale?: number;
   style: CSSProperties;
   className: string;
   onPointerDown?: (event: ReactPointerEvent<HTMLImageElement>) => void;
@@ -21,6 +24,7 @@ interface GardenCanvasElementProps {
 
 export function GardenCanvasElement({
   element,
+  gardenScale = 0,
   style,
   className,
   onPointerDown,
@@ -101,9 +105,11 @@ export function GardenCanvasElement({
   }, [naturalHeight, notifyDisplaySizeReady]);
 
   const sizeReady = naturalHeight != null;
-  const displayHeight = sizeReady
+  const rawHeight = sizeReady
     ? elementPixelHeightFromNatural(naturalHeight, element)
     : elementFallbackPixelHeight(element);
+  const displayHeight =
+    gardenScale > 0 ? snapDesignLength(rawHeight, gardenScale) : rawHeight;
 
   return (
     <img

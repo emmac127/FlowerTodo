@@ -96,6 +96,9 @@ const NATURAL_HEIGHT_REFERENCE: Record<ElementKind, number> = {
   multiStage: 600,
   planterBase: 240,
   planterFill: 240,
+  birdPerchBase: 240,
+  birdPerchStage: 240,
+  birdAmbientStage: 240,
 };
 
 /** Pixel height before the image's natural dimensions are known. */
