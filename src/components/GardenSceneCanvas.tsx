@@ -273,8 +273,10 @@ export function GardenSceneCanvas({
 
   const scale =
     bandReady && bandHeight > 0
-      ? snapGardenScale(bandHeight, designHeight)
+      ? snapGardenScale(bandHeight, designHeight, designWidth)
       : 0;
+  const renderedBandHeight =
+    scale > 0 ? designHeight * scale : bandHeight;
   const innerWidth =
     scale > 0 ? snapScreenPx(designWidth * scale) : designWidth * scale;
   const visibleDesignWidth =
@@ -285,12 +287,12 @@ export function GardenSceneCanvas({
     scale > 0 ? viewportScrollLeft / scale : 0;
   const showElements = editable || (bandReady && scale > 0);
   const moonGroundHeight =
-    bandHeight > 0 ? snapScreenPx(bandHeight * 0.825) : 0; /* --garden-grass-ratio */
-  const headroomPx = gardenHeadroomPx(bandHeight, designHeight);
-  const dustLayerHeight = bandHeight + headroomPx;
+    renderedBandHeight > 0 ? snapScreenPx(renderedBandHeight * 0.825) : 0; /* --garden-grass-ratio */
+  const headroomPx = gardenHeadroomPx(renderedBandHeight, designHeight);
+  const dustLayerHeight = renderedBandHeight + headroomPx;
   const moonAtmosphereHeight =
     moonGroundHeight > 0
-      ? Math.min(112, Math.max(72, headroomPx + (bandHeight - moonGroundHeight) * 0.55))
+      ? Math.min(112, Math.max(72, headroomPx + (renderedBandHeight - moonGroundHeight) * 0.55))
       : 0;
   const dustLayerWidth = lockScrollLeft
     ? viewportWidth
@@ -947,7 +949,7 @@ export function GardenSceneCanvas({
 
   const canvasStyle: CSSProperties = {
     width: `${innerWidth}px`,
-    height: `${bandHeight}px`,
+    height: `${renderedBandHeight}px`,
   };
 
   const stageStyle: CSSProperties = {

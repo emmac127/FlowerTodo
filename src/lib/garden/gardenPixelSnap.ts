@@ -4,15 +4,49 @@ export function gardenDevicePixelRatio(): number {
   return window.devicePixelRatio || 1;
 }
 
+function gcd(a: number, b: number): number {
+  let x = Math.abs(Math.round(a));
+  let y = Math.abs(Math.round(b));
+  while (y !== 0) {
+    const t = y;
+    y = x % y;
+    x = t;
+  }
+  return x || 1;
+}
+
 /**
  * Scale bandHeight/designHeight so the band height maps to whole device pixels.
- * Reduces blurry downscaling from fractional CSS transform scale values.
+ * When designWidth is given, scale is quantized to 1 / (gcd × DPR) steps so both
+ * the rendered scene width and height land on device pixels — reducing blur from
+ * fractional CSS transform scale values.
  */
-export function snapGardenScale(bandHeight: number, designHeight: number): number {
+export function snapGardenScale(
+  bandHeight: number,
+  designHeight: number,
+  designWidth?: number,
+): number {
   if (bandHeight <= 0 || designHeight <= 0) return 0;
   const dpr = gardenDevicePixelRatio();
-  const deviceBand = Math.round(bandHeight * dpr);
-  return deviceBand / dpr / designHeight;
+  const targetScale = bandHeight / designHeight;
+  const quantDenom =
+    designWidth != null && designWidth > 0
+      ? gcd(designWidth, designHeight) * dpr
+      : designHeight * dpr;
+  const scaleStep = 1 / quantDenom;
+  const n = Math.round(targetScale / scaleStep);
+  if (n <= 0) return scaleStep;
+  return n * scaleStep;
+}
+
+/** Band height in CSS px after scale snapping (use for the canvas container). */
+export function snappedGardenBandHeight(
+  bandHeight: number,
+  designHeight: number,
+  designWidth?: number,
+): number {
+  const scale = snapGardenScale(bandHeight, designHeight, designWidth);
+  return scale > 0 ? designHeight * scale : 0;
 }
 
 /** Snap a horizontal scroll offset to the device pixel grid. */

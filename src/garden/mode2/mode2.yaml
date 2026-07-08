@@ -110,7 +110,7 @@ definitions:
     scaleWithStage: false
     unlockImage: /garden/assets/Birds/acorn1.png
     behavior:
-      hopIntervalSec: { min: 3, max: 6 }
+      hopIntervalSec: { min: 15, max: 60 }
       wingflapChance: 0.35
       peckChance: 0
       flyChance: 0.3
@@ -201,6 +201,44 @@ definitions:
     stages:
       - { src: /garden/assets/Birds/Titmouse/titmouse1.png, hopEnabled: true, replace: true }
 
+  duckling:
+    name: Duckling
+    mode: birdAmbient
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/Duckling/d1.png
+    behavior:
+      hopIntervalSec: { min: 1, max: 3 }
+      hopNormPerSec: 0.12
+      wingflapChance: 0.3
+      peckChance: 0.6
+      idleFrame: 0
+    animations:
+      idle:
+        frames:
+          - /garden/assets/Birds/Duckling/d1.png
+        frameDuration: 0.2
+      wingflap:
+        frames:
+          - /garden/assets/Birds/Duckling/d5.png
+          - /garden/assets/Birds/Duckling/d6.png
+          - /garden/assets/Birds/Duckling/d7.png
+          - /garden/assets/Birds/Duckling/d8.png
+          - /garden/assets/Birds/Duckling/d7.png
+          - /garden/assets/Birds/Duckling/d6.png
+        frameDuration: 0.05
+      peck:
+        frames:
+          - /garden/assets/Birds/Duckling/d1.png
+          - /garden/assets/Birds/Duckling/d2.png
+          - /garden/assets/Birds/Duckling/d3.png
+          - /garden/assets/Birds/Duckling/d4.png
+          - /garden/assets/Birds/Duckling/d3.png
+          - /garden/assets/Birds/Duckling/d2.png
+        frameDuration: 0.1
+    stages:
+      - { src: /garden/assets/Birds/Duckling/d1.png, hopEnabled: true, replace: true }
+
+
   moon_bird:
     name: Moon bird
     mode: birdPerch
@@ -288,6 +326,20 @@ definitions:
       - { src: /garden/assets/Birds/Water/w12.png, replace: false }
       - { src: /garden/assets/Birds/Water/w13.png, replace: false }
 
+  starbird:
+    name: Starbird
+    mode: multiStage
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/starbirdframe.png
+    stages:
+      - { src: /garden/assets/Birds/starbirdframe.png, replace: false }
+      - { src: /garden/assets/Birds/starbird.png, replace: false }
+
+  roses:
+    name: The Spoonbill Rose
+    mode: scatterPerCompletion
+    asset: /garden/assets/Birds/roses.png
+
 levels:
   "1":
     birds:
@@ -304,10 +356,14 @@ levels:
     use: sun_bird
   "6":
     birds: 
-      - use: acorn_bird
-      - use: acorn_bird
-      - use: acorn_bird
+      - use: duckling
+      - use: duckling
+      - use: duckling
   "7":
     use: water_garden
   "8":
     use: waterbricks_garden
+  "9":
+    use: starbird
+  "10":
+    use: roses

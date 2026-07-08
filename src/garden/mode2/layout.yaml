@@ -177,15 +177,16 @@ levels:
             width: 0.0192
             height: 0.175
         "2":
-          x: 0.1412
-          y: 0.3581
+          x: 0.1279
+          y: 0.3737
           zIndex: 22
-          scale: 0.3
+          scale: 0.25
+          flipX: true
           collisionBox:
             offsetX: -0.0079
-            offsetY: -0.1875
-            width: 0.0175
-            height: 0.15
+            offsetY: -0.1593
+            width: 0.0154
+            height: 0.1219
   "7":
     multiStage:
       stages:
