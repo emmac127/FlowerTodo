@@ -13,18 +13,13 @@ levels:
     birdAmbient:
       stages:
         "0":
-          x: 0.0582
-          y: 0.5836
+          x: 0.0567
+          y: 0.607
           zIndex: 25
           scale: 0.25
-          collisionBox:
-            offsetX: -0.0054
-            offsetY: -0.0687
-            width: 0.0146
-            height: 0.0563
         "1":
-          x: 0.0398
-          y: 0.5767
+          x: 0.0383
+          y: 0.6001
           zIndex: 31
           scale: 0.3
           flipX: true
@@ -34,8 +29,8 @@ levels:
             width: 0.0142
             height: 0.0813
         "2":
-          x: 0.0206
-          y: 0.5973
+          x: 0.0191
+          y: 0.6207
           zIndex: 32
           scale: 0.2
           flipX: true
@@ -48,33 +43,33 @@ levels:
     multiStage:
       stages:
         "0":
-          x: 0.0875
-          y: 0.4737
+          x: 0.0796
+          y: 0.5175
           zIndex: 50
           scale: 0.3889
         "1":
-          x: 0.0875
-          y: 0.4737
+          x: 0.0796
+          y: 0.5175
           zIndex: 50
           scale: 0.3889
         "2":
-          x: 0.0875
-          y: 0.4737
+          x: 0.0796
+          y: 0.5175
           zIndex: 50
           scale: 0.3889
         "3":
-          x: 0.0875
-          y: 0.4737
+          x: 0.0796
+          y: 0.5175
           zIndex: 50
           scale: 0.3889
         "4":
-          x: 0.0875
-          y: 0.4737
+          x: 0.0796
+          y: 0.5175
           zIndex: 50
           scale: 0.3889
         "5":
-          x: 0.0875
-          y: 0.4737
+          x: 0.0796
+          y: 0.5175
           zIndex: 50
           scale: 0.3889
   "3":
@@ -83,7 +78,7 @@ levels:
         "0":
           x: 0.0526
           y: 0.6775
-          zIndex: 20
+          zIndex: 410
           scale: 0.25
           collisionBox:
             offsetX: -0.0051
@@ -121,29 +116,29 @@ levels:
   "5":
     birdPerch:
       perch:
-        x: 0.0522
-        y: 0.4359
+        x: 0.0438
+        y: 0.595
         zIndex: 45
         scale: 0.2
       stages:
         "0":
-          x: 0.0509
-          y: 0.4063
+          x: 0.0425
+          y: 0.5654
           zIndex: 46
           scale: 0.25
         "1":
-          x: 0.0509
-          y: 0.4063
+          x: 0.0425
+          y: 0.5654
           zIndex: 46
           scale: 0.25
         "2":
-          x: 0.0521
-          y: 0.4
+          x: 0.0437
+          y: 0.5591
           zIndex: 46
           scale: 0.25
         "3":
-          x: 0.0525
-          y: 0.3907
+          x: 0.0441
+          y: 0.5498
           zIndex: 46
           scale: 0.25
   "6":
@@ -157,36 +152,36 @@ levels:
     birdAmbient:
       stages:
         "0":
-          x: 0.1079
-          y: 0.3769
-          zIndex: 20
+          x: 0.0599
+          y: 0.1655
+          zIndex: 51
           scale: 0.241
           collisionBox:
-            offsetX: -0.0058
-            offsetY: -0.1344
-            width: 0.0129
-            height: 0.1031
+            offsetX: -0.0059
+            offsetY: -0.0683
+            width: 0.0125
+            height: 0.0647
         "1":
-          x: 0.1533
-          y: 0.3769
-          zIndex: 21
+          x: 0.069
+          y: 0.3595
+          zIndex: 51
           scale: 0.341
           collisionBox:
-            offsetX: -0.0091
-            offsetY: -0.2032
-            width: 0.0192
-            height: 0.175
+            offsetX: -0.0081
+            offsetY: -0.1042
+            width: 0.0168
+            height: 0.0898
         "2":
-          x: 0.1279
-          y: 0.3737
-          zIndex: 22
+          x: 0.0996
+          y: 0.0577
+          zIndex: 52
           scale: 0.25
           flipX: true
           collisionBox:
-            offsetX: -0.0079
-            offsetY: -0.1593
-            width: 0.0154
-            height: 0.1219
+            offsetX: -0.0067
+            offsetY: -0.0686
+            width: 0.0139
+            height: 0.0647
   "7":
     multiStage:
       stages:
@@ -296,3 +291,39 @@ levels:
           y: 0.9487
           zIndex: 86
           scale: 0.5052
+  "9":
+    multiStage:
+      stages:
+        "0":
+          x: 0.0827
+          y: -0.2583
+          zIndex: 90
+          scale: 0.2678
+        "1":
+          x: 0.0827
+          y: -0.2583
+          zIndex: 91
+          scale: 0.2678
+  "10":
+    scatter:
+      - x: 0.0637
+        y: 0.8156
+        zIndex: 100
+        scale: 0.3101
+      - x: 0.1446
+        y: 0.4493
+        zIndex: 9
+        scale: 0.3101
+      - x: 0.1092
+        y: 0.2948
+        zIndex: 2
+        scale: 0.25
+      - x: 0.0254
+        y: 0.3379
+        zIndex: 9
+        scale: 0.25
+      - x: 0.0158
+        y: 0.496
+        zIndex: 10
+        scale: 0.3101
+        flipX: true

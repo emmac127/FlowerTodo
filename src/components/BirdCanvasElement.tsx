@@ -5,7 +5,7 @@ import {
   canPeckAtPosition,
   nearestNearbyFoodCenter,
 } from '../lib/garden/birdBehavior';
-import { randomHopPointAvoidingCollisions } from '../lib/garden/birdCollision';
+import { randomHopPointAvoidingCollisions, hopAnchorOverlapsOthers } from '../lib/garden/birdCollision';
 import type { SurfaceRect } from '../lib/garden/types';
 import {
   cacheNaturalHeight,
@@ -79,7 +79,7 @@ interface BirdCanvasElementProps {
   className: string;
   /** Other birds' collision boxes in world space (excludes this bird). */
   otherBirdCollisionRects?: SurfaceRect[];
-  onPositionChange?: (x: number, y: number) => void;
+  onPositionChange?: (x: number, y: number, flipX: boolean) => void;
   onPointerDown?: (event: ReactPointerEvent<HTMLImageElement>) => void;
 }
 
@@ -110,7 +110,7 @@ function pickIdleAction(
   return 'wait';
 }
 
-const HOP_TARGET_ATTEMPTS = 16;
+const HOP_TARGET_ATTEMPTS = 32;
 
 function pickHopTarget(
   behavior: PlacedBirdBehavior,
@@ -123,10 +123,11 @@ function pickHopTarget(
 ): { x: number; y: number } | null {
   let fallback: { x: number; y: number } | null = null;
   for (let attempt = 0; attempt < HOP_TARGET_ATTEMPTS; attempt++) {
-    const candidate = randomPointOnSurface(
+    const candidate = randomHopPointAvoidingCollisions(
       behavior.hopSurfaces,
       collisionBox,
       otherRects,
+      fromX,
     );
     if (!candidate) continue;
     fallback = candidate;
@@ -137,25 +138,6 @@ function pickHopTarget(
     if (preferFly === isLong) return candidate;
   }
   return fallback;
-}
-
-function randomPointOnSurface(
-  surfaces: PlacedBirdBehavior['hopSurfaces'],
-  collisionBox: PlacedElement['birdCollisionBox'],
-  otherRects: SurfaceRect[],
-): { x: number; y: number } | null {
-  const avoided = randomHopPointAvoidingCollisions(
-    surfaces,
-    collisionBox,
-    otherRects,
-  );
-  if (avoided) return avoided;
-  if (surfaces.length === 0) return null;
-  const surface = surfaces[Math.floor(Math.random() * surfaces.length)]!;
-  return {
-    x: surface.x + Math.random() * surface.width,
-    y: surface.y + Math.random() * surface.height,
-  };
 }
 
 export function BirdCanvasElement({
@@ -174,6 +156,7 @@ export function BirdCanvasElement({
   const [posX, setPosX] = useState(element.x);
   const [posY, setPosY] = useState(element.y);
   const [flipX, setFlipX] = useState(element.flipX);
+  const flipRef = useRef(element.flipX);
   const [frameIndex, setFrameIndex] = useState(behavior.idleFrame);
   const [hopAnim, setHopAnim] = useState<HopAnim | null>(null);
 
@@ -218,11 +201,26 @@ export function BirdCanvasElement({
     setPosY(element.y);
   }, [element.x, element.y]);
 
+  useEffect(() => {
+    flipRef.current = element.flipX;
+    setFlipX(element.flipX);
+  }, [element.flipX]);
+
+  useEffect(() => {
+    onPositionChangeRef.current?.(element.x, element.y, element.flipX);
+  }, [element.id, element.x, element.y, element.flipX]);
+
   const syncPosition = useCallback((x: number, y: number) => {
     posRef.current = { x, y };
     setPosX(x);
     setPosY(y);
-    onPositionChangeRef.current?.(x, y);
+    onPositionChangeRef.current?.(x, y, flipRef.current);
+  }, []);
+
+  const setFacing = useCallback((nextFlipX: boolean) => {
+    flipRef.current = nextFlipX;
+    setFlipX(nextFlipX);
+    onPositionChangeRef.current?.(posRef.current.x, posRef.current.y, nextFlipX);
   }, []);
 
   const snapRestPosition = useCallback(
@@ -312,7 +310,17 @@ export function BirdCanvasElement({
       const b = behaviorRef.current;
       const el = elementRef.current;
       const { x, y } = posRef.current;
-      const action = pickIdleAction(b, x, y);
+      const overlaps = hopAnchorOverlapsOthers(
+        x,
+        y,
+        el.birdCollisionBox,
+        otherRectsRef.current,
+        flipRef.current,
+      );
+      const action =
+        overlaps && b.hopEnabled && b.hopSurfaces.length > 0
+          ? 'hop'
+          : pickIdleAction(b, x, y);
       if (action === 'hop') {
         const from = posRef.current;
         const idleWidthNorm = idleDisplayWidthNorm(
@@ -342,7 +350,7 @@ export function BirdCanvasElement({
           const loopWingflap =
             distanceNorm > idleWidthNorm && b.wingflapFrames.length > 1;
           const durationMs = hopDurationMs(distanceNorm, b.hopNormPerSec);
-          setFlipX(target.x < from.x);
+          setFacing(target.x < from.x);
           const hopGen = animGenRef.current;
           setHopAnim({
             fromX: from.x,
@@ -357,6 +365,10 @@ export function BirdCanvasElement({
           if (loopWingflap) {
             startHopWingflapLoop(hopGen);
           }
+          return;
+        }
+        if (overlaps) {
+          scheduleIdle();
           return;
         }
       }
@@ -385,7 +397,7 @@ export function BirdCanvasElement({
       }
       if (action === 'peck' && canPeckAtPosition(b, x, y)) {
         const food = nearestNearbyFoodCenter(x, y, b.foodSurfaces);
-        if (food) setFlipX(food.x < x);
+        if (food) setFacing(food.x < x);
         setState('peck');
         const gen = animGenRef.current;
         let fi = 0;

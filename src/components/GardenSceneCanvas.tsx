@@ -92,7 +92,12 @@ const EDITOR_NEAR_ELEMENT_THRESHOLD = 0.12;
 
 function birdWorldCollisionRect(el: PlacedElement): SurfaceRect | null {
   if (!el.birdCollisionBox) return null;
-  const world = worldBirdCollisionRect(el.x, el.y, el.birdCollisionBox);
+  const world = worldBirdCollisionRect(
+    el.x,
+    el.y,
+    el.birdCollisionBox,
+    el.flipX,
+  );
   return { ...world, id: el.id };
 }
 
@@ -156,7 +161,7 @@ export function GardenSceneCanvas({
   const canvasRef = useRef<HTMLDivElement>(null);
   const draggingIdRef = useRef<string | null>(null);
   const [birdPositions, setBirdPositions] = useState<
-    Record<string, { x: number; y: number }>
+    Record<string, { x: number; y: number; flipX: boolean }>
   >({});
   const surfaceSessionRef = useRef<
     | {
@@ -243,9 +248,12 @@ export function GardenSceneCanvas({
     return elements.find((el) => el.id === selectedId && el.kind === 'birdAmbientStage') ?? null;
   }, [editable, elements, selectedId]);
 
-  const handleBirdPositionChange = useCallback((id: string, x: number, y: number) => {
-    setBirdPositions((prev) => ({ ...prev, [id]: { x, y } }));
-  }, []);
+  const handleBirdPositionChange = useCallback(
+    (id: string, x: number, y: number, flipX: boolean) => {
+      setBirdPositions((prev) => ({ ...prev, [id]: { x, y, flipX } }));
+    },
+    [],
+  );
 
   useLayoutEffect(() => {
     if (!bandReady) return;
@@ -1113,7 +1121,10 @@ export function GardenSceneCanvas({
               renderSurfaceRect(draftSurfaceRect, surfaceTool, { draft: true })}
           </div>
         )}
-        {!editable && gameplaySurfaces && hasSurfaceLayer && (
+        {import.meta.env.DEV &&
+          !editable &&
+          gameplaySurfaces &&
+          hasSurfaceLayer && (
           <div className="garden-surface-layer garden-surface-layer--runtime" aria-hidden>
             {gameplaySurfaces.hop.map((r) =>
               renderSurfaceRect(r, 'hop', { runtime: true }),
@@ -1153,11 +1164,13 @@ export function GardenSceneCanvas({
                   const otherPos = birdPositions[other.id] ?? {
                     x: other.x,
                     y: other.y,
+                    flipX: other.flipX,
                   };
                   const world = worldBirdCollisionRect(
                     otherPos.x,
                     otherPos.y,
                     other.birdCollisionBox!,
+                    otherPos.flipX,
                   );
                   return { ...world, id: other.id };
                 });
@@ -1179,8 +1192,8 @@ export function GardenSceneCanvas({
                   className="garden-canvas__el garden-canvas__el--bird"
                   style={elStyle}
                   otherBirdCollisionRects={otherRects}
-                  onPositionChange={(x, y) =>
-                    handleBirdPositionChange(el.id, x, y)
+                  onPositionChange={(x, y, flipX) =>
+                    handleBirdPositionChange(el.id, x, y, flipX)
                   }
                 />
               );
