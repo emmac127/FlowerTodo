@@ -4,6 +4,7 @@ import {
   getCompletionsBeforeLevel,
   getMaxInLevelScore,
   getGardenCycleProgress,
+  getGardenStageMeterMax,
   getGardenLevel,
 } from '../lib/plantedGarden';
 import {
@@ -86,7 +87,7 @@ export function DevPanel({
   ]);
 
   const maxScore = useMemo(
-    () => getMaxInLevelScore(level, gardenConfig),
+    () => getGardenStageMeterMax(level, gardenConfig),
     [level, gardenConfig],
   );
 
@@ -98,7 +99,7 @@ export function DevPanel({
       Math.min(maxLevel, Math.round(next) || minLevel),
     );
     setLevel(clamped);
-    const cap = getMaxInLevelScore(clamped, gardenConfig);
+    const cap = getGardenStageMeterMax(clamped, gardenConfig);
     if (score > cap) setScore(cap);
   };
 

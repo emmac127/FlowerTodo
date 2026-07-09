@@ -234,7 +234,8 @@ export default function App() {
   const gardenDisplayCount =
     gardenRevealPhase === 'active' &&
     !gardenRevealGrowthUnlocked &&
-    gardenRevealHeldCount != null
+    gardenRevealHeldCount != null &&
+    !levelUnlock
       ? gardenRevealHeldCount
       : sceneProgressCount;
 
@@ -491,9 +492,16 @@ export default function App() {
         previousGardenCount,
         progressConfig,
       );
+      const leveledUp =
+        getGardenLevel(nextGardenCount, progressConfig) >
+        getGardenLevel(previousGardenCount, progressConfig);
 
       if (revealGarden) {
-        setGardenRevealHeldCount(previousGardenCount);
+        if (!leveledUp) {
+          setGardenRevealHeldCount(previousGardenCount);
+        } else {
+          setGardenRevealHeldCount(null);
+        }
         setGardenRevealGrowthUnlocked(false);
         beginGardenReveal();
       }

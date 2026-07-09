@@ -48,7 +48,7 @@ hop:
     width: 0.04406129995981852
     height: 0.08261489868164062
     id: hop_1783546445499
-    unlockLevel: 5
+    unlockLevel: 1
     unlockStage: 0
 food:
   - id: food_seeds

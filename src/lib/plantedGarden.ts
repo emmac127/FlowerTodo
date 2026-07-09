@@ -83,6 +83,49 @@ export function getGardenLevel(
   return 0;
 }
 
+/** In-level score (0..max) for a level at a given lifetime completion count. */
+export function getInLevelScore(
+  completedCount: number,
+  level: number,
+  config: GardenConfig = defaultGardenConfig,
+): number {
+  const raw = completedCount - getCompletionsBeforeLevel(level, config);
+  return Math.max(0, Math.min(raw, getMaxInLevelScore(level, config)));
+}
+
+/**
+ * User-facing stage count for the progress meter (e.g. 6 poppies, 6 growth
+ * stages). Differs from {@link getMaxInLevelScore} for multiStage levels where
+ * the final score index is stages.length - 1 but the meter shows stages.length.
+ */
+export function getGardenStageMeterMax(
+  level: number,
+  config: GardenConfig = defaultGardenConfig,
+): number {
+  const def = config.getLevelDefinition(level);
+  if (!def) return getTasksForGardenLevel(level);
+
+  switch (def.mode) {
+    case 'multiStage':
+    case 'birdPerch':
+      return def.stages?.length ?? getTasksForGardenLevel(level);
+    case 'birdAmbient': {
+      const instances = config.getLevelBirdInstances(level);
+      if (instances && instances.length > 1) return instances.length;
+      const stageCount = def.stages?.length ?? 0;
+      return stageCount > 0 ? stageCount : getTasksForGardenLevel(level);
+    }
+    case 'scatterPerCompletion':
+      return getScatterSlotCount(level, config);
+    case 'planter':
+      return def.perCompletion?.max ?? getTasksForGardenLevel(level);
+    case 'planterSequence':
+      return def.fills?.length ?? getTasksForGardenLevel(level);
+    default:
+      return getTasksForGardenLevel(level);
+  }
+}
+
 /** Progress within the current garden level (0 right after a level-up). */
 export function getGardenCycleProgress(
   completedCount: number,
@@ -93,11 +136,22 @@ export function getGardenCycleProgress(
 } {
   const level = getGardenLevel(completedCount, config);
   if (level <= 0) {
-    return { planted: 0, max: getLevelCompletionBudget(1, config) };
+    return { planted: 0, max: getGardenStageMeterMax(1, config) };
   }
-  const max = getLevelCompletionBudget(level, config);
-  const planted = completedCount - getCompletionsBeforeLevel(level, config);
-  return { planted, max };
+  const max = getGardenStageMeterMax(level, config);
+  const score = getInLevelScore(completedCount, level, config);
+  const maxScore = getMaxInLevelScore(level, config);
+  let planted = score;
+  const def = config.getLevelDefinition(level);
+  if (
+    def?.mode === 'multiStage' &&
+    config.variant !== 'dad' &&
+    max > maxScore &&
+    score >= maxScore
+  ) {
+    planted = max;
+  }
+  return { planted: Math.min(planted, max), max };
 }
 
 /**
