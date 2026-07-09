@@ -535,9 +535,12 @@ function makeElement(
 }
 
 function stageMascotDelivers(
-  stage?: { mascotDeliversElement?: boolean },
+  stage?: StageImage | PerCompletionImage,
 ): boolean {
-  return stage?.mascotDeliversElement !== false;
+  if (stage && 'mascotDeliversElement' in stage) {
+    return stage.mascotDeliversElement !== false;
+  }
+  return true;
 }
 
 function resolvedFromStageImage(image: StageImage): ResolvedGardenAsset | null {

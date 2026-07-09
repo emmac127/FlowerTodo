@@ -235,9 +235,14 @@ export function GardenSceneCanvas({
   useEffect(() => {
     if (editable) return;
     setBirdPositions((prev) => {
-      const next: Record<string, { x: number; y: number }> = {};
+      const next: Record<string, { x: number; y: number; flipX: boolean }> =
+        {};
       for (const el of birdElements) {
-        next[el.id] = prev[el.id] ?? { x: el.x, y: el.y };
+        next[el.id] = prev[el.id] ?? {
+          x: el.x,
+          y: el.y,
+          flipX: el.flipX,
+        };
       }
       return next;
     });
