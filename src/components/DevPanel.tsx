@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useGardenConfig } from '../context/AppVariantContext';
 import {
   getCompletionsBeforeLevel,
-  getMaxInLevelScore,
   getGardenCycleProgress,
   getGardenStageMeterMax,
   getGardenLevel,

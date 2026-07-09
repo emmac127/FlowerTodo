@@ -171,11 +171,11 @@ definitions:
     scaleWithStage: false
     unlockImage: /garden/assets/Birds/Titmouse/titmouse1.png
     behavior:
-      hopIntervalSec: { min: 3, max: 6 }
+      hopIntervalSec: { min: 1, max: 4 }
       hopNormPerSec: 0.12
       wingflapChance: 0.55
       peckChance: 0.6
-      flyChance: 0.3
+      flyChance: 0.4
       idleFrame: 0
     animations:
       idle:
