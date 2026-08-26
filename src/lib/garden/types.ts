@@ -110,8 +110,8 @@ export interface GardenDefinition {
   /** planter: image added for each completion after the planter appears. */
   perCompletion?: PerCompletionImage;
   /**
-   * planterSequence: one image per fill slot, in completion order. Repeats are
-   * allowed. Level length equals this list's length (capped by tasks per level).
+   * planterSequence: one image per fill slot after onLevelStart. Repeats are
+   * allowed. Level budget equals fills.length + 1 (stage 1 = planter base).
    */
   fills?: StageImage[];
   /** birdAmbient: animation clips and idle frame index. */

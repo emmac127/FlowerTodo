@@ -9,10 +9,11 @@ export function isSurfaceUnlocked(
   config: GardenConfig,
 ): boolean {
   const unlockLevel = rect.unlockLevel ?? 1;
-  const unlockStage = rect.unlockStage ?? 0;
+  // unlockStage 0 = level start → treat as stage 1 (first planted stage).
+  const unlockStage = Math.max(1, rect.unlockStage ?? 0);
   if (unlockLevel < 1) return true;
   const threshold =
-    getCompletionsBeforeLevel(unlockLevel, config) + Math.max(0, unlockStage);
+    getCompletionsBeforeLevel(unlockLevel, config) + unlockStage;
   return completedCount >= threshold;
 }
 

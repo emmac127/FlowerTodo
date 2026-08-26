@@ -143,7 +143,7 @@ export function DevPanel({
         )}
 
         <div className="dev-panel__current">
-          <strong>Current:</strong> level {currentLevel}, score {currentScore} (
+          <strong>Current:</strong> level {currentLevel}, stage {currentScore} (
           {activeCount} completions in {devPhase})
         </div>
 
@@ -183,7 +183,7 @@ export function DevPanel({
         </div>
 
         <div className="dev-panel__field">
-          <label htmlFor="dev-score">Score within level (0–{maxScore})</label>
+          <label htmlFor="dev-score">Stage within level (0–{maxScore})</label>
           <input
             id="dev-score"
             type="number"

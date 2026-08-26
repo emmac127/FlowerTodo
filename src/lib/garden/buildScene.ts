@@ -1,8 +1,7 @@
 import {
-  getCompletionsBeforeLevel,
   getGardenLevel,
+  getInLevelScore,
   getLevelCompletionBudget,
-  getMaxInLevelScore,
   getScatterSlotCount,
   getTasksForGardenLevel,
 } from '../plantedGarden';
@@ -217,56 +216,19 @@ function definitionScaleWithStage(def: GardenDefinition): boolean {
   return def.scaleWithStage !== false;
 }
 
-/**
- * Dad multiStage: first completion shows stages[0]; each later completion
- * advances one stage. Default garden skips stages[0] on the first completion.
- */
 function isPersistentMultiStageStage(stage: StageImage): boolean {
   return stage.replace === false;
 }
 
 /**
- * Which multiStage indices to render at a given in-level score.
- * Persistent stages (`replace: false`) stay visible once reached.
- * Replaceable stages only show the latest reached slot in the chain.
+ * Which multiStage indices to render at a given in-level stage (1 .. budget).
+ * Stage N reveals stages[N-1]. Persistent stages (`replace: false`) stay once
+ * reached; replaceable stages only show the latest reached slot in the chain.
  */
 function visibleMultiStageIndices(
   stages: StageImage[],
   score: number,
-  config: GardenConfig,
-): number[] {
-  if (config.variant === 'dad') {
-    return visibleDadMultiStageIndices(stages, score);
-  }
-
-  const indices: number[] = [];
-  for (let i = 0; i < stages.length; i++) {
-    if (isPersistentMultiStageStage(stages[i]!) && i <= score) {
-      indices.push(i);
-    }
-  }
-
-  let latestReplace = -1;
-  for (let i = 0; i < stages.length; i++) {
-    if (!isPersistentMultiStageStage(stages[i]!) && i <= score) {
-      latestReplace = i;
-    }
-  }
-  if (latestReplace >= 0) {
-    indices.push(latestReplace);
-  }
-
-  return indices.sort((a, b) => a - b);
-}
-
-/**
- * Dad route: completion N reveals stage N-1. Replaceable stages show one at a
- * time; persistent stages (`replace: false`) stay once reached and supersede
- * earlier replaceable art at the same progression step.
- */
-function visibleDadMultiStageIndices(
-  stages: StageImage[],
-  score: number,
+  _config: GardenConfig,
 ): number[] {
   if (score <= 0) return [];
 
@@ -295,14 +257,13 @@ function visibleDadMultiStageIndices(
   return indices.sort((a, b) => a - b);
 }
 
-/** In-level score (0..max) for a level given the lifetime completion count. */
+/** In-level stage (0 .. budget) for a level given the lifetime completion count. */
 function scoreInLevel(
   level: number,
   completedCount: number,
   config: GardenConfig,
 ): number {
-  const raw = completedCount - getCompletionsBeforeLevel(level, config);
-  return Math.max(0, Math.min(raw, getMaxInLevelScore(level, config)));
+  return getInLevelScore(completedCount, level, config);
 }
 
 function definitionName(def: GardenDefinition, level: number): string {
@@ -576,9 +537,7 @@ function planterFillCount(def: GardenDefinition, level: number): number {
   if (def.mode === 'planterSequence') {
     return def.fills?.length ?? 0;
   }
-  const tasks = getTasksForGardenLevel(level);
-  const max = def.perCompletion?.max ?? tasks;
-  return Math.min(max, tasks);
+  return def.perCompletion?.max ?? getTasksForGardenLevel(level);
 }
 
 function planterFillAsset(
@@ -601,10 +560,11 @@ function appendPlanterElements(
   elements: PlacedElement[],
   config: GardenConfig,
 ): void {
+  // Stage 1 = onLevelStart (planter); stages 2+ = fills[0], fills[1], …
   const baseAsset = def.onLevelStart
     ? resolvedFromStageImage(def.onLevelStart)
     : null;
-  if (baseAsset) {
+  if (baseAsset && score >= 1) {
     elements.push(
       makeElement(
         layout,
@@ -622,7 +582,7 @@ function appendPlanterElements(
   }
 
   const maxFills = planterFillCount(def, level);
-  const fillCount = Math.min(score, maxFills);
+  const fillCount = Math.min(Math.max(0, score - 1), maxFills);
   for (let i = 0; i < fillCount; i++) {
     const asset = planterFillAsset(def, i);
     if (!asset) continue;
@@ -677,10 +637,11 @@ function appendBirdPerchElements(
   elements: PlacedElement[],
   config: GardenConfig,
 ): void {
+  // Stage 1 = onLevelStart (perch); later stages walk stages[].
   const perchAsset = def.onLevelStart
     ? resolvedFromStageImage(def.onLevelStart)
     : null;
-  if (perchAsset) {
+  if (perchAsset && score >= 1) {
     elements.push(
       makeElement(
         layout,
@@ -698,7 +659,11 @@ function appendBirdPerchElements(
   }
 
   const stages = def.stages ?? [];
-  for (const stageIndex of visibleBirdPerchStageIndices(stages, score)) {
+  // Fills use stages 2+ → pass score - 1 so index 0 unlocks at stage 2.
+  for (const stageIndex of visibleBirdPerchStageIndices(
+    stages,
+    Math.max(0, score - 1),
+  )) {
     const stage = stages[stageIndex]!;
     const asset = resolvedFromStageImage(stage);
     if (!asset) continue;
@@ -1131,8 +1096,9 @@ export function buildGardenSceneInstances(
 }
 
 /**
- * Elements that appear at the start of the active level (score 0) but were not
- * visible at the previous completion count — hidden during the unlock overlay.
+ * Elements that appear when the active level reaches stage 1 (level start) but
+ * were not visible at the previous completion count — hidden during the unlock
+ * overlay, then delivered by the mascot when it dismisses.
  */
 export function findLevelStartPendingElements(
   completedCount: number,
@@ -1141,7 +1107,8 @@ export function findLevelStartPendingElements(
   if (completedCount <= 0) return [];
   const level = getGardenLevel(completedCount, config);
   if (level < 1) return [];
-  if (scoreInLevel(level, completedCount, config) > 0) return [];
+  // Level start plants stage 1 immediately; only then are "start" assets new.
+  if (scoreInLevel(level, completedCount, config) !== 1) return [];
 
   const current = buildGardenSceneInstances(completedCount, config);
   const previous = buildGardenSceneInstances(completedCount - 1, config);
@@ -1152,7 +1119,7 @@ export function findLevelStartPendingElements(
 }
 
 /**
- * New element visible at the start of the active level (score 0), if any.
+ * New element planted at stage 1 of the active level, if any.
  * Used for mascot delivery after the level-unlock overlay dismisses.
  */
 export function findLevelStartDeliveryElement(

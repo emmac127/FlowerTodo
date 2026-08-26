@@ -6,22 +6,22 @@
 # Assets are served from /public, so paths start at the site root, e.g.
 #   /garden/assets/Toast1.svg  ->  public/garden/assets/Toast1.svg
 #
+# Vocab: Level = one levels.yaml entry. Stage = progress within a level (1..budget).
+# Budget = max stage for that level (progress-meter size). When stage === budget the
+# level is full; the next task starts the following level at stage 1 (mascot plants
+# that level's first item immediately).
+#
 # Modes:
-#   multiStage          One plant per level. In-level score (0 .. stages-1)
-#                       picks stages[score]. The number of stages is exactly the
-#                       length of the `stages` list below.
+#   multiStage          Budget = length of `stages`. Stage N shows stages[N-1].
 #                       `scaleWithStage: true` (default) grows taller each stage;
 #                       set `false` to keep a constant size (e.g. dragon_flower).
-#                       Level-up happens after (stages - 1) task completions
-#                       (7 stages → 6 completions in that level).
-#   scatterPerCompletion  Each completion adds one flower at scatter[slot].
-#                       Use `asset` (one image for all) or `scatterAssets` (per
-#                       slot). Both support `animation` with a `frames` list.
-#   planter             Score 0 places `onLevelStart`; each later completion adds
-#                       one `perCompletion` fill flower (up to `max`).
-#   planterSequence     Like planter, but each fill slot uses its own asset from
-#                       the `fills` list (in order). Repeats are fine. The level
-#                       length equals the number of `fills` entries.
+#   scatterPerCompletion  Budget = 5 by default, or `scatterAssets.length` when set.
+#                       Stage N places scatter slot N-1. Use `asset` (one image for
+#                       all) or `scatterAssets` (per slot). Both support `animation`.
+#   planter             Budget = perCompletion.max + 1. Stage 1 = onLevelStart;
+#                       later stages add one `perCompletion` fill (up to `max`).
+#   planterSequence     Budget = fills.length + 1. Stage 1 = onLevelStart; stages
+#                       2+ walk `fills` in order (repeats allowed).
 #
 # Animated assets (any stage, fill, scatter asset, or planter base):
 #   Add an `animation` block with `frames` (PNG paths in order) and optional
