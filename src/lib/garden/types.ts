@@ -56,13 +56,34 @@ export interface BirdAnimationsDef {
   peck?: AssetAnimationDef;
 }
 
+/** Mode2 ambient bird population cap + timed visit cycle (mode2.yaml). */
+export interface AmbientBirdPoolConfig {
+  /** Minimum birdAmbient birds kept on screen (departures blocked below this). */
+  minAmbientBirds: number;
+  /** Soft cap on birdAmbient birds rendered at once. */
+  maxAmbientBirds: number;
+  /** Min seconds between random fly-off departures. */
+  minDepartureWait: number;
+  /** Max seconds between random fly-off departures. */
+  maxDepartureWait: number;
+  /** Min seconds between random fly-in arrivals (only when under the cap). */
+  minArrivalWait: number;
+  /** Max seconds between random fly-in arrivals. */
+  maxArrivalWait: number;
+  /** When entering this level, show intro text before the unlock gift box. */
+  introPopupLevel?: number;
+  /** Body copy for that pre-unlock text popup. */
+  introPopupText?: string;
+}
+
 /** birdAmbient: timing and probability for ambient behaviors. */
 export interface BirdBehaviorDef {
   /** Seconds between idle action rolls (min–max range). */
   hopIntervalSec?: { min: number; max: number };
   /**
-   * Hop travel speed in normalized design coords per second (0–1 canvas width).
-   * Independent of bird scale/size.
+   * Hop travel speed in design-width units per second (fraction of canvas
+   * width). Duration = path length / this speed, so twice the distance takes
+   * twice as long. Independent of bird scale/size.
    */
   hopNormPerSec?: number;
   /**
@@ -136,11 +157,20 @@ export interface LevelEntry extends Partial<GardenDefinition> {
 export interface LevelsConfig {
   definitions: Record<string, GardenDefinition>;
   levels: Record<string, LevelEntry>;
+  /**
+   * Mode2 only: cap how many birdAmbient birds stay on screen, with timed
+   * fly-off / fly-in of earlier-level birds. See mode2.yaml `ambientBirds:`.
+   */
+  ambientBirds?: AmbientBirdPoolConfig;
 }
 
 /** Collision box stored relative to a bird's layout anchor. */
 export interface BirdCollisionBox {
-  /** Left edge offset from anchor x (anchor is bottom-center). */
+  /**
+   * Left edge offset from anchor x in unflipped (facing-right) local space.
+   * When the bird is mirrored, this is flipped over the vertical axis through
+   * the anchor before use.
+   */
   offsetX: number;
   /** Top edge offset from anchor y. */
   offsetY: number;
@@ -170,7 +200,8 @@ export interface PositionEntry {
   hopSurfaceId?: string;
   /** birdAmbient: override food surface for this slot. */
   foodSurfaceId?: string;
-  /** birdAmbient: collision box offset from this slot's anchor (moves with the bird). */
+  /** birdAmbient: collision box in unflipped (facing-right) local space;
+   * mirrored at runtime when the bird's flipX is true. */
   collisionBox?: BirdCollisionBox;
 }
 

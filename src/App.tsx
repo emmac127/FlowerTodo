@@ -34,9 +34,11 @@ import { preloadGardenAssetSize, waitForGardenAssetSize } from './lib/garden/ele
 import {
   getGardenCycleProgress,
   getGardenLevel,
+  getProgressCountAtLevelStart,
   isGardenLevelComplete,
   isGardenFullyComplete,
 } from './lib/plantedGarden';
+import { ResetGardenDialog } from './components/ResetGardenDialog';
 import {
   DEFAULT_CELEBRATION_ORIGIN,
   measureScreenCelebrationOrigin,
@@ -107,6 +109,7 @@ export default function App() {
   const [levelUnlock, setLevelUnlock] = useState<{
     name: string;
     image: string | null;
+    introText?: string | null;
   } | null>(null);
   const [editorPhase, setEditorPhase] = useState<GardenPhase>('mode1');
 
@@ -125,13 +128,14 @@ export default function App() {
     reorderTask,
     reorderTaskToIndex,
     setGardenProgressForDev,
-    resetGardenLevel,
+    resetGardenToProgress,
     resetAllGardenState,
     unlockMode2,
     completeMode2Onboarding,
     toggleNostalgicView,
   } = useTasks(variant);
 
+  const [resetGardenOpen, setResetGardenOpen] = useState(false);
   const [devPanelOpen, setDevPanelOpen] = useState(false);
   const isDev = import.meta.env.DEV;
   const editor = useGardenEditor(gardenConfig, variant, editorPhase);
@@ -198,35 +202,46 @@ export default function App() {
   }, [resetAllGardenState]);
 
   const handleResetGarden = useCallback(() => {
-    if (gardenProgressCount <= 0) return;
-    if (
-      !window.confirm(
-        'Reset your garden to level 0? All tasks stay on your list (including completed ones), but your garden will start fresh.',
-      )
-    ) {
-      return;
-    }
-    resetGardenLevel();
-    setMode2UnlockActive(false);
-    setShowFlowerButton(false);
-    setGardenFadePhase('none');
-    setLevelUnlock(null);
-    setEditorPhase('mode1');
-    setGardenRevealPhase('idle');
-    setGardenRevealHeldCount(null);
-    setGardenRevealGrowthUnlocked(false);
-    setGardenRevealManual(false);
-    if (gardenRevealAutoReturnRef.current) {
-      clearTimeout(gardenRevealAutoReturnRef.current);
-      gardenRevealAutoReturnRef.current = null;
-    }
-    if (gardenRevealGrowthTimerRef.current) {
-      clearTimeout(gardenRevealGrowthTimerRef.current);
-      gardenRevealGrowthTimerRef.current = null;
-    }
-  }, [gardenProgressCount, resetGardenLevel]);
+    if (sceneProgressCount <= 0) return;
+    setResetGardenOpen(true);
+  }, [sceneProgressCount]);
+
+  const handleConfirmResetGarden = useCallback(
+    (level: number) => {
+      const target = getProgressCountAtLevelStart(level, sceneGardenConfig);
+      resetGardenToProgress(target, sceneGardenPhase);
+      setResetGardenOpen(false);
+      setMode2UnlockActive(false);
+      setShowFlowerButton(false);
+      setGardenFadePhase('none');
+      setLevelUnlock(null);
+      setGardenRevealPhase('idle');
+      setGardenRevealHeldCount(null);
+      setGardenRevealGrowthUnlocked(false);
+      setGardenRevealManual(false);
+      if (gardenRevealAutoReturnRef.current) {
+        clearTimeout(gardenRevealAutoReturnRef.current);
+        gardenRevealAutoReturnRef.current = null;
+      }
+      if (gardenRevealGrowthTimerRef.current) {
+        clearTimeout(gardenRevealGrowthTimerRef.current);
+        gardenRevealGrowthTimerRef.current = null;
+      }
+    },
+    [sceneGardenConfig, sceneGardenPhase, resetGardenToProgress],
+  );
 
   const gardenLevel = getGardenLevel(sceneProgressCount, sceneGardenConfig);
+  const resetGardenLevels = sceneGardenConfig
+    .getConfiguredLevels()
+    .filter((level) => level <= gardenLevel)
+    .map((level) => {
+      const def = sceneGardenConfig.getLevelDefinition(level);
+      return {
+        level,
+        label: def?.name ? `Level ${level} — ${def.name}` : `Level ${level}`,
+      };
+    });
   const gardenCycleProgress = getGardenCycleProgress(
     sceneProgressCount,
     sceneGardenConfig,
@@ -523,9 +538,15 @@ export default function App() {
         const newLevel = getGardenLevel(nextGardenCount, progressConfig);
         const def = progressConfig.getLevelDefinition(newLevel);
         if (def) {
+          const pool = progressConfig.ambientBirdPool;
+          const introText =
+            pool?.introPopupLevel === newLevel && pool.introPopupText
+              ? pool.introPopupText
+              : null;
           setLevelUnlock({
             name: def.name ?? `Level ${newLevel}`,
             image: getUnlockImageForDefinition(def),
+            introText,
           });
         }
       } else if (
@@ -669,7 +690,7 @@ export default function App() {
           onPickRandom={tasks.length > 0 ? handlePickRandom : undefined}
           pickDisabled={tasks.filter((t) => !t.completed).length === 0}
           onResetGarden={handleResetGarden}
-          resetGardenDisabled={gardenProgressCount <= 0}
+          resetGardenDisabled={sceneProgressCount <= 0}
         />
 
         <div
@@ -827,6 +848,7 @@ export default function App() {
           active
           itemName={levelUnlock.name}
           itemImage={levelUnlock.image}
+          introText={levelUnlock.introText ?? null}
           muted={muted}
           onDismiss={() => setLevelUnlock(null)}
         />
@@ -878,6 +900,14 @@ export default function App() {
           )}
         </>
       )}
+
+      <ResetGardenDialog
+        open={resetGardenOpen}
+        levels={resetGardenLevels}
+        currentLevel={Math.max(1, gardenLevel)}
+        onCancel={() => setResetGardenOpen(false)}
+        onConfirm={handleConfirmResetGarden}
+      />
     </div>
   );
 }

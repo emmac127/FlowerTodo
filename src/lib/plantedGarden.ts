@@ -230,6 +230,18 @@ export function getTotalCompletionsToFinishGarden(
   );
 }
 
+/**
+ * Lifetime completion count that places the garden at stage 1 of `level`
+ * (start of that level). Level ≤ 0 clears the garden (count 0).
+ */
+export function getProgressCountAtLevelStart(
+  level: number,
+  config: GardenConfig = defaultGardenConfig,
+): number {
+  if (level <= 0) return 0;
+  return getCompletionsBeforeLevel(level, config) + 1;
+}
+
 /** True when the final stage of the final configured level is complete. */
 export function isGardenFullyComplete(
   completionIndex: number,

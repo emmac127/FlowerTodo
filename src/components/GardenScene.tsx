@@ -8,6 +8,7 @@ import { filterSurfacesForProgress } from '../lib/garden/surfaces';
 import { isSurfaceEditorId } from '../lib/garden/surfaceEditorIds';
 import { getGardenLayers, getSceneMilestoneCount } from '../lib/gardenProgress';
 import { getGardenLevel } from '../lib/plantedGarden';
+import { useAmbientBirdPool } from '../hooks/useAmbientBirdPool';
 import type { PlacedElement } from '../lib/garden/types';
 
 interface GardenSceneProps {
@@ -73,9 +74,6 @@ export function GardenScene({
   const bandRef = useRef<HTMLDivElement>(null);
   const [bandHeight, setBandHeight] = useState(0);
   const [bandReady, setBandReady] = useState(false);
-  /** Completion count through which scroll has been synced (hides newest until caught up). */
-  const [scrollSyncedForCount, setScrollSyncedForCount] =
-    useState(completedCount);
   /** Completion count for which the newest asset display size is known. */
   const [sizeReadyForCount, setSizeReadyForCount] = useState(completedCount);
   const prevCompletedCountRef = useRef(completedCount);
@@ -95,26 +93,36 @@ export function GardenScene({
   const layers = useMemo(() => getGardenLayers(completedCount), [completedCount]);
   const stage = getSceneMilestoneCount(completedCount);
   const activeLevel = getGardenLevel(completedCount, gardenConfig);
+  const isDadMoon = variant === 'dad';
+  const isMode2Garden = !isDadMoon && gardenConfig.phase === 'mode2';
 
   const gameplayScene = useMemo(
     () => buildGardenSceneInstances(completedCount, gardenConfig),
     [completedCount, gardenConfig],
   );
-  const elements = elementsOverride ?? gameplayScene.elements;
+
+  const {
+    filteredElements: poolFilteredElements,
+    birdTransit,
+    onBirdTransitComplete,
+  } = useAmbientBirdPool({
+    enabled: isMode2Garden && !editable && !elementsOverride,
+    pool: gardenConfig.ambientBirdPool,
+    elements: gameplayScene.elements,
+    currentLevel: Math.max(1, activeLevel),
+    config: gardenConfig,
+  });
+
+  const elements = elementsOverride ?? poolFilteredElements;
   const gameplayNewestId = gameplayScene.newestId;
   const newestElement = gameplayNewestId
     ? gameplayScene.elements.find((el) => el.id === gameplayNewestId)
     : null;
   const newestIsBird = newestElement?.birdBehavior != null;
-  const isDadMoon = variant === 'dad';
-  const isMode2Garden = !isDadMoon && gardenConfig.phase === 'mode2';
-  const pinViewport = isDadMoon && !editable;
   const awaitingNewestReveal =
     !editable &&
     gameplayNewestId != null &&
-    (!bandReady ||
-      (!pinViewport && scrollSyncedForCount < completedCount) ||
-      (!newestIsBird && sizeReadyForCount < completedCount));
+    (!bandReady || (!newestIsBird && sizeReadyForCount < completedCount));
   const dadDeliveryActive =
     !editable &&
     dadDeliveryId != null &&
@@ -124,12 +132,6 @@ export function GardenScene({
     awaitingNewestReveal || dadDeliveryAwaitingDrop;
   const newestId =
     editable || awaitingReveal ? null : gameplayNewestId;
-  const deliveryFocusElement = dadDeliveryActive
-    ? elements.find((el) => el.id === dadDeliveryId)
-    : null;
-  const scrollFocusX = editable
-    ? 0
-    : (deliveryFocusElement?.x ?? gameplayScene.scrollFocusX);
 
   const deliveryHeldElements = useMemo(() => {
     if (!dadDeliveryAwaitingDrop || completedCount <= 0 || elementsOverride) {
@@ -175,12 +177,6 @@ export function GardenScene({
     editable || (isDadMoon ? completedCount > 0 : layers.grass || activeLevel >= 1);
 
   useLayoutEffect(() => {
-    if (pinViewport) {
-      setScrollSyncedForCount(completedCount);
-    }
-  }, [pinViewport, completedCount]);
-
-  useLayoutEffect(() => {
     const el = bandRef.current;
     if (!el) return;
     const update = () => {
@@ -195,12 +191,6 @@ export function GardenScene({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-
-  useEffect(() => {
-    if (completedCount < scrollSyncedForCount) {
-      setScrollSyncedForCount(completedCount);
-    }
-  }, [completedCount, scrollSyncedForCount]);
 
   useEffect(() => {
     if (completedCount < sizeReadyForCount) {
@@ -266,11 +256,6 @@ export function GardenScene({
     setDadDeliveryDropped(false);
   }, []);
 
-  const handleFocusScrollReady = useCallback(() => {
-    if (editable) return;
-    setScrollSyncedForCount(completedCount);
-  }, [editable, completedCount]);
-
   const handleNewestDisplaySizeReady = useCallback(() => {
     setSizeReadyForCount(completedCount);
   }, [completedCount]);
@@ -295,17 +280,13 @@ export function GardenScene({
 
       <div className="garden-scene__band" ref={bandRef}>
         <GardenFlowerStrip
-          autoScrollKey={completedCount}
-          scrollFocusX={scrollFocusX}
           freeScroll={editable}
-          lockScrollLeft={pinViewport}
           placeMode={
             editable &&
             selectedId != null &&
             !isSurfaceEditorId(selectedId) &&
             levelMoveLevel == null
           }
-          onFocusScrollReady={handleFocusScrollReady}
         >
           <GardenSceneCanvas
             elements={canvasElements}
@@ -321,7 +302,7 @@ export function GardenScene({
             placementStars={isDadMoon && !editable}
             moonGround={isDadMoon && showGround}
             dustMotes={isDadMoon}
-            lockScrollLeft={pinViewport}
+            lockScrollLeft={!editable}
             dadDeliveryElement={
               dadDeliveryActive
                 ? canvasElements.find((el) => el.id === dadDeliveryId) ?? null
@@ -330,6 +311,10 @@ export function GardenScene({
             dadDeliveryAwaitingDrop={dadDeliveryAwaitingDrop}
             onDadDeliveryDrop={handleDadDeliveryDrop}
             onDadDeliveryComplete={handleDadDeliveryComplete}
+            birdTransit={editable ? undefined : birdTransit}
+            onBirdTransitComplete={
+              editable ? undefined : onBirdTransitComplete
+            }
             selectedId={selectedId}
             levelMoveLevel={levelMoveLevel}
             onSelectElement={onSelectElement}

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { EditorEntry } from '../lib/garden/buildScene';
 import { isSurfaceEditorId, parseSurfaceEditorId } from '../lib/garden/surfaceEditorIds';
 import { useAppVariant } from '../context/AppVariantContext';
@@ -93,6 +94,10 @@ export function GardenEditor({
   const elementEntries = entries.filter((entry) => entry.kind !== 'surface');
   const surfaceListEntries = entries.filter((entry) => entry.kind === 'surface');
   const selectedIsSurface = isSurfaceEditorId(selectedId);
+  const showMode2Tools =
+    editorPhase === 'mode2' &&
+    (onSurfaceToolChange != null || onCollisionBoxToolChange != null);
+  const [mode2ToolsVisible, setMode2ToolsVisible] = useState(true);
 
   return (
     <div className="garden-editor" role="dialog" aria-label="Garden editor">
@@ -124,7 +129,31 @@ export function GardenEditor({
         </div>
       )}
 
-      {editorPhase === 'mode2' && onSurfaceToolChange && (
+      {showMode2Tools && (
+        <div className="garden-editor__field">
+          <button
+            type="button"
+            className="garden-editor__mode-btn garden-editor__mode-btn--compact"
+            onClick={() => {
+              setMode2ToolsVisible((v) => {
+                if (v) {
+                  if (surfaceTool != null) onSurfaceToolChange?.(null);
+                  if (collisionBoxTool) onCollisionBoxToolChange?.(false);
+                }
+                return !v;
+              });
+            }}
+            aria-pressed={mode2ToolsVisible}
+            aria-expanded={mode2ToolsVisible}
+          >
+            {mode2ToolsVisible
+              ? 'Hide surface & collision tools'
+              : 'Show surface & collision tools'}
+          </button>
+        </div>
+      )}
+
+      {mode2ToolsVisible && editorPhase === 'mode2' && onSurfaceToolChange && (
         <div className="garden-editor__field">
           <span>Surface tool</span>
           <div className="garden-editor__mode-toggle" role="group">
@@ -150,7 +179,8 @@ export function GardenEditor({
         </div>
       )}
 
-      {editorPhase === 'mode2' &&
+      {mode2ToolsVisible &&
+        editorPhase === 'mode2' &&
         onCollisionBoxToolChange &&
         selectedElement?.kind === 'birdAmbientStage' &&
         !wholeLevelMode && (

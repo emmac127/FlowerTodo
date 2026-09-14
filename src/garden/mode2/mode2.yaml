@@ -47,6 +47,35 @@
 # mascotDeliversElement: false to carry a generic flower instead of that asset.
 # Omit or true = mascot carries the real stage image. Default true.
 
+# --- Ambient bird population (optional) ---
+# Keeps birdAmbient birds within min/max on screen. When over max (or on a
+# timer), earlier-level birds flap fully off-screen and despawn — but never if
+# that would drop below minAmbientBirds. Timed fly-ins refill up to max.
+#
+# ambientBirds:
+#   minAmbientBirds: 2      # never fly off if that would drop below this
+#   maxAmbientBirds: 6
+#   minDepartureWait: 40    # seconds
+#   maxDepartureWait: 100
+#   minArrivalWait: 25
+#   maxArrivalWait: 80
+#   introPopupLevel: 6      # show text before unlock gift when entering this level
+#   introPopupText: |
+#     Your garden is getting busy! Earlier birds may fly away to make room,
+#     and visit again later.
+
+ambientBirds:
+  minAmbientBirds: 4
+  maxAmbientBirds: 6
+  minDepartureWait: 40
+  maxDepartureWait: 100
+  minArrivalWait: 25
+  maxArrivalWait: 80
+  introPopupLevel: 6
+  introPopupText: >
+    Your garden is getting busy! Some earlier birds may fly away to make
+    room for new friends — and they can visit again later.
+
 definitions:
   bird_bath:
     name: Bird bath
@@ -209,7 +238,7 @@ definitions:
     unlockImage: /garden/assets/Birds/Duckling/d1.png
     behavior:
       hopIntervalSec: { min: 1, max: 3 }
-      hopNormPerSec: 0.12
+      hopNormPerSec: 0.05
       wingflapChance: 0.3
       peckChance: 0.6
       idleFrame: 0
@@ -258,7 +287,7 @@ definitions:
     mode: birdPerch
     unlockImage: /garden/assets/Birds/Sun/sun4.png
     onLevelStart:
-      src: /garden/assets/Birds/Sun/sunpost.png
+      src: /garden/assets/Birds/Pedestal/Sunpedestal2.png
       replace: false
     stages:
       - { src: /garden/assets/Birds/Sun/sun1.png, replace: true, mascotDeliversElement: true }
@@ -336,10 +365,70 @@ definitions:
       - { src: /garden/assets/Birds/starbirdframe.png, replace: false }
       - { src: /garden/assets/Birds/starbird.png, replace: false }
 
+  birdhouse_garden:
+    name: Birdhouse
+    mode: multiStage
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/bhouse/bhouse1.png
+    stages:
+      # 1 → 2 → 3 replace each other; 3 persists so 4 can sit alongside.
+      - { src: /garden/assets/Birds/bhouse/bhouse1.png, replace: true }
+      - { src: /garden/assets/Birds/bhouse/bhouse2.png, replace: true }
+      - { src: /garden/assets/Birds/bhouse/bhouse3.png, replace: false }
+      - { src: /garden/assets/Birds/bhouse/bhouse4.png, replace: false }
+
   roses:
     name: The Spoonbill Rose
     mode: scatterPerCompletion
     asset: /garden/assets/Birds/roses.png
+
+  creamflower:
+    name: Cream flower
+    mode: scatterPerCompletion
+    asset: /garden/assets/Birds/Creamflower.png
+
+  sunset_bird:
+    name: Sunset Bird
+    mode: birdAmbient
+    scaleWithStage: false
+    unlockImage: /garden/assets/Birds/Sunset/slice1.png
+    behavior:
+      hopIntervalSec: { min: 3, max: 9 }
+      wingflapChance: 0.35
+      peckChance: 0.9
+      flyChance: 1
+      idleFrame: 0
+    animations:
+      idle:
+        frames:
+          - /garden/assets/Birds/Sunset/slice1.png
+        frameDuration: 0.2
+      wingflap:
+        frames:
+          - /garden/assets/Birds/Sunset/slice7.png
+          - /garden/assets/Birds/Sunset/slice8.png
+          - /garden/assets/Birds/Sunset/slice9.png
+          - /garden/assets/Birds/Sunset/slice10.png
+          - /garden/assets/Birds/Sunset/slice9.png
+          - /garden/assets/Birds/Sunset/slice8.png
+          - /garden/assets/Birds/Sunset/slice7.png
+        frameDuration: 0.08
+      peck:
+        frames:
+          - /garden/assets/Birds/Sunset/slice1.png
+          - /garden/assets/Birds/Sunset/slice2.png
+          - /garden/assets/Birds/Sunset/slice3.png
+          - /garden/assets/Birds/Sunset/slice4.png
+          - /garden/assets/Birds/Sunset/slice5.png
+          - /garden/assets/Birds/Sunset/slice6.png
+          - /garden/assets/Birds/Sunset/slice5.png
+          - /garden/assets/Birds/Sunset/slice4.png
+          - /garden/assets/Birds/Sunset/slice3.png
+          - /garden/assets/Birds/Sunset/slice2.png
+          - /garden/assets/Birds/Sunset/slice1.png
+        frameDuration: 0.08
+    stages:
+      - { src: /garden/assets/Birds/Sunset/slice1.png, hopEnabled: true, replace: true }
 
 levels:
   "1":
@@ -368,3 +457,12 @@ levels:
     use: starbird
   "10":
     use: roses
+  "11":
+    birds:
+      - use: sunset_bird
+      - use: sunset_bird
+      - use: sunset_bird
+  "12":
+    use: birdhouse_garden
+  "13":
+    use: creamflower

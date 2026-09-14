@@ -749,7 +749,12 @@ function appendBirdAmbientElements(
 ): void {
   const stages = (def.stages ?? []) as BirdStageImage[];
   if (stages.length === 0) return;
-  const stageIndices = visibleMultiStageIndices(stages, score, config);
+  // Multi-bird ambient levels use instance count as the level budget, which can
+  // exceed stages.length. Growth art only walks stages[], so clamp before
+  // resolving visible stage indices — otherwise completed levels (score >
+  // stages.length) return no indices and every earlier bird disappears.
+  const growthScore = Math.min(score, stages.length);
+  const stageIndices = visibleMultiStageIndices(stages, growthScore, config);
   if (stageIndices.length === 0) return;
 
   if (instanceIndex !== undefined) {
@@ -969,8 +974,6 @@ export interface GardenSceneInstances {
   elements: PlacedElement[];
   /** Id of the element added or advanced by the latest completion (pre–z-index sort). */
   newestId: string | null;
-  /** Normalized x of that element for horizontal scroll focus. */
-  scrollFocusX: number;
 }
 
 /**
@@ -985,7 +988,7 @@ export function buildGardenSceneInstances(
   const layout = config.layoutConfig;
   const activeLevel = getGardenLevel(completedCount, config);
   if (activeLevel < 1) {
-    return { elements: [], newestId: null, scrollFocusX: 0 };
+    return { elements: [], newestId: null };
   }
 
   const elements: PlacedElement[] = [];
@@ -1091,7 +1094,6 @@ export function buildGardenSceneInstances(
   return {
     elements,
     newestId: newest?.id ?? null,
-    scrollFocusX: newest?.x ?? 0,
   };
 }
 

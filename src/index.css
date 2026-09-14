@@ -13,9 +13,9 @@
   --shadow: 0 4px 20px rgba(255, 143, 171, 0.15);
   --radius: 16px;
   --font: 'M PLUS Rounded 1c', 'Nunito', system-ui, sans-serif;
-  /* Garden + seed picker band (dvh preferred for iOS Safari dynamic toolbar) */
+  /* Garden + seed picker band — svh stays stable while mobile browser chrome shows/hides. */
   --garden-band-height: clamp(200px, 44vh, 320px);
-  --garden-band-height: clamp(200px, 44dvh, 320px);
+  --garden-band-height: clamp(200px, 44svh, 320px);
   /* Green lawn strip height as a fraction of the garden band (0.55 × 1.5). */
   --garden-grass-ratio: 0.825;
   /* Set on .garden-scene from JS — room above the grass for tall blooms */
@@ -126,7 +126,7 @@ body {
   margin: 0 auto;
   padding: 1.25rem 1.25rem
     calc(var(--garden-band-height) + var(--garden-headroom-px) + 5rem);
-  /* Let garden scroll controls receive taps in bottom padding (full-width app on narrow screens). */
+  /* Bottom padding clears the fixed garden band (full-width on narrow screens). */
   pointer-events: none;
 }
 
@@ -1745,6 +1745,125 @@ body {
   color: #fff;
 }
 
+.reset-garden-dialog {
+  margin: auto;
+  width: min(22rem, calc(100vw - 2.5rem));
+  max-height: min(32rem, calc(100vh - 3rem));
+  padding: 1.15rem 1.2rem 1.1rem;
+  border: 2px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  overflow: hidden;
+  /* Do not set display here — closed <dialog> must stay display:none.
+     showModal() places [open] in the top layer above the app chrome. */
+}
+
+.reset-garden-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  z-index: 10000;
+}
+
+.reset-garden-dialog::backdrop {
+  background: rgba(92, 74, 90, 0.35);
+}
+
+.reset-garden-dialog__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--text);
+}
+
+.reset-garden-dialog__hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.reset-garden-dialog__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  margin: 0 0 1rem;
+  padding: 0.15rem 0.1rem;
+}
+
+.reset-garden-dialog__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  border: 2px solid var(--card-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.65);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.reset-garden-dialog__option:has(input:checked) {
+  border-color: var(--accent);
+  background: rgba(255, 143, 171, 0.12);
+}
+
+.reset-garden-dialog__option input {
+  margin-top: 0.15rem;
+  accent-color: var(--accent);
+}
+
+.reset-garden-dialog__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.reset-garden-dialog__btn {
+  min-width: 5.5rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  border: 2px solid var(--card-border);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.reset-garden-dialog__btn:active {
+  transform: scale(0.97);
+}
+
+.reset-garden-dialog__btn--cancel {
+  background: #fff;
+  color: var(--text-muted);
+}
+
+.reset-garden-dialog__btn--cancel:hover {
+  background: #fff7fa;
+}
+
+.reset-garden-dialog__btn--confirm {
+  background: #ffe8f0;
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+.reset-garden-dialog__btn--confirm:hover {
+  background: #ffe0ea;
+}
+
 .task-list-footer {
   margin-top: 1rem;
   text-align: center;
@@ -2005,7 +2124,7 @@ body {
   overflow: visible;
 }
 
-/* Scroll shell: owns horizontal scrolling; the scene canvas is its child. */
+/* Canvas shell: gameplay pins the viewport; editor can pan horizontally. */
 .garden-flower-strip {
   position: absolute;
   left: 0;
@@ -2019,18 +2138,16 @@ body {
   overflow: visible;
 }
 
-.garden-flower-strip--scrollable {
-  pointer-events: auto;
-}
-
 .garden-flower-strip--editing {
   pointer-events: auto;
 }
 
-/* Dad gameplay — wide canvas, viewport pinned to the left edge. */
-.garden-flower-strip--scroll-locked .garden-flower-scroll__viewport {
-  overflow-x: hidden;
-  touch-action: pan-y pinch-zoom;
+/* Gameplay — no panning; pass scroll gestures through to the task list. */
+.garden-flower-strip--fixed .garden-flower-scroll__viewport {
+  overflow: hidden;
+  overscroll-behavior: none;
+  pointer-events: none;
+  touch-action: auto;
 }
 
 .garden-flower-strip--place-mode .garden-flower-scroll__viewport {
@@ -2038,6 +2155,9 @@ body {
 }
 
 .garden-flower-strip--editing .garden-flower-scroll__viewport {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   touch-action: none;
   padding-bottom: 0.35rem;
   scrollbar-width: thin;
@@ -2064,14 +2184,12 @@ body {
   height: 100%;
   box-sizing: border-box;
   display: flex;
-  overflow-x: auto;
-  overflow-y: visible;
-  overscroll-behavior-x: contain;
+  overflow: hidden;
+  overscroll-behavior: none;
   scroll-behavior: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   pointer-events: auto;
-  touch-action: pan-x;
 }
 
 .garden-flower-scroll__viewport::-webkit-scrollbar {
@@ -2370,41 +2488,9 @@ body {
     drop-shadow(0 0 0 #7ec8e3) drop-shadow(0 0 8px rgba(126, 200, 227, 0.8));
 }
 
-/* Invisible edge tap targets — same hit area as the old arrow buttons. */
-.garden-flower-scroll-zone {
-  position: absolute;
-  bottom: var(--garden-flower-lift);
-  z-index: 2;
-  width: 2.75rem;
-  min-width: 44px;
-  height: 72%;
-  max-height: 7.5rem;
-  min-height: 44px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  pointer-events: auto;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.garden-flower-scroll-zone--left {
-  left: 0;
-}
-
-.garden-flower-scroll-zone--right {
-  right: 0;
-}
-
 .app-shell--garden-editor .app-bottom-toolbar {
   bottom: auto;
   top: max(0.65rem, calc(env(safe-area-inset-top, 0px) + 0.35rem));
-}
-
-.garden-flower-scroll-zone:disabled {
-  cursor: default;
-  pointer-events: none;
 }
 
 /* Garden reveal — venetian blinds lift tasks to show bottom flowers */
@@ -3915,6 +4001,24 @@ body {
   font-weight: 700;
   margin: 0 0 0.75rem;
   color: var(--text, #4a3040);
+}
+
+.level-unlock-overlay__prefix {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--text, #4a3040);
+}
+
+.level-unlock-overlay__intro {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 1.05rem;
+  color: var(--text, #4a3040);
+  white-space: pre-line;
+}
+
+.level-unlock-overlay__card--intro {
+  max-width: 26rem;
 }
 
 .mode2-unlock__headline--big {

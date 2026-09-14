@@ -13,7 +13,9 @@ import type {
   LayoutConfig,
   LevelsConfig,
   SurfacesConfig,
+  AmbientBirdPoolConfig,
 } from './types';
+import { parseAmbientBirdPoolConfig } from './ambientBirdPool';
 
 export type { GardenPhase };
 
@@ -111,6 +113,8 @@ export interface GardenConfig {
   levelsConfig: LevelsConfig;
   layoutConfig: LayoutConfig;
   surfacesConfig?: SurfacesConfig;
+  /** Mode2: ambient bird on-screen cap + visit cycle (from mode2.yaml). */
+  ambientBirdPool?: AmbientBirdPoolConfig;
   designWidth: number;
   designHeight: number;
   stageHeight: number;
@@ -134,6 +138,10 @@ function buildGardenConfig(
   const designWidth = layoutConfig.scene?.designWidth ?? 2400;
   const designHeight = layoutConfig.scene?.designHeight ?? 320;
   const stageHeight = designHeight + GARDEN_HEADROOM_TOP;
+  const ambientBirdPool =
+    phase === 'mode2'
+      ? parseAmbientBirdPoolConfig(levelsConfig.ambientBirds)
+      : undefined;
 
   return {
     variant,
@@ -141,6 +149,7 @@ function buildGardenConfig(
     levelsConfig,
     layoutConfig,
     surfacesConfig,
+    ambientBirdPool,
     designWidth,
     designHeight,
     stageHeight,

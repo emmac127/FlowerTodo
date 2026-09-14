@@ -340,6 +340,55 @@ export function useTasks(variant: AppVariant = 'default') {
     );
   }, []);
 
+  /**
+   * Rewind the current mode's garden progress to `targetCount` without wiping
+   * mode2 unlock (unlike a full reset). Completed tasks past the target are
+   * unmarked so the list stays consistent with garden progress.
+   */
+  const resetGardenToProgress = useCallback(
+    (targetCount: number, phase: 'mode1' | 'mode2') => {
+      const safe = Math.max(0, Math.floor(targetCount));
+      if (isDefault && phase === 'mode2') {
+        setPhaseState((prev) => ({
+          ...prev,
+          mode2ProgressCount: safe,
+          mode2Unlocked: true,
+          activeGardenPhase: 'mode2',
+        }));
+      } else {
+        setGardenProgressCount(safe);
+        if (isDefault) {
+          setPhaseState((prev) => ({
+            ...prev,
+            mode1FrozenProgressCount: safe,
+          }));
+        }
+      }
+      setTasks((prev) =>
+        renumberCompleted(
+          prev.map((t) => {
+            if (
+              t.completed &&
+              t.completionIndex != null &&
+              t.completionIndex > safe
+            ) {
+              return {
+                ...t,
+                completed: false,
+                completionIndex: undefined,
+                plantSlot: undefined,
+                plantX: undefined,
+                gardenRevealed: undefined,
+                releaseToBottomAt: undefined,
+              };
+            }
+            return t;
+          }),
+        ),
+      );
+    },
+    [isDefault],
+  );
   const setGardenProgressForDev = useCallback(
     (target: number, devPhase?: 'mode1' | 'mode2') => {
       const safe = Math.max(0, Math.floor(target));
@@ -436,6 +485,7 @@ export function useTasks(variant: AppVariant = 'default') {
     reorderTaskToIndex,
     setGardenProgressForDev,
     resetGardenLevel,
+    resetGardenToProgress,
     resetAllGardenState,
     unlockMode2,
     completeMode2Onboarding,

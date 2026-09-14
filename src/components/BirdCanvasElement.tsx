@@ -20,7 +20,9 @@ import {
   snapNormalizedPosition,
 } from '../lib/garden/gardenPixelSnap';
 
-type BirdState = 'idle' | 'hop' | 'wingflap' | 'peck';
+type BirdState = 'idle' | 'hop' | 'wingflap' | 'peck' | 'transit';
+
+export type BirdTransitMode = 'depart' | 'arrive';
 
 interface HopAnim {
   fromX: number;
@@ -31,17 +33,33 @@ interface HopAnim {
   durationMs: number;
   /** Loop wingflap frames for the full hop (long-distance hops). */
   loopWingflap: boolean;
+  /** When set, invoke after the hop finishes (fly-off / fly-in). */
+  onComplete?: () => void;
 }
 
 const MIN_HOP_DURATION_MS = 150;
+/** Extra normalized margin so the full sprite clears the viewport. */
+const OFFSCREEN_MARGIN = 0.04;
+/** Slightly brisker than normal hops for enter/exit flights. */
+const TRANSIT_NORM_PER_SEC = 0.18;
 
-function hopDistanceNorm(
+/**
+ * Path length in design-width units (same units as hopNormPerSec).
+ * Y is scaled by designHeight/designWidth so screen travel matches duration —
+ * the canvas is much wider than tall, so raw hypot(dx, dy) would understate
+ * horizontal hops and overstate vertical ones.
+ */
+function hopDistanceWidthUnits(
   fromX: number,
   fromY: number,
   toX: number,
   toY: number,
+  designWidth: number,
+  designHeight: number,
 ): number {
-  return Math.hypot(toX - fromX, toY - fromY);
+  const dx = toX - fromX;
+  const dy = (toY - fromY) * (designHeight / designWidth);
+  return Math.hypot(dx, dy);
 }
 
 function idleDisplayWidthNorm(
@@ -63,9 +81,13 @@ function idleDisplayWidthNorm(
   return (displayH * aspect) / designWidth;
 }
 
-function hopDurationMs(distanceNorm: number, hopNormPerSec: number): number {
+/** Travel time for a constant speed of hopNormPerSec (width-units / sec). */
+function hopDurationMs(distanceWidthUnits: number, hopNormPerSec: number): number {
   if (hopNormPerSec <= 0) return MIN_HOP_DURATION_MS;
-  return Math.max(MIN_HOP_DURATION_MS, (distanceNorm / hopNormPerSec) * 1000);
+  return Math.max(
+    MIN_HOP_DURATION_MS,
+    (distanceWidthUnits / hopNormPerSec) * 1000,
+  );
 }
 
 interface BirdCanvasElementProps {
@@ -77,10 +99,31 @@ interface BirdCanvasElementProps {
   gardenScale: number;
   style: CSSProperties;
   className: string;
-  /** Other birds' collision boxes in world space (excludes this bird). */
+  /**
+   * Latest blocked footprints for other birds (current pose + hop destinations).
+   * Prefer {@link getBlockedCollisionRects} at hop-pick time for sync claims.
+   */
   otherBirdCollisionRects?: SurfaceRect[];
+  /** Sync read of blocked rects (includes other birds' reserved hop targets). */
+  getBlockedCollisionRects?: () => SurfaceRect[];
+  /**
+   * Reserve a hop landing spot so other birds cannot claim the same place.
+   * Returns false if the spot became blocked (caller should pick again).
+   * Pass `force: true` for scripted transit landings that must proceed.
+   */
+  onClaimHopTarget?: (
+    x: number,
+    y: number,
+    flipX: boolean,
+    options?: { force?: boolean },
+  ) => boolean;
+  /** Clear this bird's reserved hop landing spot. */
+  onReleaseHopTarget?: () => void;
   onPositionChange?: (x: number, y: number, flipX: boolean) => void;
   onPointerDown?: (event: ReactPointerEvent<HTMLImageElement>) => void;
+  /** Mode2 pool: fly fully off-screen (depart) or in from off-screen (arrive). */
+  transit?: BirdTransitMode | null;
+  onTransitComplete?: () => void;
 }
 
 function randomBetween(min: number, max: number): number {
@@ -90,6 +133,31 @@ function randomBetween(min: number, max: number): number {
 /** Snap resting position only — not while hopping between surfaces. */
 function shouldSnapBirdPosition(state: BirdState): boolean {
   return state === 'idle' || state === 'wingflap' || state === 'peck';
+}
+
+function halfWidthNorm(
+  idleNatural: { width: number; height: number } | null,
+  layoutNaturalHeight: number | null,
+  element: PlacedElement,
+  designWidth: number,
+): number {
+  return (
+    idleDisplayWidthNorm(
+      idleNatural,
+      layoutNaturalHeight,
+      element,
+      designWidth,
+    ) / 2
+  );
+}
+
+/** Target x so the full sprite (bottom-center anchor) clears the viewport. */
+function offscreenX(
+  side: 'left' | 'right',
+  halfW: number,
+): number {
+  if (side === 'left') return -halfW - OFFSCREEN_MARGIN;
+  return 1 + halfW + OFFSCREEN_MARGIN;
 }
 
 function pickIdleAction(
@@ -110,7 +178,7 @@ function pickIdleAction(
   return 'wait';
 }
 
-const HOP_TARGET_ATTEMPTS = 32;
+const HOP_TARGET_ATTEMPTS = 48;
 
 function pickHopTarget(
   behavior: PlacedBirdBehavior,
@@ -120,6 +188,9 @@ function pickHopTarget(
   collisionBox: PlacedElement['birdCollisionBox'],
   otherRects: SurfaceRect[],
   preferFly: boolean | null,
+  designWidth: number,
+  designHeight: number,
+  claimTarget?: (x: number, y: number, flipX: boolean) => boolean,
 ): { x: number; y: number } | null {
   let fallback: { x: number; y: number } | null = null;
   for (let attempt = 0; attempt < HOP_TARGET_ATTEMPTS; attempt++) {
@@ -130,12 +201,39 @@ function pickHopTarget(
       fromX,
     );
     if (!candidate) continue;
-    fallback = candidate;
-    if (preferFly == null) return candidate;
+
+    const tryClaim = () => {
+      if (!claimTarget) return true;
+      return claimTarget(candidate.x, candidate.y, candidate.x < fromX);
+    };
+
+    if (preferFly == null) {
+      if (!tryClaim()) continue;
+      return candidate;
+    }
+
     const isLong =
-      hopDistanceNorm(fromX, fromY, candidate.x, candidate.y) >
-      idleWidthNorm;
-    if (preferFly === isLong) return candidate;
+      hopDistanceWidthUnits(
+        fromX,
+        fromY,
+        candidate.x,
+        candidate.y,
+        designWidth,
+        designHeight,
+      ) > idleWidthNorm;
+    if (preferFly === isLong) {
+      if (!tryClaim()) continue;
+      return candidate;
+    }
+    if (!fallback) fallback = candidate;
+  }
+
+  if (!fallback) return null;
+  if (
+    claimTarget &&
+    !claimTarget(fallback.x, fallback.y, fallback.x < fromX)
+  ) {
+    return null;
   }
   return fallback;
 }
@@ -149,8 +247,13 @@ export function BirdCanvasElement({
   style,
   className,
   otherBirdCollisionRects = [],
+  getBlockedCollisionRects,
+  onClaimHopTarget,
+  onReleaseHopTarget,
   onPositionChange,
   onPointerDown,
+  transit = null,
+  onTransitComplete,
 }: BirdCanvasElementProps) {
   const [state, setState] = useState<BirdState>('idle');
   const [posX, setPosX] = useState(element.x);
@@ -167,9 +270,15 @@ export function BirdCanvasElement({
   const posRef = useRef({ x: element.x, y: element.y });
   const behaviorRef = useRef(behavior);
   const otherRectsRef = useRef(otherBirdCollisionRects);
+  const getBlockedRectsRef = useRef(getBlockedCollisionRects);
+  const onClaimHopTargetRef = useRef(onClaimHopTarget);
+  const onReleaseHopTargetRef = useRef(onReleaseHopTarget);
   const elementRef = useRef(element);
   const onPositionChangeRef = useRef(onPositionChange);
+  const onTransitCompleteRef = useRef(onTransitComplete);
   const idleNaturalRef = useRef<{ width: number; height: number } | null>(null);
+  const transitStartedRef = useRef<BirdTransitMode | null>(null);
+  const hopTargetClaimedRef = useRef(false);
 
   const idleFrameUrl =
     behavior.idleFrames[behavior.idleFrame] ??
@@ -178,8 +287,12 @@ export function BirdCanvasElement({
 
   behaviorRef.current = behavior;
   otherRectsRef.current = otherBirdCollisionRects;
+  getBlockedRectsRef.current = getBlockedCollisionRects;
+  onClaimHopTargetRef.current = onClaimHopTarget;
+  onReleaseHopTargetRef.current = onReleaseHopTarget;
   elementRef.current = element;
   onPositionChangeRef.current = onPositionChange;
+  onTransitCompleteRef.current = onTransitComplete;
 
   useEffect(() => {
     idleNaturalRef.current = null;
@@ -196,10 +309,11 @@ export function BirdCanvasElement({
   }, [idleFrameUrl]);
 
   useEffect(() => {
+    if (transit) return;
     posRef.current = { x: element.x, y: element.y };
     setPosX(element.x);
     setPosY(element.y);
-  }, [element.x, element.y]);
+  }, [element.x, element.y, transit]);
 
   useEffect(() => {
     flipRef.current = element.flipX;
@@ -261,6 +375,12 @@ export function BirdCanvasElement({
     setNaturalHeight(getCachedNaturalHeight(measureKey));
   }, [measureKey]);
 
+  const releaseHopTarget = useCallback(() => {
+    if (!hopTargetClaimedRef.current) return;
+    hopTargetClaimedRef.current = false;
+    onReleaseHopTargetRef.current?.();
+  }, []);
+
   const clearTimers = useCallback(() => {
     animGenRef.current += 1;
     if (idleTimerRef.current) {
@@ -275,7 +395,31 @@ export function BirdCanvasElement({
       cancelAnimationFrame(hopRafRef.current);
       hopRafRef.current = 0;
     }
+    releaseHopTarget();
+  }, [releaseHopTarget]);
+
+  const blockedRectsNow = useCallback((): SurfaceRect[] => {
+    return getBlockedRectsRef.current?.() ?? otherRectsRef.current;
   }, []);
+
+  const claimHopTarget = useCallback(
+    (
+      x: number,
+      y: number,
+      facingFlipX: boolean,
+      options?: { force?: boolean },
+    ): boolean => {
+      const claim = onClaimHopTargetRef.current;
+      if (!claim) {
+        hopTargetClaimedRef.current = true;
+        return true;
+      }
+      if (!claim(x, y, facingFlipX, options)) return false;
+      hopTargetClaimedRef.current = true;
+      return true;
+    },
+    [],
+  );
 
   const resetToIdlePose = useCallback(() => {
     const b = behaviorRef.current;
@@ -310,11 +454,12 @@ export function BirdCanvasElement({
       const b = behaviorRef.current;
       const el = elementRef.current;
       const { x, y } = posRef.current;
+      const blocked = blockedRectsNow();
       const overlaps = hopAnchorOverlapsOthers(
         x,
         y,
         el.birdCollisionBox,
-        otherRectsRef.current,
+        blocked,
         flipRef.current,
       );
       const action =
@@ -337,19 +482,24 @@ export function BirdCanvasElement({
           from.y,
           idleWidthNorm,
           el.birdCollisionBox,
-          otherRectsRef.current,
+          blockedRectsNow(),
           preferFly,
+          designWidth,
+          designHeight,
+          claimHopTarget,
         );
         if (target) {
-          const distanceNorm = hopDistanceNorm(
+          const distanceWidthUnits = hopDistanceWidthUnits(
             from.x,
             from.y,
             target.x,
             target.y,
+            designWidth,
+            designHeight,
           );
           const loopWingflap =
-            distanceNorm > idleWidthNorm && b.wingflapFrames.length > 1;
-          const durationMs = hopDurationMs(distanceNorm, b.hopNormPerSec);
+            distanceWidthUnits > idleWidthNorm && b.wingflapFrames.length > 1;
+          const durationMs = hopDurationMs(distanceWidthUnits, b.hopNormPerSec);
           setFacing(target.x < from.x);
           const hopGen = animGenRef.current;
           setHopAnim({
@@ -426,25 +576,107 @@ export function BirdCanvasElement({
     clearTimers,
     resetToIdlePose,
     designWidth,
+    designHeight,
     naturalHeight,
     startHopWingflapLoop,
     syncRestPosition,
+    blockedRectsNow,
+    claimHopTarget,
   ]);
 
   useEffect(() => {
-    if (!behavior.hopEnabled) return;
+    if (!behavior.hopEnabled || transit) return;
     scheduleIdle();
     return clearTimers;
-  }, [behavior.hopEnabled, scheduleIdle, clearTimers]);
+  }, [behavior.hopEnabled, scheduleIdle, clearTimers, transit]);
+
+  // Mode2 pool: fly fully off-screen or in from off-screen.
+  useEffect(() => {
+    if (!transit) {
+      transitStartedRef.current = null;
+      return;
+    }
+    if (transitStartedRef.current === transit) return;
+    transitStartedRef.current = transit;
+
+    clearTimers();
+    const el = elementRef.current;
+    const halfW = halfWidthNorm(
+      idleNaturalRef.current,
+      naturalHeight,
+      el,
+      designWidth,
+    );
+    const side: 'left' | 'right' = Math.random() < 0.5 ? 'left' : 'right';
+    const offX = offscreenX(side, Math.max(halfW, 0.06));
+    const from = posRef.current;
+    let fromX = from.x;
+    let fromY = from.y;
+    let toX = from.x;
+    let toY = from.y;
+
+    if (transit === 'depart') {
+      toX = offX;
+      toY = Math.max(0.15, from.y - 0.12);
+      setFacing(toX < fromX);
+    } else {
+      fromX = offX;
+      fromY = Math.max(0.15, el.y - 0.08);
+      toX = el.x;
+      toY = el.y;
+      posRef.current = { x: fromX, y: fromY };
+      setPosX(fromX);
+      setPosY(fromY);
+      setFacing(toX < fromX);
+    }
+
+    // Reserve the landing (or exit) so other birds do not claim it mid-flight.
+    claimHopTarget(toX, toY, toX < fromX, { force: true });
+
+    const distanceWidthUnits = hopDistanceWidthUnits(
+      fromX,
+      fromY,
+      toX,
+      toY,
+      designWidth,
+      designHeight,
+    );
+    const durationMs = hopDurationMs(distanceWidthUnits, TRANSIT_NORM_PER_SEC);
+    const hopGen = animGenRef.current;
+    setHopAnim({
+      fromX,
+      fromY,
+      toX,
+      toY,
+      startMs: performance.now(),
+      durationMs,
+      loopWingflap: behaviorRef.current.wingflapFrames.length > 1,
+      onComplete: () => onTransitCompleteRef.current?.(),
+    });
+    setState('transit');
+    if (behaviorRef.current.wingflapFrames.length > 1) {
+      startHopWingflapLoop(hopGen);
+    }
+  }, [
+    transit,
+    clearTimers,
+    designWidth,
+    designHeight,
+    naturalHeight,
+    setFacing,
+    startHopWingflapLoop,
+    claimHopTarget,
+    releaseHopTarget,
+  ]);
 
   useEffect(() => {
-    if (state !== 'hop' || !hopAnim) return;
+    if ((state !== 'hop' && state !== 'transit') || !hopAnim) return;
     const b = behaviorRef.current;
     const tick = (now: number) => {
+      // Linear progress → constant travel speed (duration already ∝ distance).
       const t = Math.min(1, (now - hopAnim.startMs) / hopAnim.durationMs);
-      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      const x = hopAnim.fromX + (hopAnim.toX - hopAnim.fromX) * ease;
-      const baseY = hopAnim.fromY + (hopAnim.toY - hopAnim.fromY) * ease;
+      const x = hopAnim.fromX + (hopAnim.toX - hopAnim.fromX) * t;
+      const baseY = hopAnim.fromY + (hopAnim.toY - hopAnim.fromY) * t;
       const arc = Math.sin(Math.PI * t) * 0.04;
       const y = baseY - arc;
       syncPosition(x, y);
@@ -455,8 +687,20 @@ export function BirdCanvasElement({
           clearTimeout(animTimerRef.current);
           animTimerRef.current = null;
         }
-        setFrameIndex(b.idleFrame);
+        const done = hopAnim.onComplete;
         setHopAnim(null);
+        releaseHopTarget();
+        if (done) {
+          setFrameIndex(b.idleFrame);
+          syncRestPosition(hopAnim.toX, hopAnim.toY);
+          setState('idle');
+          done();
+          if (transitStartedRef.current === 'arrive') {
+            scheduleIdle();
+          }
+          return;
+        }
+        setFrameIndex(b.idleFrame);
         syncRestPosition(hopAnim.toX, hopAnim.toY);
         setState('idle');
         scheduleIdle();
@@ -466,10 +710,18 @@ export function BirdCanvasElement({
     return () => {
       if (hopRafRef.current) cancelAnimationFrame(hopRafRef.current);
     };
-  }, [state, hopAnim, scheduleIdle, syncPosition, syncRestPosition]);
+  }, [
+    state,
+    hopAnim,
+    scheduleIdle,
+    syncPosition,
+    syncRestPosition,
+    releaseHopTarget,
+  ]);
 
   const src =
-    state === 'wingflap' || (state === 'hop' && hopAnim?.loopWingflap)
+    state === 'wingflap' ||
+    ((state === 'hop' || state === 'transit') && hopAnim?.loopWingflap)
       ? (behavior.wingflapFrames[frameIndex] ?? idleSrc)
       : state === 'peck'
         ? (behavior.peckFrames[frameIndex] ?? idleSrc)

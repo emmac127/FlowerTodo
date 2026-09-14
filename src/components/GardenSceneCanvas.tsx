@@ -7,7 +7,9 @@ import {
 import type { BirdCollisionBox, PlacedElement, SurfaceRect } from '../lib/garden/types';
 import { surfaceUnlockLevel } from '../lib/garden/surfaces';
 import {
+  birdFootprintRect,
   collisionBoxFromWorldRect,
+  hopAnchorOverlapsOthers,
   worldBirdCollisionRect,
 } from '../lib/garden/birdCollision';
 import { isSurfaceEditorId } from '../lib/garden/surfaceEditorIds';
@@ -40,7 +42,7 @@ interface GardenSceneCanvasProps {
   bandReady?: boolean;
   /** Id of the element with the newest reveal (for a small pop-in). */
   newestId?: string | null;
-  /** Hide the newest flower until scroll is synced to its layout position. */
+  /** Hide the newest flower until its display size is measured. */
   awaitingNewestReveal?: boolean;
   gameplayNewestId?: string | null;
   /** Editor: id of the currently selected element. */
@@ -63,6 +65,9 @@ interface GardenSceneCanvasProps {
   dadDeliveryAwaitingDrop?: boolean;
   onDadDeliveryDrop?: () => void;
   onDadDeliveryComplete?: () => void;
+  /** Mode2 ambient pool: per-bird fly-off / fly-in. */
+  birdTransit?: Record<string, 'depart' | 'arrive'>;
+  onBirdTransitComplete?: (id: string) => void;
   onSelectElement?: (id: string) => void;
   onElementDrag?: (id: string, x: number, y: number) => void;
   onNewestDisplaySizeReady?: () => void;
@@ -144,6 +149,8 @@ export function GardenSceneCanvas({
   dadDeliveryAwaitingDrop = false,
   onDadDeliveryDrop,
   onDadDeliveryComplete,
+  birdTransit,
+  onBirdTransitComplete,
   onSelectElement,
   onElementDrag,
   onNewestDisplaySizeReady,
@@ -163,6 +170,12 @@ export function GardenSceneCanvas({
   const [birdPositions, setBirdPositions] = useState<
     Record<string, { x: number; y: number; flipX: boolean }>
   >({});
+  /** Sync occupancy for hop claims (avoids two birds reserving the same landing). */
+  const birdPositionsRef = useRef(birdPositions);
+  const birdHopTargetsRef = useRef<
+    Record<string, { x: number; y: number; flipX: boolean }>
+  >({});
+  birdPositionsRef.current = birdPositions;
   const surfaceSessionRef = useRef<
     | {
         mode: 'draw';
@@ -259,6 +272,81 @@ export function GardenSceneCanvas({
     },
     [],
   );
+
+  const buildBlockedRectsFor = useCallback(
+    (selfId: string): SurfaceRect[] => {
+      const rects: SurfaceRect[] = [];
+      const positions = birdPositionsRef.current;
+      const hopTargets = birdHopTargetsRef.current;
+      for (const other of birdElements) {
+        if (other.id === selfId) continue;
+        const pos = positions[other.id] ?? {
+          x: other.x,
+          y: other.y,
+          flipX: other.flipX,
+        };
+        rects.push(
+          birdFootprintRect(
+            other.id,
+            pos.x,
+            pos.y,
+            other.birdCollisionBox,
+            pos.flipX,
+          ),
+        );
+        const dest = hopTargets[other.id];
+        if (dest) {
+          rects.push(
+            birdFootprintRect(
+              `${other.id}:dest`,
+              dest.x,
+              dest.y,
+              other.birdCollisionBox,
+              dest.flipX,
+            ),
+          );
+        }
+      }
+      return rects;
+    },
+    [birdElements],
+  );
+
+  const claimHopTarget = useCallback(
+    (
+      id: string,
+      x: number,
+      y: number,
+      flipX: boolean,
+      options?: { force?: boolean },
+    ): boolean => {
+      const el = birdElements.find((bird) => bird.id === id);
+      if (!el) return false;
+      if (!options?.force) {
+        const blocked = buildBlockedRectsFor(id);
+        if (
+          hopAnchorOverlapsOthers(x, y, el.birdCollisionBox, blocked, flipX)
+        ) {
+          return false;
+        }
+      }
+      birdHopTargetsRef.current[id] = { x, y, flipX };
+      return true;
+    },
+    [birdElements, buildBlockedRectsFor],
+  );
+
+  const releaseHopTarget = useCallback((id: string) => {
+    delete birdHopTargetsRef.current[id];
+  }, []);
+
+  useEffect(() => {
+    if (editable) return;
+    const liveIds = new Set(birdElements.map((el) => el.id));
+    for (const id of Object.keys(birdHopTargetsRef.current)) {
+      if (!liveIds.has(id)) delete birdHopTargetsRef.current[id];
+    }
+  }, [birdElements, editable]);
 
   useLayoutEffect(() => {
     if (!bandReady) return;
@@ -569,12 +657,18 @@ export function GardenSceneCanvas({
   const commitCollisionWorldRect = useCallback(
     (birdId: string, anchorX: number, anchorY: number, rect: SurfaceRect) => {
       if (!onSetCollisionBox) return;
+      const bird = elements.find((item) => item.id === birdId);
       onSetCollisionBox(
         birdId,
-        collisionBoxFromWorldRect(anchorX, anchorY, rect),
+        collisionBoxFromWorldRect(
+          anchorX,
+          anchorY,
+          rect,
+          bird?.flipX === true,
+        ),
       );
     },
-    [onSetCollisionBox],
+    [onSetCollisionBox, elements],
   );
 
   const handleCollisionPointerDown = useCallback(
@@ -1163,22 +1257,7 @@ export function GardenSceneCanvas({
               const isPendingDelivery =
                 dadDeliveryAwaitingDrop && el.id === dadDeliveryElement?.id;
               if (isPendingDelivery) return null;
-              const otherRects = birdElements
-                .filter((other) => other.id !== el.id && other.birdCollisionBox)
-                .map((other) => {
-                  const otherPos = birdPositions[other.id] ?? {
-                    x: other.x,
-                    y: other.y,
-                    flipX: other.flipX,
-                  };
-                  const world = worldBirdCollisionRect(
-                    otherPos.x,
-                    otherPos.y,
-                    other.birdCollisionBox!,
-                    otherPos.flipX,
-                  );
-                  return { ...world, id: other.id };
-                });
+              const otherRects = buildBlockedRectsFor(el.id);
               const elStyle: CSSProperties = {
                 left: `${el.x * designWidth}px`,
                 bottom: `${(1 - el.y) * designHeight}px`,
@@ -1197,6 +1276,17 @@ export function GardenSceneCanvas({
                   className="garden-canvas__el garden-canvas__el--bird"
                   style={elStyle}
                   otherBirdCollisionRects={otherRects}
+                  getBlockedCollisionRects={() => buildBlockedRectsFor(el.id)}
+                  onClaimHopTarget={(x, y, flipX, options) =>
+                    claimHopTarget(el.id, x, y, flipX, options)
+                  }
+                  onReleaseHopTarget={() => releaseHopTarget(el.id)}
+                  transit={birdTransit?.[el.id] ?? null}
+                  onTransitComplete={
+                    onBirdTransitComplete
+                      ? () => onBirdTransitComplete(el.id)
+                      : undefined
+                  }
                   onPositionChange={(x, y, flipX) =>
                     handleBirdPositionChange(el.id, x, y, flipX)
                   }

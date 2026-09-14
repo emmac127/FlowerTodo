@@ -8,6 +8,8 @@ interface LevelUnlockOverlayProps {
   itemName: string;
   itemImage: string | null;
   muted: boolean;
+  /** Optional text shown before the gift-box unlock (from mode2.yaml). */
+  introText?: string | null;
   onDismiss: () => void;
 }
 
@@ -16,19 +18,26 @@ export function LevelUnlockOverlay({
   itemName,
   itemImage,
   muted,
+  introText = null,
   onDismiss,
 }: LevelUnlockOverlayProps) {
-  const [phase, setPhase] = useState<'buildup' | 'reveal'>('buildup');
+  const [phase, setPhase] = useState<'intro' | 'buildup' | 'reveal'>(() =>
+    introText ? 'intro' : 'buildup',
+  );
   const [burstActive, setBurstActive] = useState(false);
 
   useEffect(() => {
     if (active) {
-      setPhase('buildup');
+      setPhase(introText ? 'intro' : 'buildup');
       setBurstActive(false);
     }
-  }, [active, itemName]);
+  }, [active, itemName, introText]);
 
   const handleTap = useCallback(() => {
+    if (phase === 'intro') {
+      setPhase('buildup');
+      return;
+    }
     if (phase === 'buildup') {
       void playUnlockBuildUpSound(muted);
       setBurstActive(true);
@@ -47,6 +56,13 @@ export function LevelUnlockOverlay({
       aria-modal="true"
       onClick={handleTap}
     >
+      {phase === 'intro' && introText && (
+        <div className="level-unlock-overlay__card level-unlock-overlay__card--intro">
+          <p className="level-unlock-overlay__intro">{introText}</p>
+          <p className="mode2-unlock__hint">{MODE2_UNLOCK_STRINGS.tapToContinue}</p>
+        </div>
+      )}
+
       {phase === 'buildup' && (
         <div className="level-unlock-overlay__card">
           <p className="level-unlock-overlay__prefix">

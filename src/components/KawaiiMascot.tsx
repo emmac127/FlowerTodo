@@ -103,7 +103,7 @@ export const KawaiiMascot = forwardRef<HTMLDivElement, KawaiiMascotProps>(
                   className="reset-garden-btn"
                   onClick={onResetGarden}
                   disabled={resetGardenDisabled}
-                  title="Start your garden over at level 0; tasks stay on your list"
+                  title="Rewind garden progress to an earlier unlocked level"
                 >
                   Reset garden
                 </button>
